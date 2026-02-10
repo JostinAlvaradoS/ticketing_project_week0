@@ -51,9 +51,14 @@ public class TicketPaymentConsumer
     {
         var channel = _connection.GetChannel();
 
+        _logger.LogInformation(
+            "[Consumer] Mensaje recibido. RoutingKey: {RoutingKey}, DeliveryTag: {DeliveryTag}, Exchange: {Exchange}",
+            args.RoutingKey, args.DeliveryTag, args.Exchange);
+
         try
         {
             var json = Encoding.UTF8.GetString(args.Body.ToArray());
+            _logger.LogInformation("[Consumer] Payload recibido: {Json}", json);
 
             using var scope = _scopeFactory.CreateScope();
             var validationService = scope.ServiceProvider
@@ -61,24 +66,37 @@ public class TicketPaymentConsumer
 
             if (args.RoutingKey == "ticket.payments.approved")
             {
+                _logger.LogInformation("[Consumer] Procesando evento APPROVED...");
                 var evt = JsonSerializer.Deserialize<PaymentApprovedEvent>(json);
-                await validationService.ValidateAndProcessApprovedPaymentAsync(evt);
+                _logger.LogInformation("[Consumer] Evento deserializado: TicketId={TicketId}, EventId={EventId}, OrderId={OrderId}",
+                    evt?.TicketId, evt?.EventId, evt?.OrderId);
+                var result = await validationService.ValidateAndProcessApprovedPaymentAsync(evt);
+                _logger.LogInformation("[Consumer] Resultado validación: IsSuccess={IsSuccess}, FailureReason={FailureReason}",
+                    result.IsSuccess, result.FailureReason);
+                HandleResult(result, channel, args);
             }
             else if (args.RoutingKey == "ticket.payments.rejected")
             {
+                _logger.LogInformation("[Consumer] Procesando evento REJECTED...");
                 var evt = JsonSerializer.Deserialize<PaymentRejectedEvent>(json);
-                await validationService.ValidateAndProcessRejectedPaymentAsync(evt);
+                _logger.LogInformation("[Consumer] Evento deserializado: TicketId={TicketId}", evt?.TicketId);
+                var result = await validationService.ValidateAndProcessRejectedPaymentAsync(evt);
+                _logger.LogInformation("[Consumer] Resultado validación: IsSuccess={IsSuccess}, FailureReason={FailureReason}",
+                    result.IsSuccess, result.FailureReason);
+                HandleResult(result, channel, args);
             }
             else
             {
                 _logger.LogWarning(
-                    "Evento con routing key desconocida: {RoutingKey}",
+                    "[Consumer] Evento con routing key desconocida: {RoutingKey}",
                     args.RoutingKey);
+                channel.BasicAck(args.DeliveryTag, false);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error procesando evento {RoutingKey}", args.RoutingKey);
+            _logger.LogError(ex, "[Consumer] Error procesando evento. RoutingKey: {RoutingKey}, DeliveryTag: {DeliveryTag}",
+                args.RoutingKey, args.DeliveryTag);
 
             channel.BasicNack(
                 deliveryTag: args.DeliveryTag,

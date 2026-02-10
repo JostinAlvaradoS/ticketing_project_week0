@@ -49,7 +49,8 @@ public class RabbitMQConnection : IDisposable
                 Password = _settings.Password,
                 VirtualHost = _settings.VirtualHost,
                 AutomaticRecoveryEnabled = true,
-                NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
+                NetworkRecoveryInterval = TimeSpan.FromSeconds(10),
+                DispatchConsumersAsync = true
             };
 
             _connection = factory.CreateConnection();

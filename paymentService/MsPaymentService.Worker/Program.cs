@@ -16,6 +16,7 @@ builder.Services.AddLogging(config =>
 builder.Services.AddDatabaseServices(builder.Configuration);
 builder.Services.AddApplicationServices();
 builder.Services.AddRepositories();
+builder.Services.AddTicketPaymentConsumer();
 
 builder.Services.AddHostedService<Worker>();
 

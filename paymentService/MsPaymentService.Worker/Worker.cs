@@ -2,10 +2,12 @@ namespace MsConsumerRabbit.Worker;
 
 public class Worker : BackgroundService
 {
+    private readonly TicketPaymentConsumer _consumer;
     private readonly ILogger<Worker> _logger;
 
-    public Worker(ILogger<Worker> logger)
+    public Worker(TicketPaymentConsumer consumer, ILogger<Worker> logger)
     {
+        _consumer = consumer;
         _logger = logger;
     }
 
@@ -17,7 +19,8 @@ public class Worker : BackgroundService
             {
                 _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
             }
-            await Task.Delay(1000, stoppingToken);
+            _consumer.Start();
+            return Task.Delay(Timeout.Infinite, stoppingToken);
         }
     }
 }

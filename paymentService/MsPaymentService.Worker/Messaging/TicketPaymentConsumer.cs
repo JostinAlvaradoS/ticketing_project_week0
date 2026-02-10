@@ -4,9 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Client;
-using MsPaymentService.Worker.Models.Events;
+using PaymentService.Api.Models.Events;
 
-namespace MsPaymentService.Worker.Messaging;
+namespace PaymentService.Api.Messaging.RabbitMQ;
 
 public class TicketPaymentConsumer
 {

@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using MsConsumerRabbit.Worker;
+using MsPaymentService.Worker;
 using PaymentService.Api.Data;
 using PaymentService.Api.Extensions;
 

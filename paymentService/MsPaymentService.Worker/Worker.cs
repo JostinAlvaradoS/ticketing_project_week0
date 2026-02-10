@@ -1,4 +1,6 @@
-namespace MsConsumerRabbit.Worker;
+using PaymentService.Api.Messaging.RabbitMQ;
+
+namespace MsPaymentService.Worker;
 
 public class Worker : BackgroundService
 {
@@ -20,7 +22,7 @@ public class Worker : BackgroundService
                 _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
             }
             _consumer.Start();
-            return Task.Delay(Timeout.Infinite, stoppingToken);
+            await Task.Delay(Timeout.Infinite, stoppingToken);
         }
     }
 }

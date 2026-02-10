@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
-using MsPaymentService.Worker.Messaging;
+using PaymentService.Api.Messaging.RabbitMQ;
 
-namespace MsPaymentService.Worker.Extensions;
+namespace PaymentService.Api.Extensions;
 
 public static class ConsumerExtensions
 {

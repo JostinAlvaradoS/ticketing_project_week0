@@ -20,7 +20,6 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         
         builder.Property(p => p.Status)
             .HasColumnName("status")
-            .HasConversion<string>()
             .IsRequired();
             
         builder.Property(p => p.ProviderRef)

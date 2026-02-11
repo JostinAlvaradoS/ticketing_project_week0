@@ -20,7 +20,6 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         
         builder.Property(t => t.Status)
             .HasColumnName("status")
-            .HasConversion<string>()
             .IsRequired();
         
         builder.Property(t => t.ReservedAt)

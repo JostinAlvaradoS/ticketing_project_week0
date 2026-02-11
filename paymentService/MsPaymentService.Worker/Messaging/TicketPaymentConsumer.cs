@@ -15,6 +15,10 @@ public class TicketPaymentConsumer
     private readonly RabbitMQConnection _connection;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<TicketPaymentConsumer> _logger;
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     public TicketPaymentConsumer(
         RabbitMQConnection connection,
@@ -67,7 +71,7 @@ public class TicketPaymentConsumer
             if (args.RoutingKey == "ticket.payments.approved")
             {
                 _logger.LogInformation("[Consumer] Procesando evento APPROVED...");
-                var evt = JsonSerializer.Deserialize<PaymentApprovedEvent>(json);
+                var evt = JsonSerializer.Deserialize<PaymentApprovedEvent>(json, _jsonOptions);
                 _logger.LogInformation("[Consumer] Evento deserializado: TicketId={TicketId}, EventId={EventId}, OrderId={OrderId}",
                     evt?.TicketId, evt?.EventId, evt?.OrderId);
                 var result = await validationService.ValidateAndProcessApprovedPaymentAsync(evt);
@@ -78,7 +82,7 @@ public class TicketPaymentConsumer
             else if (args.RoutingKey == "ticket.payments.rejected")
             {
                 _logger.LogInformation("[Consumer] Procesando evento REJECTED...");
-                var evt = JsonSerializer.Deserialize<PaymentRejectedEvent>(json);
+                var evt = JsonSerializer.Deserialize<PaymentRejectedEvent>(json, _jsonOptions);
                 _logger.LogInformation("[Consumer] Evento deserializado: TicketId={TicketId}", evt?.TicketId);
                 var result = await validationService.ValidateAndProcessRejectedPaymentAsync(evt);
                 _logger.LogInformation("[Consumer] Resultado validación: IsSuccess={IsSuccess}, FailureReason={FailureReason}",

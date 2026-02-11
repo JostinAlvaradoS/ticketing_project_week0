@@ -20,12 +20,10 @@ public class TicketHistoryConfiguration : IEntityTypeConfiguration<TicketHistory
         
         builder.Property(h => h.OldStatus)
             .HasColumnName("old_status")
-            .HasConversion<string>()
             .IsRequired();
             
         builder.Property(h => h.NewStatus)
             .HasColumnName("new_status")
-            .HasConversion<string>()
             .IsRequired();
             
         builder.Property(h => h.ChangedAt)

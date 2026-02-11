@@ -92,3 +92,6 @@ temp/
 
 # Keep IDE/editor specific files out
 *.idea/
+
+
+.github/copilot-instructions.md

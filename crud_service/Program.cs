@@ -3,11 +3,12 @@ using CrudService.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuración de logging
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
+// Cargar variables de entorno
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+    .AddEnvironmentVariables();
 
-// Agregar servicios
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

@@ -24,7 +24,13 @@ public static class RabbitMQExtensions
         // Registrar la conexión de RabbitMQ como singleton
         services.AddSingleton<IConnection>(provider =>
         {
+            var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("RabbitMQ.Configuration");
             var options = provider.GetRequiredService<IOptions<RabbitMQOptions>>().Value;
+
+            logger.LogInformation("Configurando conexión RabbitMQ: Host={Host}, Port={Port}, VirtualHost={VirtualHost}",
+                options.Host, options.Port, options.VirtualHost);
+
             var factory = new ConnectionFactory
             {
                 HostName = options.Host,
@@ -33,10 +39,22 @@ public static class RabbitMQExtensions
                 Password = options.Password,
                 VirtualHost = options.VirtualHost,
                 AutomaticRecoveryEnabled = true,
-                NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
+                NetworkRecoveryInterval = TimeSpan.FromSeconds(10),
+                RequestedConnectionTimeout = TimeSpan.FromSeconds(30),
+                RequestedHeartbeat = TimeSpan.FromSeconds(10)
             };
 
-            return factory.CreateConnection();
+            try
+            {
+                var connection = factory.CreateConnection();
+                logger.LogInformation("Conexión RabbitMQ establecida exitosamente");
+                return connection;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error al conectar con RabbitMQ");
+                throw;
+            }
         });
 
         // Registrar el publicador

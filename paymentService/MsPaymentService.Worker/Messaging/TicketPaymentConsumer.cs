@@ -1,27 +1,25 @@
 using System.Text;
-using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Client;
 using MsPaymentService.Worker.Configurations;
-using MsPaymentService.Worker.Models.Events;
+using MsPaymentService.Worker.Handlers;
 using MsPaymentService.Worker.Models.DTOs;
-using MsPaymentService.Worker.Services;
 
 namespace MsPaymentService.Worker.Messaging.RabbitMQ;
 
+/// <summary>
+/// Responsabilidad única: consumir mensajes de RabbitMQ y delegar el procesamiento en el dispatcher.
+/// No conoce tipos de eventos ni lógica de negocio.
+/// </summary>
 public class TicketPaymentConsumer
 {
     private readonly RabbitMQConnection _connection;
     private readonly RabbitMQSettings _settings;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<TicketPaymentConsumer> _logger;
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
 
     public TicketPaymentConsumer(
         RabbitMQConnection connection,
@@ -52,8 +50,7 @@ public class TicketPaymentConsumer
 
         _logger.LogInformation(
             "TicketPaymentConsumer escuchando cola {Queue}",
-            queueName
-        );
+            queueName);
     }
 
     private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs args)
@@ -67,55 +64,41 @@ public class TicketPaymentConsumer
         try
         {
             var json = Encoding.UTF8.GetString(args.Body.ToArray());
-            _logger.LogInformation("[Consumer] Payload recibido: {Json}", json);
+            _logger.LogDebug("[Consumer] Payload: {Json}", json);
 
             using var scope = _scopeFactory.CreateScope();
-            var validationService = scope.ServiceProvider
-                .GetRequiredService<IPaymentValidationService>();
+            var dispatcher = scope.ServiceProvider.GetRequiredService<IPaymentEventDispatcher>();
 
-            if (args.RoutingKey == "ticket.payments.approved")
-            {
-                _logger.LogInformation("[Consumer] Procesando evento APPROVED...");
-                var evt = JsonSerializer.Deserialize<PaymentApprovedEvent>(json, _jsonOptions);
-                _logger.LogInformation("[Consumer] Evento deserializado: TicketId={TicketId}, EventId={EventId}, OrderId={OrderId}",
-                    evt?.TicketId, evt?.EventId, evt?.OrderId);
-                var result = await validationService.ValidateAndProcessApprovedPaymentAsync(evt);
-                _logger.LogInformation("[Consumer] Resultado validación: IsSuccess={IsSuccess}, FailureReason={FailureReason}",
-                    result.IsSuccess, result.FailureReason);
-                HandleResult(result, channel, args);
-            }
-            else if (args.RoutingKey == "ticket.payments.rejected")
-            {
-                _logger.LogInformation("[Consumer] Procesando evento REJECTED...");
-                var evt = JsonSerializer.Deserialize<PaymentRejectedEvent>(json, _jsonOptions);
-                _logger.LogInformation("[Consumer] Evento deserializado: TicketId={TicketId}", evt?.TicketId);
-                var result = await validationService.ValidateAndProcessRejectedPaymentAsync(evt);
-                _logger.LogInformation("[Consumer] Resultado validación: IsSuccess={IsSuccess}, FailureReason={FailureReason}",
-                    result.IsSuccess, result.FailureReason);
-                HandleResult(result, channel, args);
-            }
-            else
+            var result = await dispatcher.DispatchAsync(args.RoutingKey, json);
+
+            if (result == null)
             {
                 _logger.LogWarning(
-                    "[Consumer] Evento con routing key desconocida: {RoutingKey}",
+                    "[Consumer] No hay handler para la routing key: {RoutingKey}. ACK sin procesar.",
                     args.RoutingKey);
                 channel.BasicAck(args.DeliveryTag, false);
+                return;
             }
+
+            _logger.LogInformation(
+                "[Consumer] Resultado: IsSuccess={IsSuccess}, FailureReason={FailureReason}",
+                result.IsSuccess, result.FailureReason);
+            HandleResult(result, channel, args);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[Consumer] Error procesando evento. RoutingKey: {RoutingKey}, DeliveryTag: {DeliveryTag}",
+            _logger.LogError(ex,
+                "[Consumer] Error procesando evento. RoutingKey: {RoutingKey}, DeliveryTag: {DeliveryTag}",
                 args.RoutingKey, args.DeliveryTag);
 
             channel.BasicNack(
                 deliveryTag: args.DeliveryTag,
                 multiple: false,
-                requeue: false // DLQ
-            );
+                requeue: false);
         }
     }
 
-    private void HandleResult(
+    private static void HandleResult(
         ValidationResult result,
         IModel channel,
         BasicDeliverEventArgs args)
@@ -126,19 +109,15 @@ public class TicketPaymentConsumer
             return;
         }
 
-        // Error de negocio → NO requeue
         if (!string.IsNullOrEmpty(result.FailureReason))
         {
             channel.BasicAck(args.DeliveryTag, false);
             return;
         }
 
-        // Error técnico → DLQ
         channel.BasicNack(
             deliveryTag: args.DeliveryTag,
             multiple: false,
-            requeue: false
-        );
+            requeue: false);
     }
-
 }

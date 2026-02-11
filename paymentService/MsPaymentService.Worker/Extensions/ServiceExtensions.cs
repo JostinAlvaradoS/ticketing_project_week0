@@ -1,3 +1,4 @@
+using MsPaymentService.Worker.Handlers;
 using MsPaymentService.Worker.Repositories;
 using MsPaymentService.Worker.Services;
 
@@ -10,7 +11,12 @@ public static class ServiceExtensions
         // Services
         services.AddScoped<IPaymentValidationService, PaymentValidationService>();
         services.AddScoped<ITicketStateService, TicketStateService>();
-        
+
+        // Handlers (un handler por tipo de evento; OCP: añadir tipo = registrar nuevo handler)
+        services.AddScoped<IPaymentEventHandler, PaymentApprovedEventHandler>();
+        services.AddScoped<IPaymentEventHandler, PaymentRejectedEventHandler>();
+        services.AddScoped<IPaymentEventDispatcher, PaymentEventDispatcherImpl>();
+
         return services;
     }
     

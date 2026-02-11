@@ -1,0 +1,560 @@
+openapi: 3.0.0
+info:
+  title: Ticketing System API
+  description: Distributed event ticketing system with async reservation
+  version: 1.0.0
+  contact:
+    name: Ticketing Team
+    email: ticketing@sofka.dev
+
+servers:
+  - url: http://localhost:8002
+    description: CRUD Service (Development)
+    variables:
+      port:
+        default: '8002'
+  - url: http://localhost:8001
+    description: Producer Service (Development)
+    variables:
+      port:
+        default: '8001'
+
+tags:
+  - name: Events
+    description: Event management operations
+  - name: Tickets
+    description: Ticket operations (CRUD Service)
+  - name: Reservations
+    description: Async ticket reservations (Producer Service)
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Verify service is running and healthy
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, unhealthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+              example:
+                status: healthy
+                timestamp: "2026-02-10T23:45:30.1234567Z"
+
+  /api/events:
+    get:
+      summary: List all events
+      operationId: listEvents
+      tags:
+        - Events
+      responses:
+        '200':
+          description: List of all events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventDto'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      summary: Create new event
+      operationId: createEvent
+      tags:
+        - Events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '201':
+          description: Event created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/events/{id}:
+    get:
+      summary: Get event by ID
+      operationId: getEventById
+      tags:
+        - Events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      summary: Update event
+      operationId: updateEvent
+      tags:
+        - Events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventRequest'
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      summary: Delete event (cascades to tickets)
+      operationId: deleteEvent
+      tags:
+        - Events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      responses:
+        '204':
+          description: Event deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/tickets/event/{eventId}:
+    get:
+      summary: List tickets for event
+      operationId: getTicketsByEvent
+      tags:
+        - Tickets
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      responses:
+        '200':
+          description: List of tickets for event
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketDto'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/tickets/{id}:
+    get:
+      summary: Get ticket by ID
+      operationId: getTicketById
+      tags:
+        - Tickets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      responses:
+        '200':
+          description: Ticket details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      summary: Update ticket status
+      operationId: updateTicketStatus
+      tags:
+        - Tickets
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTicketStatusRequest'
+      responses:
+        '200':
+          description: Ticket updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict - ticket was modified by another user
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Conflicto de versión. El ticket fue modificado por otro usuario."
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/tickets/bulk:
+    post:
+      summary: Create tickets in bulk
+      operationId: createTicketsBulk
+      tags:
+        - Tickets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTicketsRequest'
+      responses:
+        '201':
+          description: Tickets created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  createdCount:
+                    type: integer
+                    example: 10
+                  tickets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TicketDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Event not found
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/tickets/reserve:
+    post:
+      summary: Reserve a ticket (async)
+      operationId: reserveTicket
+      tags:
+        - Reservations
+      description: |
+        Publish a ticket reservation event to RabbitMQ.
+        Returns 202 Accepted - the actual reservation is processed asynchronously.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveTicketRequest'
+      responses:
+        '202':
+          description: Reservation request accepted for async processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Reserva procesada"
+                  ticketId:
+                    type: integer
+                    example: 5
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  schemas:
+    EventDto:
+      type: object
+      required:
+        - id
+        - name
+        - startsAt
+        - availableTickets
+        - reservedTickets
+        - paidTickets
+      properties:
+        id:
+          type: integer
+          format: int32
+          example: 1
+        name:
+          type: string
+          maxLength: 200
+          example: "Concierto de Rock 2026"
+        startsAt:
+          type: string
+          format: date-time
+          example: "2026-03-15T20:00:00Z"
+        availableTickets:
+          type: integer
+          minimum: 0
+          example: 5
+        reservedTickets:
+          type: integer
+          minimum: 0
+          example: 2
+        paidTickets:
+          type: integer
+          minimum: 0
+          example: 1
+
+    CreateEventRequest:
+      type: object
+      required:
+        - name
+        - startsAt
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          example: "Nuevo Concierto"
+        startsAt:
+          type: string
+          format: date-time
+          example: "2026-06-01T20:00:00Z"
+
+    UpdateEventRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          minLength: 1
+          example: "Nombre Actualizado"
+        startsAt:
+          type: string
+          format: date-time
+          example: "2026-06-15T20:00:00Z"
+
+    TicketDto:
+      type: object
+      required:
+        - id
+        - eventId
+        - status
+        - version
+      properties:
+        id:
+          type: integer
+          format: int32
+          example: 1
+        eventId:
+          type: integer
+          format: int32
+          example: 1
+        status:
+          type: string
+          enum: [available, reserved, paid, released, cancelled]
+          example: "available"
+        reservedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-02-10T23:45:00Z"
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-02-10T23:50:00Z"
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        orderId:
+          type: string
+          maxLength: 80
+          nullable: true
+          example: "ORD-2026-001"
+        reservedBy:
+          type: string
+          maxLength: 120
+          nullable: true
+          example: "usuario@example.com"
+        version:
+          type: integer
+          minimum: 0
+          description: Optimistic concurrency control
+          example: 0
+
+    CreateTicketsRequest:
+      type: object
+      required:
+        - eventId
+        - quantity
+      properties:
+        eventId:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          example: 100
+
+    UpdateTicketStatusRequest:
+      type: object
+      required:
+        - newStatus
+      properties:
+        newStatus:
+          type: string
+          enum: [available, reserved, paid, released, cancelled]
+          example: "released"
+        reason:
+          type: string
+          maxLength: 200
+          nullable: true
+          example: "Usuario canceló la reserva"
+
+    ReserveTicketRequest:
+      type: object
+      required:
+        - eventId
+        - ticketId
+        - orderId
+        - reservedBy
+        - expiresInSeconds
+      properties:
+        eventId:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        ticketId:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 5
+        orderId:
+          type: string
+          maxLength: 80
+          minLength: 1
+          example: "ORD-2026-001"
+        reservedBy:
+          type: string
+          maxLength: 120
+          minLength: 1
+          description: Email recommended
+          example: "usuario@example.com"
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+          example: 300
+          description: Time in seconds until reservation expires
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Error message"
+
+  responses:
+    BadRequest:
+      description: Invalid input data
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: "EventId debe ser mayor a 0"
+
+    NotFound:
+      description: Resource not found
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: "Evento 999 no encontrado"
+
+    ServerError:
+      description: Internal server error
+      content:
+        text/plain:
+          schema:
+            type: string
+            example: "Error al procesar la solicitud"
+
+security: []
+
+x-logo:
+  url: 'https://sofka.dev/logo.png'
+  altText: 'Sofka Technologies'

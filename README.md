@@ -317,6 +317,7 @@ var factory = new ConnectionFactory
 };
 ```
 **Por qué rechazamos:** Nunca exponer secrets en repositorio. Usamos `IOptions<RabbitMQOptions>` inyectadas por DI, cargadas desde `appsettings.json` + variables de entorno. ✅ Ahora las credenciales están seguras en `.env` (ignorado en Git).
+Sin embargo, la IA alucina demasiado cuando se trata de mucas referencias a secretos.
 
 ### Rechazo 2: CORS AllowAll en Producción
 **Situación:** La IA generó:

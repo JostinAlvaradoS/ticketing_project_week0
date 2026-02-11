@@ -7,16 +7,50 @@ import type {
   ReserveTicketPayload,
   UpdateTicketPayload,
 } from "./types"
+import { retryWithBackoff } from "./polling"
 
 const CRUD_URL = process.env.NEXT_PUBLIC_API_CRUD || "http://localhost:8002"
 const PRODUCER_URL = process.env.NEXT_PUBLIC_API_PRODUCER || "http://localhost:8001"
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text || `Error ${res.status}`)
+/**
+ * Custom error class for API errors
+ * Helps distinguish between different error types in distributed systems
+ */
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public message: string,
+    public serviceType: "crud" | "producer" = "crud"
+  ) {
+    super(message)
+    this.name = "ApiError"
   }
-  return res.json()
+}
+
+async function handleResponse<T>(res: Response): Promise<T> {
+  // Success case
+  if (res.ok) {
+    return res.json()
+  }
+
+  // 202 Accepted is special - it's not an error
+  if (res.status === 202) {
+    return res.json()
+  }
+
+  // Error case
+  const text = await res.text()
+
+  // Parse error message
+  let errorMessage = text
+  try {
+    const json = JSON.parse(text)
+    errorMessage = json.message || json.error || text
+  } catch {
+    // If not JSON, use raw text
+  }
+
+  throw new ApiError(res.status, errorMessage || `Error ${res.status}`)
 }
 
 export const api = {
@@ -84,16 +118,26 @@ export const api = {
   },
 
   // ─── Producer ─────────────────────────────────────────
+  /**
+   * Reserve a ticket (async operation)
+   * Returns 202 Accepted - reservation is processed asynchronously
+   * Frontend should poll the ticket status to confirm reservation
+   */
   async reserveTicket(payload: ReserveTicketPayload): Promise<{ message: string; ticketId: number }> {
     const res = await fetch(`${PRODUCER_URL}/api/tickets/reserve`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
+
     if (res.status === 202) {
+      // 202 Accepted - request queued for async processing
       return res.json()
     }
-    throw new Error(await res.text())
+
+    // Any other status (including errors) goes through error handler
+    const text = await res.text()
+    throw new ApiError(res.status, text || `Error ${res.status}`, "producer")
   },
 
   // ─── Health ───────────────────────────────────────────

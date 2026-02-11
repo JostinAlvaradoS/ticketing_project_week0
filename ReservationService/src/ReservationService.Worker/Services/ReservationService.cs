@@ -15,9 +15,9 @@ public class ReservationServiceImpl : IReservationService
     }
 
     // 🛡 HUMAN CHECK:
-    // Reservation logic validates that the ticket exists and is available first.
-    // If the ticket was already reserved by another process, it is silently rejected
-    // (not an error, it's an expected scenario under high concurrency).
+    // La lógica de reserva valida primero que el ticket exista y esté disponible.
+    // Si ya fue reservado por otro proceso, se rechaza silenciosamente
+    // (no es un error, es un escenario esperado en alta concurrencia).
     public async Task<ReservationResult> ProcessReservationAsync(
         ReservationMessage message,
         CancellationToken cancellationToken = default)
@@ -26,7 +26,7 @@ public class ReservationServiceImpl : IReservationService
             "Processing reservation for Ticket {TicketId}, Order {OrderId}, User {ReservedBy}",
             message.TicketId, message.OrderId, message.ReservedBy);
 
-        // 1. Find the ticket
+        // 1. Buscar el ticket
         var ticket = await _ticketRepository.GetByIdAsync(message.TicketId, cancellationToken);
 
         if (ticket is null)
@@ -35,7 +35,7 @@ public class ReservationServiceImpl : IReservationService
             return new ReservationResult(false, $"Ticket {message.TicketId} not found");
         }
 
-        // 2. Validate it's available
+        // 2. Validar que esté disponible
         if (ticket.Status != TicketStatus.Available)
         {
             _logger.LogWarning(
@@ -44,10 +44,10 @@ public class ReservationServiceImpl : IReservationService
             return new ReservationResult(false, $"Ticket {message.TicketId} is not available (status: {ticket.Status})");
         }
 
-        // 3. Calculate expiration time
+        // 3. Calcular tiempo de expiración
         var expiresAt = DateTime.UtcNow.AddSeconds(message.ReservationDurationSeconds);
 
-        // 4. Try to reserve (with optimistic locking)
+        // 4. Intentar reservar (con optimistic locking)
         var reserved = await _ticketRepository.TryReserveAsync(
             ticket,
             message.ReservedBy,

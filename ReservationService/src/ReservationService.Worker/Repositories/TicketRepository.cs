@@ -21,10 +21,9 @@ public class TicketRepository : ITicketRepository
     }
 
     // 🛡 HUMAN CHECK:
-    // Using optimistic locking with Version field to prevent race conditions.
-    // If two requests try to reserve the same ticket simultaneously,
-    // only one will succeed (the one with the correct version).
-    // DbUpdateConcurrencyException is thrown if the version changed.
+    // Se usa optimistic locking con el campo Version para evitar race conditions.
+    // Si dos requests intentan reservar el mismo ticket simultáneamente,
+    // solo uno tendrá éxito (el que tenga la versión correcta).
     public async Task<bool> TryReserveAsync(
         Ticket ticket,
         string reservedBy,
@@ -43,7 +42,7 @@ public class TicketRepository : ITicketRepository
 
         try
         {
-            // UPDATE con WHERE version = currentVersion
+            // UPDATE con WHERE version = currentVersion (optimistic locking)
             var affected = await _context.Tickets
                 .Where(t => t.Id == ticket.Id && t.Version == currentVersion && t.Status == TicketStatus.Available)
                 .ExecuteUpdateAsync(setters => setters

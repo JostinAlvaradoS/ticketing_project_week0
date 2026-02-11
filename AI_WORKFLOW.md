@@ -1,125 +1,191 @@
 # AI Workflow - TicketRush MVP
 
-Este documento define la estrategia de interacción con herramientas de IA para el desarrollo del proyecto TicketRush.
+Estrategia de interaccion con herramientas de IA para el desarrollo del sistema de ticketing TicketRush.
 
-## 1. Metodología
+## 1. Metodologia
 
 ### 1.1 Enfoque AI-First
-La IA actúa como **Developer Senior** que produce código de alta calidad. El equipo humano asume el rol de **Arquitectos y Revisores con autoridad final**.
+
+La IA actua como **Developer** que genera codigo y propone soluciones. El equipo humano actua como **Arquitectos y Revisores con autoridad final**: define la arquitectura, aprueba o rechaza propuestas, y valida que el codigo generado sea correcto y seguro.
 
 | Rol | Responsabilidad |
 |-----|-----------------|
-| IA | Generar código de calidad, proponer soluciones robustas, seguir mejores prácticas |
-| Humano | Tomar decisiones finales, aprobar/rechazar propuestas, definir arquitectura, revisar seguridad |
+| IA | Generar codigo, proponer soluciones, ejecutar debugging, escribir tests |
+| Humano | Definir arquitectura, tomar decisiones finales, aprobar/rechazar propuestas, validar seguridad, revisar PRs |
 
 ### 1.2 Reglas de Oro
-1. **Nunca aceptar código sin entenderlo** - Si no entiendes qué hace, no lo integres
-2. **Prohibido boilerplate manual** - La IA genera estructuras repetitivas
-3. **Validación obligatoria** - Todo código crítico lleva comentario `// HUMAN CHECK`
-4. **Sin secretos en código** - Variables de entorno para credenciales, siempre
+
+1. **Nunca aceptar codigo sin entenderlo** - Si no entiendes que hace, no lo integres. Pedir explicaciones hasta que quede claro.
+2. **Prohibido boilerplate manual** - La IA genera estructuras repetitivas (DTOs, configuraciones, mappings).
+3. **Validacion obligatoria** - Todo codigo critico lleva comentario `// HUMAN CHECK` con la razon de la revision.
+4. **Sin secretos en codigo** - Variables de entorno para credenciales. La IA intento hardcodear credenciales de RabbitMQ; se rechazo.
+5. **Probar antes de integrar** - Toda correccion se verifica end-to-end (Docker Compose + BD + RabbitMQ) antes de hacer PR.
 
 ### 1.3 Ciclo de Trabajo
+
 ```
-[Definir tarea] → [Prompt a IA] → [Revisar output] → [Ajustar/Corregir] → [Integrar] → [PR + Code Review]
+[Definir tarea] --> [Prompt a IA] --> [Revisar output] --> [Probar en local] --> [Corregir si falla] --> [Commit + PR]
 ```
+
+En la practica, el ciclo de debugging fue iterativo: la IA proponia un fix, se probaba con Docker Compose, se descubria un nuevo error, y se volvia a iterar. Un ejemplo concreto fue el Payment Service donde se corrigieron 6 bugs encadenados antes de lograr un flujo exitoso.
 
 ## 2. Herramientas de IA Utilizadas
 
-| Herramienta | Uso Principal | Responsable |
-|-------------|---------------|-------------|
-| Claude Code | Desarrollo backend, arquitectura, debugging | Jorge |
-| [Agregar otras herramientas del equipo] | | |
+| Herramienta | Modelo | Uso Principal | Responsable |
+|-------------|--------|---------------|-------------|
+| Claude Code (CLI) | Claude Opus 4.6 | Desarrollo backend (.NET), debugging, testing, analisis de arquitectura, git operations | Jorge |
+| GitHub Copilot | Claude Sonnet 4.5 | Desarrollo del Producer, Frontend, configuracion inicial (RabbitMQ, PostgreSQL, Docker) | Jostin |
+| GitHub Copilot | Claude Sonnet 4 / Opus 4.5 | Desarrollo del Payment Service y CRUD Service | Guillermo |
+
+### 2.1 Claude Code - Configuracion
+
+Se uso Claude Code como CLI con acceso directo al filesystem y terminal. Esto permitio:
+- Lectura de codigo fuente y schema SQL para entender contexto completo
+- Ejecucion de `docker compose build/up`, `dotnet build`, `dotnet test`
+- Consultas directas a PostgreSQL via `docker exec psql`
+- Publicacion de mensajes a RabbitMQ para testing end-to-end
+- Operaciones git (commit, push, PR via `gh`)
+
+Se configuro un archivo `CLAUDE.md` con instrucciones persistentes:
+- Conversacion en espanol, codigo en ingles
+- Nunca incluir "Co-Authored-By" ni "Generated with Claude Code" en commits
+- Actuar como experto critico, no complaciente
 
 ## 3. Interacciones Clave
 
-### 3.1 Generación de Código
-- **Contexto obligatorio**: Siempre proporcionar schema de BD, estructura del proyecto, y convenciones antes de pedir código
-- **Iteración**: Pedir primero estructura/esqueleto, luego implementación detallada
-- **Fragmentación**: Dividir tareas complejas en subtareas pequeñas
+### 3.1 Generacion de Codigo
+
+- **Contexto obligatorio**: Antes de generar codigo, se compartio `scripts/schema.sql`, `compose.yml`, y la estructura del proyecto para que la IA entendiera los tipos de datos reales (enums nativos de PostgreSQL, column names en snake_case).
+- **Iteracion**: Se pidio primero la estructura/esqueleto del consumer, luego la logica de negocio, y finalmente los tests.
+- **Fragmentacion**: El ReservationService se desarrollo en etapas: Consumer -> Service -> Repository -> Tests.
+
+**Ejemplo real**: Para el ReservationService, la IA genero el `ReservationServiceImpl` completo pero con un modelo `Ticket` que incluia una propiedad `SectionId` que no existia en el schema de PostgreSQL. Al probar con Docker, fallo inmediatamente. Se corrigio eliminando la propiedad y ajustando el DbContext.
 
 ### 3.2 Debugging
-- Proporcionar: mensaje de error completo, código relevante, y contexto de ejecución
-- Pedir explicación del problema antes de la solución
 
-### 3.3 Code Review asistido
-- Usar IA para detectar code smells, vulnerabilidades, y mejoras
-- El humano tiene la última palabra
+El debugging fue la interaccion mas intensiva. El flujo siempre fue:
+1. Ejecutar el sistema completo (todos los contenedores)
+2. Provocar el flujo desde el Producer (reserva + pago)
+3. Revisar logs de los contenedores (`docker logs`)
+4. Consultar la BD directamente (`psql`)
+5. La IA analizaba el stack trace y proponia un fix
+6. Se aplicaba, rebuild, y se volvia a probar
 
-## 4. Documentos Clave y Contextualización
+**Ejemplo real - Payment Service (6 bugs encadenados)**:
 
-Archivos que deben compartirse con la IA al iniciar sesión de trabajo:
+Cada fix revelaba el siguiente error. La IA propuso cada correccion, pero el humano valido cada una probando el flujo completo:
 
-| Documento | Propósito |
+| Bug | Causa raiz | Fix |
+|-----|-----------|-----|
+| Dispatcher no routeaba mensajes | Comparaba queue name completo (`q.ticket.payments.approved`) contra routing key (`ticket.payments.approved`) con match exacto | Cambiar a `EndsWith` |
+| DTO no deserializaba | `PaymentApprovedEvent` tenia campos distintos a lo que el Producer enviaba | Alinear campos con el Producer |
+| "Invalid payment status" | El servicio esperaba un payment `pending` que nadie creaba | Crear el payment si no existe |
+| Error `25P02` en PostgreSQL | `ToString().ToLower()` enviaba `text` a columna de tipo `ticket_status` (enum nativo) | Pasar el enum directo a Npgsql |
+| `DbUpdateConcurrencyException` (0 rows) | `Version++` antes de `UpdateAsync` desincronizaba el WHERE clause | Eliminar pre-incremento |
+| `DbUpdateConcurrencyException` (history) | Raw SQL actualizaba la BD pero el change tracker de EF Core seguia con la entidad dirty | Detach entity despues del raw SQL |
+
+### 3.3 Testing
+
+- **Unit tests**: Se uso xUnit + NSubstitute para tests del `ReservationServiceImpl` (4 tests: ticket not found, already reserved, successful reservation, concurrent modification).
+- **Testing end-to-end**: Se usaron `curl` al Producer + verificacion directa en PostgreSQL + revision de logs de cada contenedor.
+- **Estrategia MVP**: Solo se testearon las reglas de negocio del servicio propio (ReservationService), no infraestructura ni integraciones.
+
+### 3.4 Code Review Asistido
+
+Se uso la IA para revisar el codigo del companero (Payment Service) y encontrar bugs antes de la integracion. La IA identifico correctamente los bugs del dispatcher y el DTO, pero no detecto inmediatamente los problemas de interaccion entre raw SQL y EF Core change tracker; esos salieron durante testing.
+
+## 4. Documentos Clave y Contextualizacion
+
+Archivos que se comparten con la IA al iniciar sesion de trabajo:
+
+| Documento | Proposito |
 |-----------|-----------|
-| `scripts/schema.sql` | Estructura de base de datos |
-| `compose.yml` | Configuración de infraestructura |
-| `scripts/rabbitmq-definitions.json` | Configuración de colas y exchanges |
-| Backlog del sprint | Tareas asignadas y criterios de aceptación |
+| `scripts/schema.sql` | Estructura de base de datos, tipos enum nativos |
+| `compose.yml` | Servicios, puertos, dependencias, variables de entorno |
+| `scripts/rabbitmq-definitions.json` | Exchanges, colas, bindings, routing keys |
+| `.env` | Variables de entorno (sin secretos reales en el repo) |
+| Codigo fuente del servicio en desarrollo | Para que la IA entienda patrones existentes |
 
-### 4.1 Prompt de Contextualización Inicial
+### 4.1 Prompt de Contextualizacion Inicial
+
 ```
 Estamos trabajando en TicketRush, un MVP de sistema de ticketing para eventos.
 
 Stack: .NET 8 (LTS), PostgreSQL, RabbitMQ, Docker
-Arquitectura: Microservicios con comunicación asíncrona (event-driven)
+Arquitectura: Microservicios con comunicacion asincrona (event-driven)
 
 Microservicios:
+- CRUD Service: API REST para gestion de eventos y tickets
 - Producer API: Recibe peticiones HTTP, publica eventos a RabbitMQ
 - Consumer Service 1 (Reservations): Procesa reservas de tickets
-- Consumer Service 2 (Payments & TTL): Procesa pagos y expiración
+- Consumer Service 2 (Payments): Procesa pagos aprobados/rechazados y TTL
+- Frontend: Next.js con interfaz para seleccion y compra de tickets
 
-Eventos RabbitMQ:
-- ticket.reserved
-- ticket.payments.approved
-- ticket.payments.rejected
-- ticket.expired
+Eventos RabbitMQ (exchange: tickets, tipo: topic):
+- ticket.reserved -> q.ticket.reserved
+- ticket.payments.approved -> q.ticket.payments.approved
+- ticket.payments.rejected -> q.ticket.payments.rejected
 
-[Adjuntar schema.sql y archivos relevantes]
+Base de datos: PostgreSQL con enums nativos (ticket_status, payment_status)
+en lowercase (available, reserved, paid, released, cancelled).
+
+[Adjuntar schema.sql y archivos relevantes del servicio a trabajar]
 ```
 
-## 5. Dinámicas de Interacción
+## 5. Dinamicas de Interaccion
 
-### 5.1 Antes de cada sesión
-1. Revisar estado actual del código (git status, últimos commits)
-2. Identificar tarea específica a realizar
-3. Preparar contexto necesario para la IA
+### 5.1 Antes de cada sesion
 
-### 5.2 Durante la sesión
-1. **Un objetivo por prompt** - Evitar prompts con múltiples tareas no relacionadas
-2. **Validar incrementalmente** - No esperar a tener todo para probar
-3. **Documentar decisiones** - Si la IA propone algo que rechazas, documéntalo
+1. `git status` y `git pull` para sincronizar con el remoto
+2. Identificar la tarea especifica (feature, fix, test)
+3. Compartir con la IA los archivos relevantes del servicio a trabajar
+
+### 5.2 Durante la sesion
+
+1. **Un objetivo por prompt** - Evitar prompts con multiples tareas no relacionadas
+2. **Validar incrementalmente** - Probar cada cambio con Docker antes de seguir. No acumular cambios sin verificar.
+3. **Documentar rechazos** - Si la IA propone algo incorrecto, anotar que fallo y por que (ver seccion 3.2 para ejemplo real)
+4. **Pedir explicaciones** - Antes de aceptar una solucion, pedir que explique el "por que", no solo el "que". Esto fue especialmente util para entender optimistic locking y el ciclo de vida de transacciones en EF Core, ya que no se cuenta mucha experiencia en .NET.
 
 ### 5.3 Al finalizar
-1. Revisar código generado contra criterios de aceptación
-2. Agregar comentarios `// HUMAN CHECK` donde corresponda
-3. Commit con mensaje descriptivo
-4. PR para revisión de pares
+
+1. Revisar codigo generado contra criterios de aceptacion del servicio
+2. Verificar que los `// HUMAN CHECK` esten en las partes criticas
+3. Commit con mensaje descriptivo en ingles
+4. PR para revision del companero
 
 ## 6. Convenciones de Comentarios
 
 ### 6.1 HUMAN CHECK
-Para código crítico donde el humano validó/modificó la sugerencia de IA:
+
+Para codigo critico donde el humano valido/modifico la sugerencia de IA:
 
 ```csharp
 // HUMAN CHECK:
-// La IA sugirió [descripción de lo que sugirió].
-// Se modificó porque [razón del cambio].
+// La IA sugirio usar un poll simple para verificar estado de pago.
+// Se cambio a un push model con prefetch de 1 para evitar saturar al worker,
+// ya que la IA no consideraba la latencia de red.
 ```
 
 ### 6.2 AI-GENERATED
-Para código generado por IA sin modificaciones significativas:
+
+Para codigo generado por IA sin modificaciones significativas:
 
 ```csharp
-// AI-GENERATED: Estructura base del controller
+// AI-GENERATED: Estructura base del consumer
 ```
 
 ## 7. Registro de Decisiones
 
-| Fecha | Decisión | Contexto | Responsable |
+| Fecha | Decision | Contexto | Responsable |
 |-------|----------|----------|-------------|
 | 2026-02-10 | Usar .NET 8 | LTS, consistencia en el equipo | Equipo |
-| 2026-02-10 | Exchange tipo topic | Permite routing flexible por eventos | Jostin |
-| | | | |
+| 2026-02-10 | Exchange tipo topic | Permite routing flexible por patron de routing keys | Jostin |
+| 2026-02-10 | Enums nativos de PostgreSQL | Mejor rendimiento y type safety que varchar para estados finitos | Jostin |
+| 2026-02-11 | Tests solo en logica de negocio (MVP) | Para un MVP, testear ReservationServiceImpl es suficiente; infraestructura se valida con pruebas E2E | Jorge |
+| 2026-02-11 | xUnit + NSubstitute para tests | Estandar en .NET, NSubstitute mas legible que Moq para mocks simples | Jorge |
+| 2026-02-11 | Rama separada para fix de Payment Service | `fix/jorge/payment-service-bugs` para no bloquear al companero; descartable si el soluciona primero | Jorge |
+| 2026-02-11 | Detach entity despues de raw SQL | Evita conflicto entre ExecuteSqlRaw y el change tracker de EF Core en la misma transaccion | Jorge |
 
 ---
 

@@ -1,60 +1,128 @@
 /**
  * Hook para monitorear el estado de una reserva asincrónica
- * Demuestra pattern de polling inteligente en sistemas distribuidos
+ * Valida que los tickets fueron reservados exitosamente
  */
 
 "use client"
 
-import { useState, useCallback, useRef } from "react"
-import { api } from "@/lib/api"
-import { waitForTicketReservation } from "@/lib/polling"
+import { useState, useEffect } from "react"
 
-export interface UseReservationStatusOptions {
-  onSuccess?: () => void
-  onError?: (error: Error) => void
+interface UseReservationStatusOptions {
+  ticketIds?: number[]
+  onAllReserved?: () => void
+  onQueued?: () => void // Cuando no se confirma pero está en cola
+  onReservationFailed?: (reason: string) => void
+  maxDuration?: number // en segundos, default 15
+  queueTimeout?: number // tiempo antes de mostrar "en cola" (default 8s)
 }
 
-export function useReservationStatus(options: UseReservationStatusOptions = {}) {
+export function useReservationStatus({
+  ticketIds,
+  onAllReserved,
+  onQueued,
+  onReservationFailed,
+  maxDuration = 15,
+  queueTimeout = 8,
+}: UseReservationStatusOptions) {
   const [isPolling, setIsPolling] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [confirmedCount, setConfirmedCount] = useState(0)
+  const [queuedCalled, setQueuedCalled] = useState(false)
 
-  const startPolling = useCallback(
-    async (ticketId: number, timeoutMs: number = 10000) => {
-      setIsPolling(true)
-      setError(null)
+  useEffect(() => {
+    if (!ticketIds || ticketIds.length === 0 || !isPolling) {
+      return
+    }
 
+    console.log("[DEBUG] Starting polling for tickets:", ticketIds, "queuedCalled:", queuedCalled)
+    
+    const startTime = Date.now()
+    const maxTime = maxDuration * 1000
+    const queueTime = queueTimeout * 1000
+    let pollInterval: NodeJS.Timeout | null = null
+    let hasCalledCallback = false
+
+    const pollReservationStatus = async () => {
       try {
-        // Wait for ticket to be reserved with exponential backoff polling
-        await waitForTicketReservation(
-          (id) => api.getTicket(id),
-          ticketId,
-          timeoutMs
+        const responses = await Promise.all(
+          ticketIds.map((id) =>
+            fetch(`/api/tickets/${id}`).then((res) =>
+              res.ok ? res.json() : null
+            )
+          )
         )
 
-        setIsPolling(false)
-        options.onSuccess?.()
-        return true
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Unknown error"
-        setError(errorMessage)
-        setIsPolling(false)
-        options.onError?.(err instanceof Error ? err : new Error(errorMessage))
-        return false
-      }
-    },
-    [options]
-  )
+        const tickets = responses.filter(Boolean)
+        const elapsed = Date.now() - startTime
 
-  const cancel = useCallback(() => {
-    abortControllerRef.current?.abort()
-    setIsPolling(false)
-  }, [])
+        setElapsedTime(Math.round(elapsed / 1000))
+        console.log(`[DEBUG] Polling: ${elapsed}ms elapsed, ${tickets.length} tickets found`)
+
+        // Contar cuántos están reservados
+        const reserved = tickets.filter((t) => t.status === "reserved").length
+        setConfirmedCount(reserved)
+
+        // Si todos están reservados
+        if (reserved === ticketIds.length) {
+          console.log("[DEBUG] All tickets reserved! Clearing interval and calling onAllReserved")
+          if (pollInterval) clearInterval(pollInterval)
+          setIsPolling(false)
+          setQueuedCalled(false)
+          onAllReserved?.()
+          return
+        }
+
+        // Si pasó el tiempo de cola pero no se confirmó, mostrar que está en cola
+        if (!hasCalledCallback && elapsed > queueTime) {
+          console.log("[DEBUG] Queue timeout reached after", elapsed, "ms. Calling onQueued")
+          hasCalledCallback = true
+          setQueuedCalled(true)
+          if (pollInterval) clearInterval(pollInterval)
+          setIsPolling(false)
+          onQueued?.()
+          return
+        }
+
+        // Si pasó el tiempo máximo, detener pero el mensaje YA está en RabbitMQ
+        if (elapsed > maxTime) {
+          console.log("[DEBUG] Max duration reached. Clearing interval")
+          if (pollInterval) clearInterval(pollInterval)
+          setIsPolling(false)
+          return
+        }
+      } catch (error) {
+        console.error("[DEBUG] Error polling reservation status:", error)
+        if (pollInterval) clearInterval(pollInterval)
+        setIsPolling(false)
+        onReservationFailed?.("Error verificando estado de la reserva")
+      }
+    }
+
+    pollInterval = setInterval(pollReservationStatus, 500) // Poll cada 500ms
+
+    // Hacer una llamada inmediata
+    pollReservationStatus()
+
+    return () => {
+      console.log("[DEBUG] Cleanup: clearing interval")
+      if (pollInterval) clearInterval(pollInterval)
+    }
+  }, [ticketIds, isPolling, onAllReserved, onQueued, onReservationFailed, maxDuration, queueTimeout])
 
   return {
     isPolling,
-    error,
-    startPolling,
-    cancel,
+    startPolling: () => {
+      setQueuedCalled(false) // Reset cuando se reinicia
+      setIsPolling(true)
+    },
+    stopPolling: () => setIsPolling(false),
+    elapsedTime,
+    confirmedCount,
   }
+}
+
+// Legacy exports for backwards compatibility
+export interface UseReservationStatusOptionsLegacy {
+  onSuccess?: () => void
+  onError?: (error: Error) => void
 }

@@ -5,20 +5,20 @@
 
 "use client"
 
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, Mail } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
-type PaymentStatus = "idle" | "processing" | "success" | "error"
+type PaymentStatus = "idle" | "processing" | "pending" | "error"
 
 interface PaymentStatusProps {
   status: PaymentStatus
   error?: string
-  ticketId?: number
+  email?: string
   onReset: () => void
 }
 
-export function PaymentStatus({ status, error, ticketId, onReset }: PaymentStatusProps) {
+export function PaymentStatus({ status, error, email, onReset }: PaymentStatusProps) {
   if (status === "idle") {
     return null
   }
@@ -36,13 +36,13 @@ export function PaymentStatus({ status, error, ticketId, onReset }: PaymentStatu
               Por favor espera mientras procesamos tu pago...
             </p>
             <p className="mt-4 text-xs text-muted-foreground">
-              ⏱️ Esto puede tomar hasta 10 segundos
+              ⏱️ Esto puede tomar algunos segundos
             </p>
           </div>
         </div>
       )}
 
-      {status === "success" && (
+      {status === "pending" && (
         <div className="space-y-4 text-center">
           <div className="flex justify-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
@@ -50,12 +50,18 @@ export function PaymentStatus({ status, error, ticketId, onReset }: PaymentStatu
             </div>
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-foreground">¡Pago Aprobado!</h3>
+            <h3 className="text-lg font-semibold text-foreground">Pago Procesado</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Tu ticket #{ticketId} ha sido confirmado
+              Tu pago ha sido recibido y está siendo procesado
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Se ha enviado un email con los detalles de tu compra
+            <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-blue-500/10 px-4 py-3">
+              <Mail className="h-5 w-5 text-blue-500" />
+              <p className="text-sm text-blue-600 dark:text-blue-400">
+                Tus boletos llegarán a <strong>{email}</strong> cuando se confirme el pago
+              </p>
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              ✓ Si todo es correcto, podrás descargar tus boletos en 2-5 minutos
             </p>
           </div>
           <Button onClick={onReset} className="mt-4 w-full">

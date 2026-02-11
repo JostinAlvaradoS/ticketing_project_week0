@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Calendar, Tickets, Loader2, CheckCircle2, XCircle, ArrowLeft } from "lucide-react"
 import { useEvent, useTickets } from "@/hooks/use-ticketing"
-import { usePaymentStatus } from "@/hooks/use-payment-status"
+import { useReservationStatus } from "@/hooks/use-reservation-status"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,7 +15,7 @@ import { PaymentStatus } from "@/components/payment-status"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 
-type PurchaseStep = "form" | "processing" | "reserved" | "payment" | "confirming" | "success" | "error"
+type PurchaseStep = "form" | "processing" | "validating" | "reserved" | "confirming" | "success" | "error"
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-ES", {
@@ -46,26 +46,42 @@ export default function BuyerEventPage() {
   const [errorMsg, setErrorMsg] = useState("")
   const [reservedCount, setReservedCount] = useState(0)
   const [reservedTicketIds, setReservedTicketIds] = useState<number[]>([])
-  const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "error">("idle")
+  const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "pending" | "error">("idle")
   const [paymentError, setPaymentError] = useState("")
-
-  const { isPolling: isPaymentPolling, startPolling: startPaymentPolling } = usePaymentStatus({
-    ticketId: reservedTicketIds[0],
-    onPaymentConfirmed: () => {
-      setPaymentStatus("success")
-      setStep("success")
-      toast.success("¡Pago confirmado! Tu compra está completa")
-    },
-    onPaymentRejected: (reason) => {
-      setPaymentStatus("error")
-      setPaymentError(reason)
-      toast.error(`Pago rechazado: ${reason}`)
-    },
-  })
 
   const availableTickets = tickets?.filter(
     (t) => t.status?.toLowerCase() === "available"
   ) || []
+
+  const { isPolling: isValidatingReservation, startPolling: startValidatingReservation, stopPolling: stopValidatingReservation, elapsedTime } =
+    useReservationStatus({
+      ticketIds: reservedTicketIds,
+      queueTimeout: 8, // Mostrar mensaje después de 8 segundos
+      maxDuration: 20, // Esperar máximo 20 segundos
+      onAllReserved: () => {
+        setStep("reserved")
+        toast.dismiss() // Cerrar toast anterior
+        toast.success("✓ Reserva confirmada. Procede al pago")
+      },
+      onQueued: () => {
+        // El sistema está indisponible - NO permitir pago
+        // La solicitud está en RabbitMQ pero NO puedo procesar pago sin reserva confirmada
+        console.warn("[DEBUG] onQueued fired - stopping polling")
+        toast.dismiss() // Cerrar toast anterior
+        setStep("error")
+        setErrorMsg(
+          "El sistema de reservas está indisponible temporalmente. Tu solicitud está en cola pero no podemos procesar el pago sin que se confirme la reserva primero. Por favor intenta más tarde."
+        )
+        toast.error("Sistema temporalmente indisponible. Intenta más tarde")
+      },
+      onReservationFailed: (reason) => {
+        console.error("[DEBUG] onReservationFailed:", reason)
+        toast.dismiss() // Cerrar toast anterior
+        setStep("error")
+        setErrorMsg(reason)
+        toast.error(`Reserva fallida: ${reason}`)
+      },
+    })
 
   async function handlePurchase(e: React.FormEvent) {
     e.preventDefault()
@@ -129,11 +145,11 @@ export default function BuyerEventPage() {
       setReservedCount(successCount)
       setReservedTicketIds(reservedIds)
       
-      // Esperar un poco para que se procesen
-      await new Promise(r => setTimeout(r, 2000))
+      // Iniciar validación de reserva
+      console.log("[DEBUG] Starting reservation validation for tickets:", reservedIds)
+      setStep("validating")
+      startValidatingReservation()
       
-      // Mostrar formulario de pago
-      setStep("reserved")
     } catch (err) {
       setStep("error")
       setErrorMsg(
@@ -149,12 +165,10 @@ export default function BuyerEventPage() {
   }
 
   async function handlePaymentSuccess(ticketId: number, transactionRef: string) {
-    toast.loading("Confirmando pago...")
-    setPaymentStatus("processing")
+    // No esperar a polling - mostrar mensaje inmediatamente
+    setPaymentStatus("pending")
     setStep("confirming")
-    
-    // Iniciar polling para esperar confirmación del pago
-    startPaymentPolling()
+    toast.success("Tu pago ha sido procesado. Revisa tu correo para los boletos")
   }
 
   async function handlePaymentError(error: string) {
@@ -313,6 +327,36 @@ export default function BuyerEventPage() {
               </div>
             )}
 
+            {step === "validating" && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+                <div className="text-center">
+                  <p className="font-medium text-foreground">
+                    Validando Reserva
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Confirmando que los tickets fueron reservados correctamente...
+                  </p>
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      {elapsedTime}s
+                    </p>
+                    <div className="h-2 w-32 overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full bg-blue-500 transition-all"
+                        style={{
+                          width: `${Math.min((elapsedTime / 8) * 100, 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      ~8s
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {step === "reserved" && event && (
               <div className="flex flex-col gap-6">
                 <div>
@@ -344,8 +388,9 @@ export default function BuyerEventPage() {
 
             {step === "confirming" && (
               <PaymentStatus
-                status="processing"
-                ticketId={reservedTicketIds[0]}
+                status={paymentStatus}
+                error={paymentError}
+                email={email}
                 onReset={handleReset}
               />
             )}

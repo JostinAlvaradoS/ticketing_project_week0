@@ -5,16 +5,17 @@ Microservicio responsable de procesar las reservas de tickets consumiendo mensaj
 ## Responsabilidad
 
 - Consumir mensajes de la cola `q.ticket.reserved`
-- Validar disponibilidad del ticket
-- Actualizar estado del ticket a `reserved` en PostgreSQL
-- Registrar `reserved_at` y `expires_at` para control de tiempo
-- Rechazar reservas si el ticket ya no está disponible
+- Validar disponibilidad del ticket (debe estar en estado `available`)
+- Actualizar estado del ticket a `reserved` en PostgreSQL con optimistic locking
+- Registrar `reserved_at` y calcular `expires_at` (reserva + duracion en segundos)
+- Rechazar reservas si el ticket ya no esta disponible o hay conflicto de concurrencia
 
 ## Stack
 
 - .NET 8 (LTS)
-- RabbitMQ.Client
-- Entity Framework Core + Npgsql (PostgreSQL)
+- RabbitMQ.Client 6.8.1
+- Entity Framework Core 8.0 + Npgsql (PostgreSQL)
+- xUnit + NSubstitute (tests)
 
 ## Estructura del Proyecto
 
@@ -25,17 +26,28 @@ ReservationService/
 ├── README.md
 ├── src/
 │   └── ReservationService.Worker/
-│       ├── Consumers/        # Consumers de RabbitMQ
-│       ├── Models/           # DTOs y entidades
-│       ├── Services/         # Lógica de negocio
-│       ├── Repositories/     # Interfaces de acceso a datos
-│       ├── Data/             # DbContext y configuraciones EF
-│       ├── Configurations/   # Clases de configuración
-│       ├── Extensions/       # Métodos de extensión
+│       ├── Consumers/
+│       │   └── TicketReservationConsumer.cs   # Consumer RabbitMQ (BackgroundService)
+│       ├── Models/
+│       │   ├── ReservationMessage.cs          # DTO del mensaje de RabbitMQ
+│       │   ├── Ticket.cs                      # Entidad Ticket
+│       │   └── TicketStatus.cs                # Enum de estados
+│       ├── Services/
+│       │   ├── IReservationService.cs         # Interfaz de logica de negocio
+│       │   └── ReservationService.cs          # Implementacion: validacion + reserva
+│       ├── Repositories/
+│       │   ├── ITicketRepository.cs           # Interfaz de acceso a datos
+│       │   └── TicketRepository.cs            # UPDATE con optimistic locking
+│       ├── Data/
+│       │   └── TicketingDbContext.cs           # DbContext con ValueConverter para enums
+│       ├── Configurations/
+│       │   └── RabbitMQSettings.cs            # Opciones de configuracion RabbitMQ
 │       ├── Program.cs
 │       └── appsettings.json
-├── tests/
-└── docs/
+└── tests/
+    └── ReservationService.Worker.Tests/
+        ├── ReservationServiceImplTests.cs     # 4 unit tests de logica de negocio
+        └── ReservationService.Worker.Tests.csproj
 ```
 
 ## Configuracion
@@ -83,56 +95,80 @@ dotnet run --project src/ReservationService.Worker
 ## Ejecucion con Docker
 
 ```bash
-# Build
-docker build -t reservation-service .
+# Desde la raiz del repositorio, levanta todos los servicios
+docker compose up -d
 
-# Run
-docker run --env-file .env reservation-service
+# O solo el reservation service
+docker compose up -d reservation-service
 ```
+
+## Tests
+
+```bash
+cd ReservationService
+
+# Ejecutar tests
+dotnet test
+```
+
+### Casos de prueba
+
+| Test | Escenario | Resultado esperado |
+|------|-----------|-------------------|
+| `ProcessReservation_TicketNotFound_ReturnsFailure` | Ticket no existe en BD | Retorna failure, no modifica nada |
+| `ProcessReservation_TicketAlreadyReserved_ReturnsFailure` | Ticket ya esta reservado | Retorna failure por estado invalido |
+| `ProcessReservation_AvailableTicket_ReturnsSuccess` | Ticket disponible, sin conflictos | Reserva exitosa, actualiza estado y timestamps |
+| `ProcessReservation_ConcurrentModification_ReturnsFailure` | Dos reservas simultaneas al mismo ticket | Una falla por optimistic locking (version mismatch) |
 
 ## Flujo de Procesamiento
 
 ```
 [RabbitMQ: q.ticket.reserved]
-         │
-         ▼
-┌─────────────────────────┐
-│   TicketConsumer        │
-│   (BackgroundService)   │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│   ReservationService    │
-│   - Validar ticket      │
-│   - Verificar estado    │
-└───────────┬─────────────┘
-            │
-            ▼
-┌─────────────────────────┐
-│   TicketRepository      │
-│   - UPDATE tickets      │
-│   - Control version     │
-└───────────┬─────────────┘
-            │
-            ▼
+         |
+         v
++--------------------------+
+|  TicketReservationConsumer|    autoAck: false
+|  (BackgroundService)      |    prefetchCount: 1
++-----------+--------------+
+            |
+            v
++--------------------------+
+|  ReservationServiceImpl   |
+|  - Validar ticket existe  |
+|  - Verificar status =     |
+|    available              |
++-----------+--------------+
+            |
+            v
++--------------------------+
+|  TicketRepository         |
+|  - ExecuteUpdateAsync     |
+|  - WHERE version = N      |    <-- optimistic locking
+|  - SET status = reserved  |
+|  - SET version = N + 1    |
++-----------+--------------+
+            |
+            v
      [PostgreSQL]
+            |
+            v
+  ACK si exito / NACK si error tecnico
 ```
 
 ## Criterios de Aceptacion
 
-- [ ] Si el ticket ya no esta DISPONIBLE, el mensaje debe descartarse
-- [ ] Usar optimistic locking (campo `version`) para evitar race conditions
-- [ ] Registrar `reserved_at` y calcular `expires_at` (+5 minutos)
-- [ ] Loguear errores cuando no se pueda procesar una reserva
+- [x] Si el ticket ya no esta DISPONIBLE, el mensaje debe descartarse
+- [x] Usar optimistic locking (campo `version`) para evitar race conditions
+- [x] Registrar `reserved_at` y calcular `expires_at`
+- [x] Loguear errores cuando no se pueda procesar una reserva
 
 ## Lo que la IA hizo mal
 
-> Esta seccion se llena conforme se identifican malas practicas sugeridas por la IA
-
 | Fecha | Descripcion | Correccion |
 |-------|-------------|------------|
-| | | |
+| 2026-02-11 | La IA genero el modelo `Ticket` con una propiedad `SectionId` que no existia en el schema de PostgreSQL. Al ejecutar, EF Core intentaba mapear una columna `section_id` inexistente, causando error en runtime. La IA no verifico el schema real antes de generar el modelo. | Se elimino `SectionId` del modelo y su mapping del DbContext. Leccion: siempre contrastar el modelo generado con `scripts/schema.sql`. |
+| 2026-02-11 | La IA uso `.HasConversion<string>()` para mapear el enum `TicketStatus` a PostgreSQL. Pero la BD usa enums nativos en lowercase (`available`, `reserved`) y el enum de C# era PascalCase (`Available`, `Reserved`). Cada INSERT/SELECT fallaba con error de tipo. | Se reemplazo por un `ValueConverter` explicito: `v => v.ToString().ToLower()` para escritura y `Enum.Parse<TicketStatus>(v, true)` para lectura. Leccion: no confiar en conversiones por defecto cuando la BD tiene tipos especificos. |
+| 2026-02-11 | La IA proponia funcionalidades validas pero fuera del alcance del MVP por cuestion de tiempo: idempotencia en el consumer, health checks dedicados, tests de integracion y de infraestructura ademas de los unit tests. Son practicas correctas en un proyecto real, pero no eran prioridad para la entrega. | Se delimito el alcance: solo unit tests de logica de negocio (4 tests en `ReservationServiceImpl`), sin idempotencia ni health checks propios. Leccion: la IA no gestiona prioridades ni deadlines; el humano debe decidir que se implementa ahora y que queda para despues. |
 
 ---
 

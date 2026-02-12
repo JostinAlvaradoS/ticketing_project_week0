@@ -23,6 +23,7 @@ public interface ITicketRepository
     Task<IEnumerable<Ticket>> GetByEventIdAsync(long eventId);
     Task<Ticket?> GetByIdAsync(long id);
     Task<Ticket> AddAsync(Ticket ticket);
+    Task<IEnumerable<Ticket>> AddRangeAsync(IEnumerable<Ticket> tickets);
     Task<Ticket> UpdateAsync(Ticket ticket);
     Task<int> CountByStatusAsync(TicketStatus status);
     Task<IEnumerable<Ticket>> GetExpiredAsync(DateTime now);

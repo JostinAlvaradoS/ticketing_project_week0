@@ -46,6 +46,11 @@ public class TicketingDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // CORRECCION CRIT-002: Registrar tipos ENUM de PostgreSQL
+        // Necesario para que EF Core entienda los tipos nativos de PostgreSQL
+        modelBuilder.HasPostgresEnum<TicketStatus>("ticket_status");
+        modelBuilder.HasPostgresEnum<PaymentStatus>("payment_status");
+
         // Eventos
         modelBuilder.Entity<Event>()
             .HasKey(e => e.Id);
@@ -57,9 +62,8 @@ public class TicketingDbContext : DbContext
         // Tickets
         modelBuilder.Entity<Ticket>()
             .HasKey(t => t.Id);
-        modelBuilder.Entity<Ticket>()
-            .Property(t => t.Status)
-            .HasConversion<string>();
+        // CORRECCION CRIT-002: Quitamos HasConversion<string>() porque ahora usamos
+        // el tipo ENUM nativo de PostgreSQL mapeado arriba
         modelBuilder.Entity<Ticket>()
             .Property(t => t.OrderId)
             .HasMaxLength(80);
@@ -83,9 +87,7 @@ public class TicketingDbContext : DbContext
         // Pagos
         modelBuilder.Entity<Payment>()
             .HasKey(p => p.Id);
-        modelBuilder.Entity<Payment>()
-            .Property(p => p.Status)
-            .HasConversion<string>();
+        // CORRECCION CRIT-002: Quitamos HasConversion<string>() para PaymentStatus tambien
         modelBuilder.Entity<Payment>()
             .Property(p => p.ProviderRef)
             .HasMaxLength(120);

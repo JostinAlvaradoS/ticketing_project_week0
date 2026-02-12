@@ -48,24 +48,26 @@ public class TicketService : ITicketService
         return ticket == null ? null : MapToDto(ticket);
     }
 
+    /// <summary>
+    /// Crea tickets en lote usando bulk insert
+    /// MEJORA CRIT-001: Antes hacia N llamadas a BD, ahora hace 1 sola
+    /// </summary>
     public async Task<IEnumerable<TicketDto>> CreateTicketsAsync(long eventId, int quantity)
     {
-        var tickets = new List<Ticket>();
-
-        for (int i = 0; i < quantity; i++)
-        {
-            var ticket = new Ticket
+        // Crear todos los tickets en memoria primero
+        var tickets = Enumerable.Range(0, quantity)
+            .Select(_ => new Ticket
             {
                 EventId = eventId,
                 Status = TicketStatus.Available
-            };
+            })
+            .ToList();
 
-            var created = await _ticketRepository.AddAsync(ticket);
-            tickets.Add(created);
-        }
+        // Insertar todos en una sola operacion de BD (bulk insert)
+        var created = await _ticketRepository.AddRangeAsync(tickets);
 
-        _logger.LogInformation("Se crearon {Quantity} tickets para evento {EventId}", quantity, eventId);
-        return tickets.Select(MapToDto);
+        _logger.LogInformation("Se crearon {Quantity} tickets para evento {EventId} (bulk insert)", quantity, eventId);
+        return created.Select(MapToDto);
     }
 
     public async Task<TicketDto> UpdateTicketStatusAsync(long id, string newStatus, string? reason = null)

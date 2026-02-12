@@ -96,6 +96,18 @@ public class TicketRepository : ITicketRepository
         return ticket;
     }
 
+    /// <summary>
+    /// Inserta multiples tickets en una sola operacion de BD (bulk insert)
+    /// MEJORA CRIT-001: Reemplaza N llamadas individuales por 1 sola
+    /// </summary>
+    public async Task<IEnumerable<Ticket>> AddRangeAsync(IEnumerable<Ticket> tickets)
+    {
+        var ticketList = tickets.ToList();
+        await _context.Tickets.AddRangeAsync(ticketList);
+        await SaveChangesAsync();
+        return ticketList;
+    }
+
     public async Task<Ticket> UpdateAsync(Ticket ticket)
     {
         _context.Tickets.Update(ticket);

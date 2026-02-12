@@ -10,29 +10,6 @@ Aplicación que demuestra patrones de arquitectura distribuida:
 - **Microservices Pattern** con servicios independientes
 - **Resilience Patterns** con reintentos y recuperación automática
 
-## 🏗️ Arquitectura
-
-```
-┌─────────────┐
-│   Frontend  │ (Next.js 14, TypeScript, SWR)
-│  (Port 3000)│
-└──────┬──────┘
-       │
-       ├─────────────────────┬──────────────────────┐
-       │                     │                      │
-       ▼                     ▼                      ▼
-┌─────────────┐      ┌─────────────┐       ┌──────────────┐
-│   CRUD      │      │  Producer   │       │  RabbitMQ    │
-│  Service    │      │  Service    │       │  (Message    │
-│ (Port 8002) │      │ (Port 8001) │       │   Broker)    │
-│ PostgreSQL  │      │             │       │(Port 15672)  │
-└─────────────┘      └─────────────┘       └──────────────┘
-       ▲                     │                      ▲
-       │                     │                      │
-       └─────────────────────┴──────────────────────┘
-                    (Events)
-```
-
 ## 🎯 Servicios
 
 ### 1. CRUD Service (Puerto 8002)
@@ -96,7 +73,7 @@ Frontend (después de reserva)
              ├─ Routing: ticket.payments.rejected
              └─► RabbitMQ
                  └─► CRUD Service
-                     └─ status = "released"
+                     └─ status = "available"
 ```
 
 ## 🚀 Inicio Rápido
@@ -317,6 +294,7 @@ var factory = new ConnectionFactory
 };
 ```
 **Por qué rechazamos:** Nunca exponer secrets en repositorio. Usamos `IOptions<RabbitMQOptions>` inyectadas por DI, cargadas desde `appsettings.json` + variables de entorno. ✅ Ahora las credenciales están seguras en `.env` (ignorado en Git).
+Sin embargo, la IA alucina demasiado cuando se trata de mucas referencias a secretos.
 
 ### Rechazo 2: CORS AllowAll en Producción
 **Situación:** La IA generó:
@@ -327,6 +305,23 @@ policy.AllowAnyOrigin()  // Permite requests de cualquier dominio
 ```
 **Por qué rechazamos:** Vulnerabilidad CSRF y exposición a ataques cross-origin. Aunque lo mantuvimos para desarrollo, está documentado que debe restringirse a `http://localhost:3000` en producción o a su dominio respectivo y usar credenciales.
 
+### Rechazo 3: No considerar la liberación del ticket cuando el usuario no paga
+**Situación:** La IA no diseñó un mecanismo claro para liberar tickets cuando el usuario no completa el pago (o cuando el pago expira). En algunos borradores la IA asumió que los tickets se liberarían manualmente o por monitorización externa.
+**Por qué rechazamos:** Esto deja tickets reservados indefinidamente en escenarios de fallo, generando bloqueo de inventario. Se decidió implementar un job/worker que libere reservas expiradas o que el consumer que confirma la reserva fije `expires_at` y garantice la liberación automática cuando corresponda.
+
+### Rechazo 4: Producer intentó reservar y fijar `expiresAt`
+**Situación:** La IA propuso que el `Producer` reservara el ticket y fijara la fecha de caducidad (`expiresAt`) antes de que el `Consumer` confirmara la reserva en la base de datos.
+**Por qué rechazamos:** La expiración debe fijarse en el momento en que la reserva es persistida (consumer) para evitar problemas de latencia y condiciones de carrera. Si el `Producer` calcula `expiresAt` y falla la entrega o el consumer tarda en procesar, la ventana de expiración puede quedar desalineada (expiraciones que empiezan antes de la reserva real). Por eso la lógica de reserva y del `expires_at` se implementó en el `ReservationService` (consumer) con `// HUMAN CHECK` explicando la decisión.
+
+### Rechazo 5: Uso de `docker compose` vs `docker-compose` y versión forzada en `compose`
+**Situación:** En propuestas iniciales la IA generó archivos y ejemplos usando `docker compose.yml` o forzando la versión `3.8` del esquema de compose.
+
+**Por qué rechazamos:** Las prácticas actuales recomiendan usar el archivo `compose.yml` (o `docker-compose.yml` según convención del proyecto) y no imponer una versión antigua de formato sin necesidad. Forzar `3.8` puede ser innecesario o incompatible con algunos entornos; además, la referencia a `docker compose.yml` es confusa (se usa `docker compose` sin guión en la CLI moderna). Se documentó que el repositorio adopta `compose.yml` y la sintaxis moderna, y que cualquier sugerencia de la IA sobre nombres/versions debe validarse antes de aplicarla.
+
+### Rechazo 6: Confusión de la IA entre Inyección de Dependencias y uso directo de `.env`
+**Situación:** En varias propuestas la IA generó cambios que ignoraban la inyección de dependencias (`IOptions<T>` en .NET) y en su lugar recomendó embebecer valores o leer `.env` directamente dentro del código de producción.
+**Por qué rechazamos:** Esto rompe la abstracción de DI, dificulta pruebas unitarias y copia secretos en lugares no gestionados. En este repo mantenemos la convención: registrar opciones/configuraciones por DI y poblarlas desde `appsettings.json` + variables de entorno o un secret manager. Cualquier cambio propuesto por la IA que modifique el flujo de configuración debe revisarse manualmente (`// HUMAN CHECK`) antes de integrarlo.
+
 ---
 
 ## �📝 Notas Importantes
@@ -335,7 +330,7 @@ policy.AllowAnyOrigin()  // Permite requests de cualquier dominio
 
 2. **Frontend**: Solo implementada la vista del buyer para el mvp. Admin view pendiente.
 
-3. **CRUD Consumer**: El CRUD Service necesita implementar el consumer de pagos (guía en `PAYMENT_CONSUMER.md`).
+3. **CRUD Consumer**: El CRUD Service necesita implementar el consumer de pagos.
 
 4. **Polling**: Frontend hace polling cada 500ms con exponential backoff (máx 10 segundos).
 
@@ -355,9 +350,17 @@ policy.AllowAnyOrigin()  // Permite requests de cualquier dominio
 - Revisar que consumer de eventos esté activo
 - Revisar bindings en RabbitMQ UI
 
-## 📖 Referencias
 
-- [RabbitMQ Documentation](https://www.rabbitmq.com/documentation.html)
-- [.NET RabbitMQ Client](https://www.rabbitmq.com/tutorials/tutorial-three-dotnet.html)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs/15/index.html)
+## 🛡 Instancias `// HUMAN CHECK` en el código
+
+Registramos varias validaciones manuales (`// HUMAN CHECK`) en el código donde el equipo revisó y corrigió decisiones sugeridas por la IA. Estas ubicaciones sirven como evidencia y guía para nuevos desarrolladores:
+
+- `ReservationService` (optimistic locking) — [ReservationService/src/ReservationService.Worker/Services/ReservationService.cs](ReservationService/src/ReservationService.Worker/Services/ReservationService.cs#L17)
+- `TicketRepository` (optimistic locking, reserva) — [ReservationService/src/ReservationService.Worker/Repositories/TicketRepository.cs](ReservationService/src/ReservationService.Worker/Repositories/TicketRepository.cs#L23)
+- `CrudService` DI / DbContext scope — [crud_service/Extensions/ServiceExtensions.cs](crud_service/Extensions/ServiceExtensions.cs#L21)
+- `RabbitMQPaymentPublisher` (mensajes persistentes) — [producer/Producer/Services/RabbitMQPaymentPublisher.cs](producer/Producer/Services/RabbitMQPaymentPublisher.cs#L56)
+- `RabbitMQPaymentPublisher` (rechazo persistente) — [producer/Producer/Services/RabbitMQPaymentPublisher.cs](producer/Producer/Services/RabbitMQPaymentPublisher.cs#L124)
+- `Producer` CORS (policy para desarrollo vs producción) — [producer/Producer/Program.cs](producer/Producer/Program.cs#L24)
+- `Producer` RabbitMQ config (nota sobre secrets) — [producer/Producer/Configurations/RabbitMQOptions.cs](producer/Producer/Configurations/RabbitMQOptions.cs#L6)
+
+Por favor revise esas ubicaciones al integrarse al proyecto; cada `// HUMAN CHECK` explica la decisión del equipo y el riesgo que se mitigó.

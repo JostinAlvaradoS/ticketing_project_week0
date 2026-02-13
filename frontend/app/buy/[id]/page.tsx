@@ -334,7 +334,7 @@ export default function BuyerEventPage() {
                     key={ticketId}
                     ticket={{
                       id: ticketId,
-                      price: event.price || 9999,
+                      price: event.price || 9999, // $99.99 por defecto si backend no lo envía
                       currency: "USD",
                     }}
                     eventId={eventId}

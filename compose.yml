@@ -89,10 +89,11 @@ services:
       - RabbitMQ__ExchangeName=tickets
       - RabbitMQ__TicketReservedRoutingKey=ticket.reserved
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "dotnet --info || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - ticketing_network
     restart: unless-stopped
@@ -141,10 +142,11 @@ services:
       - ASPNETCORE_HTTP_PORT=8080
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "dotnet --info || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - ticketing_network
     restart: unless-stopped

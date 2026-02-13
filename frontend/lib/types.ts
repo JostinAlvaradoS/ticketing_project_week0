@@ -7,6 +7,7 @@ export interface Event {
   availableTickets: number
   reservedTickets: number
   paidTickets: number
+  price?: number // Precio en centavos
 }
 
 export interface Ticket {
@@ -19,6 +20,7 @@ export interface Ticket {
   orderId: string | null
   reservedBy: string | null
   version: number
+  price?: number // Precio en centavos
 }
 
 export interface CreateEventPayload {

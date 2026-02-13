@@ -38,7 +38,9 @@ export async function pollUntilCondition<T>(
       }
     } catch (error) {
       // Continue polling even on error
-      console.warn(`Poll attempt ${attempt + 1} failed:`, error)
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`Poll attempt ${attempt + 1} failed:`, error)
+      }
     }
 
     attempt++

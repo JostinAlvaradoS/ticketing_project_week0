@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PaymentForm } from "@/components/payment-form"
 import { PaymentStatus } from "@/components/payment-status"
 import { api } from "@/lib/api"
+import { validateEmail } from "@/lib/validation"
 import { toast } from "sonner"
 
 type PurchaseStep = "form" | "processing" | "reserved" | "payment" | "confirming" | "success" | "error"
@@ -86,6 +87,11 @@ export default function BuyerEventPage() {
       return
     }
 
+    if (!validateEmail(email.trim())) {
+      toast.error("Email inválido")
+      return
+    }
+
     const seconds = Number(expiresIn)
     if (!seconds || seconds <= 0) {
       toast.error("El tiempo de expiración debe ser mayor a 0")
@@ -98,35 +104,34 @@ export default function BuyerEventPage() {
     try {
       const selectedTickets = availableTickets.slice(0, qty)
       const orderId = `ORD-${Date.now()}`
-      let successCount = 0
-      const reservedIds: number[] = []
 
-      // Enviar reservas en paralelo
-      await Promise.all(
+      // Enviar reservas en paralelo con Promise.allSettled
+      const results = await Promise.allSettled(
         selectedTickets.map((ticket) =>
-          api
-            .reserveTicket({
-              eventId,
-              ticketId: ticket.id,
-              orderId,
-              reservedBy: email.trim(),
-              expiresInSeconds: seconds,
-            })
-            .then((result) => {
-              successCount++
-              reservedIds.push(result.ticketId)
-            })
-            .catch((err) => {
-              console.error("Failed to reserve ticket:", err)
-            })
+          api.reserveTicket({
+            eventId,
+            ticketId: ticket.id,
+            orderId,
+            reservedBy: email.trim(),
+            expiresInSeconds: seconds,
+          })
         )
       )
 
-      if (successCount === 0) {
+      const reservedIds: number[] = []
+      results.forEach((result) => {
+        if (result.status === "fulfilled") {
+          reservedIds.push(result.value.ticketId)
+        } else if (process.env.NODE_ENV === "development") {
+          console.error("Failed to reserve ticket:", result.reason)
+        }
+      })
+
+      if (reservedIds.length === 0) {
         throw new Error("No fue posible reservar los tickets")
       }
 
-      setReservedCount(successCount)
+      setReservedCount(reservedIds.length)
       setReservedTicketIds(reservedIds)
       
       // Esperar un poco para que se procesen
@@ -320,7 +325,7 @@ export default function BuyerEventPage() {
                     Completar Pago
                   </h2>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    {reservedCount} ticket{reservedCount !== 1 ? "s" : ""} reservado{reservedCount !== 1 ? "s" : ""} • Total: ${(9999 * reservedCount / 100).toFixed(2)}
+                    {reservedCount} ticket{reservedCount !== 1 ? "s" : ""} reservado{reservedCount !== 1 ? "s" : ""} • Total: ${((event.price || 9999) * reservedCount / 100).toFixed(2)}
                   </p>
                 </div>
 
@@ -329,7 +334,7 @@ export default function BuyerEventPage() {
                     key={ticketId}
                     ticket={{
                       id: ticketId,
-                      price: 9999, // $99.99 en centavos
+                      price: event.price || 9999,
                       currency: "USD",
                     }}
                     eventId={eventId}

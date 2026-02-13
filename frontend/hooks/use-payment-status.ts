@@ -3,7 +3,8 @@
  * Usa polling para esperar a que el estado del ticket cambie a "paid"
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
+import { api } from "@/lib/api"
 
 interface UsePaymentStatusOptions {
   ticketId?: number
@@ -20,6 +21,14 @@ export function usePaymentStatus({
 }: UsePaymentStatusOptions) {
   const [isPolling, setIsPolling] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     if (!ticketId || !isPolling) {
@@ -32,13 +41,10 @@ export function usePaymentStatus({
 
     const pollPaymentStatus = async () => {
       try {
-        const response = await fetch(`/api/tickets/${ticketId}`)
-        if (!response.ok) {
-          throw new Error("Failed to fetch ticket")
-        }
-
-        const ticket = await response.json()
+        const ticket = await api.getTicket(ticketId)
         const elapsed = Date.now() - startTime
+
+        if (!isMountedRef.current) return
 
         setElapsedTime(Math.round(elapsed / 1000))
 
@@ -58,7 +64,11 @@ export function usePaymentStatus({
           return
         }
       } catch (error) {
-        console.error("Error polling payment status:", error)
+        if (!isMountedRef.current) return
+        
+        if (process.env.NODE_ENV === "development") {
+          console.error("Error polling payment status:", error)
+        }
         if (pollInterval) clearInterval(pollInterval)
         setIsPolling(false)
         onPaymentRejected?.("Error verificando estado del pago")

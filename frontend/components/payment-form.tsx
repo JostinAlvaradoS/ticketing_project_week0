@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
+import { validateLuhn, validateExpiryDate } from "@/lib/validation"
 
 interface PaymentFormProps {
   ticket: {
@@ -61,8 +62,15 @@ export function PaymentForm({
     e.preventDefault()
 
     // Validaciones
-    if (!cardNumber.replace(/\s/g, "") || cardNumber.replace(/\s/g, "").length !== 16) {
+    const cleanCardNumber = cardNumber.replace(/\s/g, "")
+    
+    if (!cleanCardNumber || cleanCardNumber.length !== 16) {
       toast.error("Número de tarjeta inválido (16 dígitos)")
+      return
+    }
+
+    if (!validateLuhn(cleanCardNumber)) {
+      toast.error("Número de tarjeta inválido (falló validación Luhn)")
       return
     }
 
@@ -71,27 +79,14 @@ export function PaymentForm({
       return
     }
 
-    if (!expiryDate || expiryDate.length !== 5) {
-      toast.error("Fecha de vencimiento inválida (MM/YY)")
+    const expiryValidation = validateExpiryDate(expiryDate)
+    if (!expiryValidation.valid) {
+      toast.error(expiryValidation.message || "Fecha de vencimiento inválida")
       return
     }
 
     if (!cvv || cvv.length !== 3) {
       toast.error("CVV inválido (3 dígitos)")
-      return
-    }
-
-    // Validar que la fecha no esté expirada
-    const [month, year] = expiryDate.split("/")
-    const currentDate = new Date()
-    const currentYear = currentDate.getFullYear() % 100
-    const currentMonth = currentDate.getMonth() + 1
-
-    const expYear = parseInt(`20${year}`)
-    const expMonth = parseInt(month)
-
-    if (expYear < currentDate.getFullYear() || (expYear === currentDate.getFullYear() && expMonth < currentMonth)) {
-      toast.error("Tarjeta expirada")
       return
     }
 

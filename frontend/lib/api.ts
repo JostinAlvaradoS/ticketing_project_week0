@@ -8,9 +8,10 @@ import type {
   UpdateTicketPayload,
 } from "./types"
 import { retryWithBackoff } from "./polling"
+import { env } from "./env"
 
-const CRUD_URL = process.env.NEXT_PUBLIC_API_CRUD || "http://localhost:8002"
-const PRODUCER_URL = process.env.NEXT_PUBLIC_API_PRODUCER || "http://localhost:8001"
+const CRUD_URL = env.NEXT_PUBLIC_API_CRUD
+const PRODUCER_URL = env.NEXT_PUBLIC_API_PRODUCER
 
 /**
  * Custom error class for API errors
@@ -28,13 +29,8 @@ export class ApiError extends Error {
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
-  // Success case
-  if (res.ok) {
-    return res.json()
-  }
-
-  // 202 Accepted is special - it's not an error
-  if (res.status === 202) {
+  // Success cases (2xx)
+  if (res.ok || res.status === 202) {
     return res.json()
   }
 

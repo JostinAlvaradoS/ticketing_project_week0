@@ -29,6 +29,19 @@ public class TicketService : ITicketService
     private readonly TicketingDbContext _dbContext;
     private readonly ILogger<TicketService> _logger;
 
+    /// <summary>
+    /// IMP-001: Maquina de estados - Define transiciones validas entre estados de ticket
+    /// Evita cambios ilogicos como Paid->Available o Cancelled->Reserved
+    /// </summary>
+    private static readonly Dictionary<TicketStatus, HashSet<TicketStatus>> ValidTransitions = new()
+    {
+        { TicketStatus.Available, new HashSet<TicketStatus> { TicketStatus.Reserved, TicketStatus.Cancelled } },
+        { TicketStatus.Reserved, new HashSet<TicketStatus> { TicketStatus.Paid, TicketStatus.Available, TicketStatus.Cancelled } },
+        { TicketStatus.Paid, new HashSet<TicketStatus> { TicketStatus.Cancelled } },
+        { TicketStatus.Released, new HashSet<TicketStatus> { TicketStatus.Available } },
+        { TicketStatus.Cancelled, new HashSet<TicketStatus>() } // Estado final
+    };
+
     public TicketService(
         ITicketRepository ticketRepository,
         ITicketHistoryRepository historyRepository,
@@ -100,6 +113,9 @@ public class TicketService : ITicketService
         if (!Enum.TryParse<TicketStatus>(newStatus, ignoreCase: true, out var status))
             throw new ArgumentException($"Estado invalido: {newStatus}");
 
+        // IMP-001: Validar que la transicion de estado es permitida
+        ValidateStateTransition(oldStatus, status);
+
         ticket.Status = status;
         ticket.Version++;
 
@@ -143,6 +159,10 @@ public class TicketService : ITicketService
             throw new KeyNotFoundException($"Ticket {id} no encontrado");
 
         var oldStatus = ticket.Status;
+
+        // IMP-001: Validar que la transicion a Available es permitida
+        ValidateStateTransition(oldStatus, TicketStatus.Available);
+
         ticket.Status = TicketStatus.Available;
         ticket.ReservedAt = null;
         ticket.ExpiresAt = null;
@@ -196,5 +216,27 @@ public class TicketService : ITicketService
             ReservedBy = ticket.ReservedBy,
             Version = ticket.Version
         };
+    }
+
+    /// <summary>
+    /// IMP-001: Valida que una transicion de estado sea permitida segun la maquina de estados
+    /// </summary>
+    private void ValidateStateTransition(TicketStatus currentStatus, TicketStatus newStatus)
+    {
+        // Si el estado no cambia, es valido (idempotencia)
+        if (currentStatus == newStatus)
+            return;
+
+        if (!ValidTransitions.TryGetValue(currentStatus, out var allowedTransitions))
+        {
+            throw new InvalidOperationException($"Estado desconocido: {currentStatus}");
+        }
+
+        if (!allowedTransitions.Contains(newStatus))
+        {
+            throw new InvalidOperationException(
+                $"Transicion no permitida: {currentStatus} -> {newStatus}. " +
+                $"Transiciones validas: {string.Join(", ", allowedTransitions)}");
+        }
     }
 }

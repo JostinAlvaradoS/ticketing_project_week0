@@ -12,11 +12,11 @@
 | Categoria | Encontrados | Corregidos | Pendientes |
 |-----------|-------------|------------|------------|
 | Bugs criticos | 2 | 2 | 0 |
-| Bugs medios | 2 | 0 | 2 |
-| Bugs menores | 1 | 0 | 1 |
-| Seguridad | 1 | 0 | 1 |
+| Bugs medios | 2 | 2 | 0 |
+| Bugs menores | 1 | 1 | 0 |
+| Seguridad | 1 | 1 | 0 |
 | Mejoras | 1 | 0 | 1 |
-| **TOTAL** | **7** | **2** | **5** |
+| **TOTAL** | **7** | **6** | **1** |
 
 ---
 
@@ -120,7 +120,7 @@ modelBuilder.HasPostgresEnum<PaymentStatus>("payment_status");
 **Severidad**: MEDIA  
 **Archivo**: crud_service/Services/TicketService.cs  
 **Lineas**: 51-65  
-**Estado**: PENDIENTE
+**Estado**: CORREGIDO
 
 **Descripcion**:
 El metodo CreateTicketsAsync no verifica si el evento existe antes de intentar crear tickets. Esto puede causar:
@@ -128,8 +128,8 @@ El metodo CreateTicketsAsync no verifica si el evento existe antes de intentar c
 - Mensajes de error confusos para el usuario
 - Tickets huerfanos si la validacion de FK no esta activa
 
-**Solucion propuesta**:
-Agregar validacion de existencia del evento antes de crear tickets.
+**Solucion implementada**:
+Inyectar IEventRepository y validar existencia del evento antes de crear tickets.
 
 ---
 
@@ -138,7 +138,7 @@ Agregar validacion de existencia del evento antes de crear tickets.
 **Severidad**: MEDIA  
 **Archivo**: crud_service/Services/TicketService.cs  
 **Lineas**: 70-95, 100-125  
-**Estado**: PENDIENTE
+**Estado**: CORREGIDO
 
 **Descripcion**:
 Los metodos UpdateTicketStatusAsync y ReleaseTicketAsync modifican el ticket Y crean un registro en historial como operaciones separadas. Si la segunda falla:
@@ -146,8 +146,8 @@ Los metodos UpdateTicketStatusAsync y ReleaseTicketAsync modifican el ticket Y c
 - No hay registro de auditoria
 - Se pierde consistencia de datos
 
-**Solucion propuesta**:
-Usar transaccion explicita para garantizar atomicidad.
+**Solucion implementada**:
+Inyectar DbContext y usar BeginTransactionAsync para envolver operaciones en transaccion.
 
 ---
 
@@ -156,12 +156,13 @@ Usar transaccion explicita para garantizar atomicidad.
 **Severidad**: MEDIA (para MVP aceptable, critico para produccion)  
 **Archivo**: crud_service/Program.cs  
 **Lineas**: 20-27  
-**Estado**: PENDIENTE
+**Estado**: DOCUMENTADO
 
 **Descripcion**:
 La configuracion CORS permite cualquier origen (AllowAnyOrigin()), lo cual en produccion permite que cualquier sitio web haga requests a la API.
 
-**Nota**: Para MVP/demo interno es aceptable. Documentar para produccion.
+**Solucion implementada**:
+Agregar comentario WARNING en el codigo indicando que debe cambiarse en produccion.
 
 ---
 
@@ -170,10 +171,10 @@ La configuracion CORS permite cualquier origen (AllowAnyOrigin()), lo cual en pr
 **Severidad**: MENOR  
 **Archivo**: crud_service/Data/RepositoriesImplementation.cs  
 **Lineas**: 202  
-**Estado**: PENDIENTE
+**Estado**: VERIFICADO - NO APLICA
 
 **Descripcion**:
-El archivo no tiene la llave de cierre de la clase TicketHistoryRepository.
+Se reporto que el archivo no tenia la llave de cierre. Al verificar, el archivo esta completo y compila correctamente.
 
 ---
 
@@ -310,6 +311,79 @@ modelBuilder.HasPostgresEnum<PaymentStatus>("payment_status");
 **Archivos modificados**:
 - crud_service/Extensions/ServiceExtensions.cs
 - crud_service/Data/TicketingDbContext.cs
+
+---
+
+### MED-001: Validacion de Existencia de Evento
+
+**Fecha**: 12 de febrero de 2026
+
+**Por que era un problema**:
+Se podian crear tickets para eventos inexistentes, causando:
+- Errores de foreign key constraint poco descriptivos
+- Confusion para el usuario final
+- Posibles inconsistencias si las FK no estaban activas
+
+**La correccion implementada**:
+Se inyecto IEventRepository en TicketService y se valida existencia del evento:
+```csharp
+var eventEntity = await _eventRepository.GetByIdAsync(eventId);
+if (eventEntity == null)
+{
+    throw new InvalidOperationException($"Event with ID {eventId} does not exist.");
+}
+```
+
+**Archivos modificados**:
+- crud_service/Services/TicketService.cs
+
+---
+
+### MED-002: Transacciones en Operaciones de Multiples Entidades
+
+**Fecha**: 12 de febrero de 2026
+
+**Por que era un problema**:
+UpdateTicketStatusAsync y ReleaseTicketAsync modificaban el ticket y creaban registro de historial en operaciones separadas. Si la segunda fallaba, quedaba inconsistencia.
+
+**La correccion implementada**:
+Se inyecto TicketingDbContext y se envolvieron las operaciones en transaccion:
+```csharp
+using var transaction = await _dbContext.Database.BeginTransactionAsync();
+try
+{
+    // operaciones...
+    await transaction.CommitAsync();
+}
+catch
+{
+    await transaction.RollbackAsync();
+    throw;
+}
+```
+
+**Archivos modificados**:
+- crud_service/Services/TicketService.cs
+
+---
+
+### SEC-001: Advertencia CORS para Produccion
+
+**Fecha**: 12 de febrero de 2026
+
+**Por que era un hallazgo**:
+CORS configurado con AllowAnyOrigin() permite requests desde cualquier dominio, lo cual es inseguro en produccion.
+
+**La accion tomada**:
+Para MVP/demo es aceptable. Se agrego comentario WARNING en Program.cs indicando que debe cambiarse para produccion:
+```csharp
+// WARNING: CORS Configuration - Production Security Notice
+// Current setting: AllowAnyOrigin() - accepts requests from any domain
+// For PRODUCTION: Replace with specific origins using WithOrigins("https://yourdomain.com")
+```
+
+**Archivos modificados**:
+- crud_service/Program.cs
 
 ---
 

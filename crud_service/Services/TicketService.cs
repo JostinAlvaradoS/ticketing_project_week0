@@ -1,3 +1,4 @@
+using CrudService.Data;
 using CrudService.Models.DTOs;
 using CrudService.Models.Entities;
 using CrudService.Repositories;
@@ -24,15 +25,21 @@ public class TicketService : ITicketService
 {
     private readonly ITicketRepository _ticketRepository;
     private readonly ITicketHistoryRepository _historyRepository;
+    private readonly IEventRepository _eventRepository;
+    private readonly TicketingDbContext _dbContext;
     private readonly ILogger<TicketService> _logger;
 
     public TicketService(
         ITicketRepository ticketRepository,
         ITicketHistoryRepository historyRepository,
+        IEventRepository eventRepository,
+        TicketingDbContext dbContext,
         ILogger<TicketService> logger)
     {
         _ticketRepository = ticketRepository;
         _historyRepository = historyRepository;
+        _eventRepository = eventRepository;
+        _dbContext = dbContext;
         _logger = logger;
     }
 
@@ -51,9 +58,17 @@ public class TicketService : ITicketService
     /// <summary>
     /// Crea tickets en lote usando bulk insert
     /// MEJORA CRIT-001: Antes hacia N llamadas a BD, ahora hace 1 sola
+    /// MEJORA MED-001: Validar que el evento existe antes de crear tickets
     /// </summary>
     public async Task<IEnumerable<TicketDto>> CreateTicketsAsync(long eventId, int quantity)
     {
+        // MED-001: Validar que el evento existe antes de crear tickets
+        var eventExists = await _eventRepository.GetByIdAsync(eventId);
+        if (eventExists == null)
+        {
+            throw new KeyNotFoundException($"Evento {eventId} no encontrado. No se pueden crear tickets para un evento inexistente.");
+        }
+
         // Crear todos los tickets en memoria primero
         var tickets = Enumerable.Range(0, quantity)
             .Select(_ => new Ticket
@@ -70,6 +85,9 @@ public class TicketService : ITicketService
         return created.Select(MapToDto);
     }
 
+    /// <summary>
+    /// MED-002: Usar transaccion para garantizar atomicidad
+    /// </summary>
     public async Task<TicketDto> UpdateTicketStatusAsync(long id, string newStatus, string? reason = null)
     {
         var ticket = await _ticketRepository.GetByIdAsync(id);
@@ -80,7 +98,7 @@ public class TicketService : ITicketService
 
         // Convertir string a enum
         if (!Enum.TryParse<TicketStatus>(newStatus, ignoreCase: true, out var status))
-            throw new ArgumentException($"Estado inválido: {newStatus}");
+            throw new ArgumentException($"Estado invalido: {newStatus}");
 
         ticket.Status = status;
         ticket.Version++;
@@ -94,16 +112,30 @@ public class TicketService : ITicketService
             Reason = reason
         };
 
-        await _historyRepository.AddAsync(history);
-        var updated = await _ticketRepository.UpdateAsync(ticket);
+        // MED-002: Envolver en transaccion para garantizar atomicidad
+        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            await _historyRepository.AddAsync(history);
+            var updated = await _ticketRepository.UpdateAsync(ticket);
+            await transaction.CommitAsync();
 
-        _logger.LogInformation(
-            "Ticket {TicketId} cambió de {OldStatus} a {NewStatus}",
-            id, oldStatus, status);
+            _logger.LogInformation(
+                "Ticket {TicketId} cambio de {OldStatus} a {NewStatus}",
+                id, oldStatus, status);
 
-        return MapToDto(updated);
+            return MapToDto(updated);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
+    /// <summary>
+    /// MED-002: Usar transaccion para garantizar atomicidad
+    /// </summary>
     public async Task<TicketDto> ReleaseTicketAsync(long id, string? reason = null)
     {
         var ticket = await _ticketRepository.GetByIdAsync(id);
@@ -126,11 +158,22 @@ public class TicketService : ITicketService
             Reason = reason ?? "Ticket liberado"
         };
 
-        await _historyRepository.AddAsync(history);
-        var updated = await _ticketRepository.UpdateAsync(ticket);
+        // MED-002: Envolver en transaccion para garantizar atomicidad
+        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            await _historyRepository.AddAsync(history);
+            var updated = await _ticketRepository.UpdateAsync(ticket);
+            await transaction.CommitAsync();
 
-        _logger.LogInformation("Ticket {TicketId} liberado. Razón: {Reason}", id, reason ?? "No especificada");
-        return MapToDto(updated);
+            _logger.LogInformation("Ticket {TicketId} liberado. Razon: {Reason}", id, reason ?? "No especificada");
+            return MapToDto(updated);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<IEnumerable<TicketDto>> GetExpiredTicketsAsync()

@@ -16,7 +16,10 @@ builder.Services.AddSwaggerGen();
 // Registrar servicios de aplicación (DbContext, Repositories, Services)
 builder.Services.AddApplicationServices(builder.Configuration);
 
-// CORS (si es necesario para frontend)
+// SEC-001: CORS abierto - SOLO PARA DESARROLLO/MVP
+// WARNING: En produccion, cambiar AllowAnyOrigin() por origenes especificos:
+// builder.WithOrigins("https://tu-dominio.com", "https://app.tu-dominio.com")
+// Esto evita que sitios maliciosos hagan requests a la API
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", builder =>

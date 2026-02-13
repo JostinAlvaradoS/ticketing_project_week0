@@ -130,33 +130,15 @@ policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader();
 
 **Riesgos en Producción**:
 - ❌ Credenciales "guest" en RabbitMQ (usuario por defecto)
-- ❌ `.env` en control de versiones
 - ❌ Passwords sin encriptación
 
 **Acción para MVP**:
-```bash
-# Solo asegurar que .env esté en .gitignore
-echo ".env" >> .gitignore
-echo ".env.local" >> .gitignore
-
-# Crear .env.example para documentar
-cp .env .env.example
-# Editar .env.example y cambiar valores por placeholders
-```
-
-**Solución Completa para Producciónón de credenciales en repositorio
-
-**Evidencia**:
-```env
-# .env - Credenciales por defecto expuestas
-RABBITMQ_DEFAULT_USER=guest
-RABBITMQ_DEFAULT_PASS=guest
-POSTGRES_PASSWORD=ticketing_password
-```
+- ✅ Mantener por simplicidad si es solo local
+- ⚠️ No exponer RabbitMQ/APIs a internet público con credenciales por defecto
+- ⚠️ Si el proyecto se publica o se despliega fuera de local: cambiar usuarios/passwords
 
 **Problemas**:
 - ❌ Credenciales "guest" en RabbitMQ (usuario por defecto)
-- ❌ `.env` podría estar en control de versiones
 - ❌ No hay rotación de credenciales
 - ❌ Passwords sin encriptación
 
@@ -170,9 +152,14 @@ services:
     secrets:
       - rabbitmq_user
       - rabbit
-- MVP: ✅ Ya está bien con .gitignore
-- Producción: ⚡ Migrar a secrets manager
 
+# Producción: ⚡ Migrar a un secrets manager y rotación
+
+
+2. **Producción (recomendado)**:
+- Crear usuarios dedicados (no usar `guest`)
+- Passwords fuertes + rotación
+- Limitar acceso de red a RabbitMQ y servicios
 ---
 
 ### PROD-002: Canales RabbitMQ Sin Pool (Optimización)
@@ -181,30 +168,8 @@ services:
 **Severidad para Producción**: 🟠 **MEDIA-ALTA** (alta concurrencia)  
 **Archivo**: `producer/Producer/Services/RabbitMQPaymentPublisher.cs`  
 **Contexto MVP**: Funciona bien para demos y pruebas con < 100 usuarios concurrente
-    file: ./secrets/rabbitmq_pass.txt
-```
 
-2. **Agregar a .gitignore**:
-```bash
-# .gitignore
-.env
-.env.*
-!.env.example
-secrets/
-*.local
-```
-
-3. **Crear .env.example**:
-```env
-# .env.example - SIN valores reales
-RABBITMQ_DEFAULT_USER=change_me
-RABBITMQ_DEFAULT_PASS=change_me_strong_password
-POSTGRES_PASSWORD=change_me_strong_password
-```
-
-4. **Usar Azure Key Vault / AWS Secrets Manager en producción**
-
-**Prioridad**: ⚡ Implementar INMEDIATAMENTE
+**Prioridad**: 🟠 Recomendado antes de alta concurrencia
 
 ---
 
@@ -1721,7 +1686,6 @@ ticket.Version += VERSION_INCREMENT;
 ### 📋 Checklist Pre-Demo (15 minutos)
 
 **Antes de mostrar el MVP públicamente**:
-- [ ] Verificar que `.env` esté en `.gitignore`
 - [ ] Agregar disclaimer en README sobre ambiente de desarrollo
 - [ ] Probar flujo completo: crear evento → crear tickets → reservar → pagar
 - [ ] Limpiar logs de consola en frontend (opcional)

@@ -1,4 +1,4 @@
-# Ticketing Project - Week 0
+# Ticketing Project - Week 1
 
 Sistema distribuido de gestión de tickets y eventos usando arquitectura de microservicios con RabbitMQ.
 

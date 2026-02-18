@@ -1,5 +1,6 @@
 using CrudService.Data;
 using CrudService.Extensions;
+using CrudService.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,8 +14,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Registrar servicios de aplicación (DbContext, Repositories, Services)
+// Registrar servicios de aplicación (DbContext, Repositories, Services, TicketStatusHub)
 builder.Services.AddApplicationServices(builder.Configuration);
+
+// RabbitMQ consumer para ticket.status.changed
+builder.Services.Configure<RabbitMQSettings>(builder.Configuration.GetSection(RabbitMQSettings.SectionName));
+builder.Services.AddHostedService<TicketStatusConsumer>();
 
 // CORS (si es necesario para frontend)
 builder.Services.AddCors(options =>

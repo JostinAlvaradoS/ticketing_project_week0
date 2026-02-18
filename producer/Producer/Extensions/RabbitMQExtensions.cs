@@ -60,8 +60,8 @@ public static class RabbitMQExtensions
         // Registrar el publicador de tickets
         services.AddScoped<ITicketPublisher, RabbitMQTicketPublisher>();
 
-        // Registrar el publicador de pagos
-        services.AddScoped<IPaymentPublisher, RabbitMQPaymentPublisher>();
+        // Registrar el publicador de solicitudes de pago
+        services.AddScoped<IPaymentRequestPublisher, RabbitMQPaymentRequestPublisher>();
 
         return services;
     }

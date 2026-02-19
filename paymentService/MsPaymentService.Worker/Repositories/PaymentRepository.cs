@@ -36,29 +36,17 @@ public class PaymentRepository : IPaymentRepository
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
-    /// <inheritdoc/>
-    public async Task<bool> UpdateAsync(Payment payment)
-    {
-        try
-        {
-            _context.Payments.Update(payment);
-            await _context.SaveChangesAsync();
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<Payment> CreateAsync(Payment payment)
+    public async Task AddAsync(Payment payment, CancellationToken ct)
     {
         payment.CreatedAt = DateTime.UtcNow;
         payment.UpdatedAt = DateTime.UtcNow;
-        
-        _context.Payments.Add(payment);
-        await _context.SaveChangesAsync();
-        return payment;
+        await _context.Payments.AddAsync(payment, ct);
     }
+
+    public async Task<Payment?> GetByProviderRefAsync(string providerRef, CancellationToken ct)
+    {
+        return await _context.Payments
+            .FirstOrDefaultAsync(p => p.ProviderRef == providerRef, ct);
+    }
+
 }

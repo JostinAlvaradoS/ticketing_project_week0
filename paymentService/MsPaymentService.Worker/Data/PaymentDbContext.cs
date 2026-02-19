@@ -23,5 +23,9 @@ public class PaymentDbContext : DbContext
         // Configurar enums como PostgreSQL enums
         modelBuilder.HasPostgresEnum<TicketStatus>();
         modelBuilder.HasPostgresEnum<PaymentStatus>();
+
+        modelBuilder.Entity<Ticket>()
+            .Property(t => t.Version)
+            .IsConcurrencyToken();
     }
 }

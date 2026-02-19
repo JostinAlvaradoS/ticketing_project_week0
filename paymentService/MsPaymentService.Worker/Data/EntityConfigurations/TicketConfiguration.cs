@@ -40,8 +40,8 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
             .HasMaxLength(120);
         
         builder.Property(t => t.Version)
-            .HasColumnName("version")
-            .IsConcurrencyToken();
+            .IsRowVersion()
+            .HasColumnName("version");
         
         // Relaciones
         builder.HasMany(t => t.Payments)

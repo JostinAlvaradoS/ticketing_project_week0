@@ -12,7 +12,7 @@ public interface ITicketHistoryRepository
     /// Registra un nuevo cambio de estado en el historial del ticket.
     /// </summary>
     /// <param name="history">Registro de historial a almacenar.</param>
-    Task AddAsync(TicketHistory history);
+    void Add(TicketHistory history);
 
     /// <summary>
     /// Obtiene todo el historial de cambios de estado de un ticket, ordenado cronológicamente.

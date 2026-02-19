@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using MsPaymentService.Worker.Data;
 using MsPaymentService.Worker.Models.Entities;
@@ -7,170 +8,220 @@ namespace MsPaymentService.Worker.Services;
 
 public class TicketStateService : ITicketStateService
 {
-    private readonly PaymentDbContext _dbContext;
     private readonly ITicketRepository _ticketRepository;
     private readonly IPaymentRepository _paymentRepository;
     private readonly ITicketHistoryRepository _historyRepository;
     private readonly ILogger<TicketStateService> _logger;
+    private readonly IUnitOfWork _unitOfWork;
 
     public TicketStateService(
-        PaymentDbContext dbContext,
         ITicketRepository ticketRepository,
         IPaymentRepository paymentRepository,
         ITicketHistoryRepository historyRepository,
-        ILogger<TicketStateService> logger)
+        ILogger<TicketStateService> logger,
+        IUnitOfWork unitOfWork)
     {
-        _dbContext = dbContext;
         _ticketRepository = ticketRepository;
         _paymentRepository = paymentRepository;
         _historyRepository = historyRepository;
         _logger = logger;
+        _unitOfWork = unitOfWork;
     }
 
+    /// <summary>
+    /// Transiciona un ticket del estado 'reservado' al estado 'pagado'.
+    /// Esta operación es atómica y maneja concurrencia mediante transacciones con nivel RepeatableRead.
+    /// </summary>
+    /// <param name="ticketId">Identificador único del ticket a transicionar.</param>
+    /// <param name="providerRef">Referencia del proveedor de pago que aprobó la transacción.</param>
+    /// <returns>
+    /// True si la transición fue exitosa, False si:
+    /// - El ticket no existe
+    /// - El ticket no está en estado 'reservado'
+    /// - Ocurrió un conflicto de concurrencia
+    /// </returns>
+    /// <remarks>
+    /// Esta operación actualiza:
+    /// - El estado del ticket a 'paid'
+    /// - La fecha de pago (PaidAt)
+    /// - El estado del pago asociado a 'approved'
+    /// - La referencia del proveedor en el pago
+    /// - Registra una entrada en el historial del ticket
+    /// </remarks>
     public async Task<bool> TransitionToPaidAsync(long ticketId, string providerRef)
     {
-        using var transaction = await _dbContext.Database.BeginTransactionAsync();
-        
+        await using var tx = await _unitOfWork
+            .BeginTransactionAsync(IsolationLevel.RepeatableRead);
+
         try
         {
-            // 1. Obtener ticket con lock pesimista
-            var ticket = await _ticketRepository.GetByIdForUpdateAsync(ticketId);
-            
-            if (ticket == null || ticket.Status != TicketStatus.reserved)
-            {
-                _logger.LogWarning(
-                    "Cannot transition to paid - invalid state. TicketId: {TicketId}, Status: {Status}",
-                    ticketId, ticket?.Status);
+            var ticket = await _ticketRepository
+                .GetTrackedByIdAsync(ticketId, CancellationToken.None);
+
+            if (ticket is null || ticket.Status != TicketStatus.reserved)
                 return false;
-            }
-            
-            // 2. Actualizar ticket
+
             var oldStatus = ticket.Status;
+
             ticket.Status = TicketStatus.paid;
             ticket.PaidAt = DateTime.UtcNow;
 
-            var updated = await _ticketRepository.UpdateAsync(ticket);
+            var payment = ticket.Payments.FirstOrDefault();
 
-            if (!updated)
-            {
-                var current = await _ticketRepository.GetByIdAsync(ticketId);
-
-                if (current != null && current.Status == TicketStatus.released)
-                {
-                    _logger.LogInformation(
-                        "Ticket {TicketId} already released (idempotent event).",
-                        ticketId);
-                    return true;
-                }
-
-                _logger.LogWarning(
-                    "Failed to update ticket {TicketId} - real concurrent modification",
-                    ticketId);
-
-                return false;
-            }
-            
-            // 3. Actualizar payment
-            var payment = await _paymentRepository.GetByTicketIdAsync(ticketId);
             if (payment != null)
             {
                 payment.Status = PaymentStatus.approved;
                 payment.ProviderRef = providerRef;
                 payment.UpdatedAt = DateTime.UtcNow;
-                
-                await _paymentRepository.UpdateAsync(payment);
             }
-            
-            // 4. Registrar en historial
-            await RecordHistoryAsync(ticketId, oldStatus, TicketStatus.paid, "Payment approved");
-            
-            // 5. Commit transacción
-            await transaction.CommitAsync();
-            
-            _logger.LogInformation(
-                "Ticket {TicketId} successfully transitioned to Paid with provider ref {ProviderRef}",
-                ticketId, providerRef);
-            
+
+            _historyRepository.Add(new TicketHistory
+            {
+                TicketId = ticketId,
+                OldStatus = oldStatus,
+                NewStatus = TicketStatus.paid,
+                ChangedAt = DateTime.UtcNow,
+                Reason = "Payment approved"
+            });
+
+            await _unitOfWork.SaveChangesAsync();
+
+            await tx.CommitAsync();
+
             return true;
         }
-        catch (Exception ex)
+        catch (DbUpdateConcurrencyException)
         {
-            await transaction.RollbackAsync();
-            _logger.LogError(ex, "Error transitioning ticket {TicketId} to paid", ticketId);
-            throw;
+            await tx.RollbackAsync();
+            return false;
         }
     }
 
+    /// <summary>
+    /// Transiciona un ticket al estado 'disponible' (liberado), cancelando cualquier reserva activa.
+    /// Esta operación es idempotente y maneja concurrencia mediante transacciones.
+    /// </summary>
+    /// <param name="ticketId">Identificador único del ticket a liberar.</param>
+    /// <param name="reason">Motivo de la liberación (ej: "TTL expired", "Payment failed").</param>
+    /// <returns>
+    /// True si la transición fue exitosa, False si:
+    /// - El ticket no existe
+    /// - Ocurrió un conflicto de concurrencia
+    /// </returns>
+    /// <remarks>
+    /// Esta operación es idempotente: si el ticket ya está disponible, retorna True sin realizar cambios.
+    /// 
+    /// Actualiza:
+    /// - El estado del ticket a 'available'
+    /// - Limpia la fecha de expiración (ExpiresAt = null)
+    /// - Actualiza el estado del pago pendiente basado en la razón:
+    ///   * 'expired' si la razón contiene "TTL"
+    ///   * 'failed' en otros casos
+    /// - Registra una entrada en el historial del ticket
+    /// </remarks>
     public async Task<bool> TransitionToReleasedAsync(long ticketId, string reason)
     {
-        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        await using var tx = await _unitOfWork
+            .BeginTransactionAsync(IsolationLevel.RepeatableRead);
         
         try
         {
-            // 1. Obtener ticket
-            var ticket = await _ticketRepository.GetByIdForUpdateAsync(ticketId);
-            
-            if (ticket == null)
+            var ticket = await _ticketRepository
+                .GetTrackedByIdAsync(ticketId, CancellationToken.None);  
+
+            if (ticket is null)
             {
-                _logger.LogWarning("Ticket {TicketId} not found", ticketId);
-                return false;
-            }
-            
-            // 2. Actualizar ticket
-            var oldStatus = ticket.Status;
-            ticket.Status = TicketStatus.released;
-
-            var updated = await _ticketRepository.UpdateAsync(ticket);
-
-            if (!updated)
-            {
-                var current = await _ticketRepository.GetByIdAsync(ticketId);
-
-                if (current != null && current.Status == TicketStatus.released)
-                {
-                    _logger.LogInformation(
-                        "Ticket {TicketId}- {status} already released (idempotent event).",
-                        ticketId, current.Status);
-                    return true;
-                }
-
                 _logger.LogWarning(
-                    "Failed to update ticket {TicketId} - real concurrent modification",
+                    "Ticket {TicketId} not found",
                     ticketId);
 
                 return false;
             }
-            
-            // 3. Actualizar payment si existe
-            var payment = await _paymentRepository.GetByTicketIdAsync(ticketId);
-            if (payment != null && payment.Status == PaymentStatus.pending)
+
+            // Idempotencia fuerte
+            if (ticket.Status == TicketStatus.available)
             {
-                payment.Status = reason.Contains("TTL") ? PaymentStatus.expired : PaymentStatus.failed;
-                payment.UpdatedAt = DateTime.UtcNow;
-                
-                await _paymentRepository.UpdateAsync(payment);
+                _logger.LogInformation(
+                    "Ticket {TicketId} already available (idempotent event).",
+                    ticketId);
+
+                return true;
             }
             
-            // 4. Registrar en historial
-            await RecordHistoryAsync(ticketId, oldStatus, TicketStatus.released, reason);
+            var oldStatus = ticket.Status;
+
+            ticket.Status = TicketStatus.available;
+            ticket.ExpiresAt = null;
+
+            // Payment ya viene trackeado si usas Include
+            var payment = ticket.Payments
+                .FirstOrDefault(p => p.Status == PaymentStatus.pending);
+
+            if (payment is not null)
+            {
+                payment.Status = reason.Contains("TTL", StringComparison.OrdinalIgnoreCase)
+                    ? PaymentStatus.expired
+                    : PaymentStatus.failed;
+
+                payment.UpdatedAt = DateTime.UtcNow;
+            }
             
-            // 5. Commit transacción
-            await transaction.CommitAsync();
+            _historyRepository.Add(new TicketHistory
+            {
+                TicketId = ticketId,
+                OldStatus = oldStatus,
+                NewStatus = TicketStatus.released,
+                ChangedAt = DateTime.UtcNow,
+                Reason = reason
+            });
             
+            await _unitOfWork.SaveChangesAsync();
+
+            await tx.CommitAsync();
+
             _logger.LogInformation(
                 "Ticket {TicketId} successfully transitioned to Released. Reason: {Reason}",
-                ticketId, reason);
-            
+                ticketId,
+                reason);
+
             return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await tx.RollbackAsync();
+
+            _logger.LogWarning(
+                "Concurrency conflict while releasing ticket {TicketId}",
+                ticketId);
+
+            return false;
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
-            _logger.LogError(ex, "Error transitioning ticket {TicketId} to released", ticketId);
+            await tx.RollbackAsync();
+
+            _logger.LogError(
+                ex,
+                "Error transitioning ticket {TicketId} to released",
+                ticketId);
+
             throw;
         }
     }
 
+    /// <summary>
+    /// Registra una entrada de historial para documentar un cambio de estado en un ticket.
+    /// Esta operación no realiza commit automático - debe ser llamada dentro de una transacción.
+    /// </summary>
+    /// <param name="ticketId">Identificador único del ticket cuyo estado cambió.</param>
+    /// <param name="oldStatus">Estado anterior del ticket antes del cambio.</param>
+    /// <param name="newStatus">Nuevo estado al cual transicionó el ticket.</param>
+    /// <param name="reason">Motivo o descripción del cambio de estado.</param>
+    /// <remarks>
+    /// Este método solo agrega la entrada al contexto de Entity Framework.
+    /// El guardado debe realizarse explícitamente mediante SaveChangesAsync.
+    /// La fecha de cambio se establece automáticamente como DateTime.UtcNow.
+    /// </remarks>
     public async Task RecordHistoryAsync(long ticketId, TicketStatus oldStatus, TicketStatus newStatus, string reason)
     {
         var history = new TicketHistory
@@ -182,7 +233,7 @@ public class TicketStateService : ITicketStateService
             Reason = reason
         };
         
-        await _historyRepository.AddAsync(history);
+        _historyRepository.Add(history);
         
         _logger.LogDebug(
             "Recorded history for ticket {TicketId}: {OldStatus} -> {NewStatus}. Reason: {Reason}",

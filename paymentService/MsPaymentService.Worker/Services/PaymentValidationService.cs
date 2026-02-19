@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using MsPaymentService.Worker.Models.DTOs;
 using MsPaymentService.Worker.Models.Entities;
 using MsPaymentService.Worker.Models.Events;
@@ -29,70 +30,106 @@ public class PaymentValidationService : IPaymentValidationService
         try
         {
             // 1. Verificar idempotencia
-            var ticket = await _ticketRepository.GetByIdAsync(paymentEvent.TicketId);
+            var existingPayment = await _paymentRepository
+                .GetByProviderRefAsync(paymentEvent.TransactionRef, CancellationToken.None);
             
-            if (ticket == null)
-            {
-                _logger.LogWarning("Ticket {TicketId} not found", paymentEvent.TicketId);
-                return ValidationResult.Failure("Ticket not found");
-            }
-
-            if (ticket.Status == TicketStatus.paid)
+            if (existingPayment is not null)
             {
                 _logger.LogInformation(
-                    "Ticket {TicketId} already paid. Skipping duplicate event",
-                    paymentEvent.TicketId);
+                    "Duplicate payment event detected. ProviderRef: {ProviderRef}",
+                    paymentEvent.TransactionRef);
+
                 return ValidationResult.AlreadyProcessed();
             }
 
-            // 2. Validar estado actual
+            var ticket = await _ticketRepository
+                .GetTrackedByIdAsync(paymentEvent.TicketId, CancellationToken.None);
+
+
+            if (ticket is null)
+            {
+                _logger.LogWarning(
+                    "Ticket {TicketId} not found",
+                    paymentEvent.TicketId);
+
+                return ValidationResult.Failure("Ticket not found");
+            }
+
+
             if (ticket.Status != TicketStatus.reserved)
             {
                 _logger.LogWarning(
                     "Invalid ticket status for payment. TicketId: {TicketId}, Status: {Status}",
-                    paymentEvent.TicketId, ticket.Status);
+                    paymentEvent.TicketId,
+                    ticket.Status);
+
                 return ValidationResult.Failure($"Invalid ticket status: {ticket.Status}");
             }
 
             // 3. Validar TTL
-            if (ticket.ReservedAt == null || !IsWithinTimeLimit(ticket.ReservedAt.Value, paymentEvent.ApprovedAt))
+            if (ticket.ReservedAt is null ||
+                !IsWithinTimeLimit(ticket.ReservedAt.Value, paymentEvent.ApprovedAt))
             {
                 _logger.LogWarning(
-                    "Payment received after TTL. TicketId: {TicketId}, ReservedAt: {ReservedAt}, ApprovedAt: {ApprovedAt}",
-                    paymentEvent.TicketId, ticket.ReservedAt, paymentEvent.ApprovedAt);
+                    "Payment received after TTL. TicketId: {TicketId}",
+                    paymentEvent.TicketId);
 
-                await _stateService.TransitionToReleasedAsync(paymentEvent.TicketId, "Payment received after TTL");
+                await _stateService.TransitionToReleasedAsync(
+                    paymentEvent.TicketId,
+                    "Payment received after TTL");
+
                 return ValidationResult.Failure("TTL exceeded");
             }
 
             // 4. Obtener o crear payment
-            var payment = await _paymentRepository.GetByTicketIdAsync(paymentEvent.TicketId);
-            if (payment == null)
+            await _paymentRepository.AddAsync(new Payment
             {
-                payment = await _paymentRepository.CreateAsync(new Payment
-                {
-                    TicketId = paymentEvent.TicketId,
-                    Status = PaymentStatus.pending,
-                    AmountCents = paymentEvent.AmountCents,
-                    Currency = paymentEvent.Currency,
-                    ProviderRef = paymentEvent.TransactionRef
-                });
-            }
+                TicketId = paymentEvent.TicketId,
+                Status = PaymentStatus.pending,
+                AmountCents = paymentEvent.AmountCents,
+                Currency = paymentEvent.Currency,
+                ProviderRef = paymentEvent.TransactionRef,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            }, CancellationToken.None);
 
             // 5. Procesar transición exitosa
-            var success = await _stateService.TransitionToPaidAsync(paymentEvent.TicketId, paymentEvent.TransactionRef);
+            var success = await _stateService.TransitionToPaidAsync(
+                paymentEvent.TicketId,
+                paymentEvent.TransactionRef);
             
-            if (success)
+            if (!success)
             {
-                _logger.LogInformation("Payment processed successfully for ticket {TicketId}", paymentEvent.TicketId);
-                return ValidationResult.Success();
+                _logger.LogWarning(
+                    "Failed to transition ticket {TicketId} to paid",
+                    paymentEvent.TicketId);
+
+                return ValidationResult.Failure("State transition failed");
             }
-            
-            return ValidationResult.Failure("Failed to transition ticket to paid status");
+
+            _logger.LogInformation(
+                "Payment processed successfully for ticket {TicketId}",
+                paymentEvent.TicketId);
+
+            return ValidationResult.Success();
+        }
+        catch (DbUpdateException dbEx)
+        {
+            // Probable violación de unique index (idempotencia)
+            _logger.LogWarning(
+                dbEx,
+                "Duplicate provider reference detected: {ProviderRef}",
+                paymentEvent.TransactionRef);
+
+            return ValidationResult.AlreadyProcessed();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing approved payment for ticket {TicketId}", paymentEvent.TicketId);
+            _logger.LogError(
+                ex,
+                "Error processing approved payment for ticket {TicketId}",
+                paymentEvent.TicketId);
+
             throw;
         }
     }
@@ -101,39 +138,28 @@ public class PaymentValidationService : IPaymentValidationService
     {
         try
         {
-            var ticket = await _ticketRepository.GetByIdAsync(paymentEvent.TicketId);
-            
-            if (ticket == null)
-            {
-                _logger.LogWarning("Ticket {TicketId} not found", paymentEvent.TicketId);
-                return ValidationResult.Failure("Ticket not found");
-            }
+            var success = await _stateService.TransitionToReleasedAsync(
+                paymentEvent.TicketId,
+                $"Payment rejected: {paymentEvent.RejectionReason}");
 
-            // Si ya está released, no hacer nada (idempotencia)
-            if (ticket.Status == TicketStatus.released)
+            if (!success)
             {
-                _logger.LogInformation(
-                    "Ticket {TicketId} already released. Skipping duplicate event",
-                    paymentEvent.TicketId);
                 return ValidationResult.AlreadyProcessed();
             }
 
-            // Procesar rechazo
-            var success = await _stateService.TransitionToReleasedAsync(
-                paymentEvent.TicketId, 
-                $"Payment rejected: {paymentEvent.RejectionReason}");
-                
-            if (success)
-            {
-                _logger.LogInformation("Payment rejection processed for ticket {TicketId}", paymentEvent.TicketId);
-                return ValidationResult.Success();
-            }
-            
-            return ValidationResult.Failure("Failed to transition ticket to released status");
+            _logger.LogInformation(
+                "Payment rejection processed for ticket {TicketId}",
+                paymentEvent.TicketId);
+
+            return ValidationResult.Success();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing rejected payment for ticket {TicketId}", paymentEvent.TicketId);
+            _logger.LogError(
+                ex,
+                "Error processing rejected payment for ticket {TicketId}",
+                paymentEvent.TicketId);
+
             throw;
         }
     }

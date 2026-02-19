@@ -30,6 +30,8 @@ public static class DatabaseExtensions
                 options.EnableDetailedErrors();
             }
         });
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        
         
         return services;
     }

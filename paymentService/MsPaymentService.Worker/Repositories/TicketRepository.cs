@@ -30,53 +30,6 @@ public class TicketRepository : ITicketRepository
     }
 
     /// <inheritdoc/>
-    public async Task<Ticket?> GetByIdForUpdateAsync(long id)
-    {
-        return await _context.Tickets
-            .FromSqlRaw("SELECT * FROM tickets WHERE id = {0} FOR UPDATE", id)
-            .Include(t => t.Payments)
-            .FirstOrDefaultAsync();
-    }
-
-    /// <inheritdoc/>
-    public async Task<bool> UpdateAsync(Ticket ticket)
-    {
-        try
-        {
-            var rowsAffected = await _context.Database.ExecuteSqlRawAsync(@"
-                UPDATE tickets 
-                SET status = {0}, paid_at = {1}, version = version + 1
-                WHERE id = {2} AND version = {3}",
-                new object[] {
-                    ticket.Status,
-                    ticket.PaidAt ?? (object)DBNull.Value,
-                    ticket.Id,
-                    ticket.Version
-                });
-
-            if (rowsAffected == 0)
-            {
-                throw new DbUpdateConcurrencyException("Ticket was modified by another process");
-            }
-
-            // Detach entity to prevent change tracker conflicts with subsequent SaveChangesAsync calls.
-            // The raw SQL already persisted changes; keeping the entity tracked would cause EF Core
-            // to re-flush it with a stale version token.
-            _context.Entry(ticket).State = EntityState.Detached;
-
-            return true;
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            throw;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
-    }
-
-    /// <inheritdoc/>
     public async Task<List<Ticket>> GetExpiredReservedTicketsAsync(DateTime expirationThreshold)
     {
         return await _context.Tickets
@@ -84,5 +37,13 @@ public class TicketRepository : ITicketRepository
                        t.ExpiresAt != null && 
                        t.ExpiresAt < expirationThreshold)
             .ToListAsync();
+    }
+
+    public async Task<Ticket?> GetTrackedByIdAsync(long id, CancellationToken ct)
+    {
+        return await _context.Tickets
+            .Include(t => t.Payments)
+            .Include(t => t.History)
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
     }
 }

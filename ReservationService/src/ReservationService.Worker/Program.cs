@@ -1,28 +1,27 @@
 using Microsoft.EntityFrameworkCore;
-using ReservationService.Worker.Configurations;
-using ReservationService.Worker.Consumers;
-using ReservationService.Worker.Data;
-using ReservationService.Worker.Repositories;
-using ReservationService.Worker.Services;
+using ReservationService.Infrastructure;
+using ReservationService.Infrastructure.Messaging;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
-// 1. CONFIGURACIÓN - Leer RabbitMQ settings desde appsettings.json
-builder.Services.Configure<RabbitMQSettings>(
-    builder.Configuration.GetSection(RabbitMQSettings.SectionName));
+var rabbitMqSettings = new RabbitMQSettings();
+builder.Configuration.GetSection(RabbitMQSettings.SectionName).Bind(rabbitMqSettings);
 
-// 2. BASE DE DATOS - Registrar DbContext con PostgreSQL
-builder.Services.AddDbContext<TicketingDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddReservationServiceInfrastructure(
+    dbOptions => dbOptions.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")),
+    options =>
+    {
+        options.Host = rabbitMqSettings.Host;
+        options.Port = rabbitMqSettings.Port;
+        options.Username = rabbitMqSettings.Username;
+        options.Password = rabbitMqSettings.Password;
+        options.QueueName = rabbitMqSettings.QueueName;
+    });
 
-// 3. SERVICIOS - Registrar nuestras clases
-// "Scoped" = se crea una instancia nueva por cada solicitud/scope
-builder.Services.AddScoped<ITicketRepository, TicketRepository>();
-builder.Services.AddScoped<IReservationService, ReservationServiceImpl>();
+var app = builder.Build();
 
-// 4. CONSUMER - Registrar como servicio en segundo plano
-// "HostedService" = se inicia automáticamente cuando arranca la app
-builder.Services.AddHostedService<TicketReservationConsumer>();
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
+    .WithName("Health")
+    .Produces(StatusCodes.Status200OK);
 
-var host = builder.Build();
-host.Run();
+app.Run();

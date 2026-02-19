@@ -1,33 +1,24 @@
 using Microsoft.EntityFrameworkCore;
-using PaymentService.Application.Ports.Inbound;
-using PaymentService.Application.Ports.Outbound;
-using PaymentService.Application.UseCases;
+using PaymentService.Infrastructure;
 using PaymentService.Infrastructure.Messaging;
 using PaymentService.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddLogging(config =>
-{
-    config.AddConsole();
-    config.AddDebug();
-});
+var rabbitMqSettings = new RabbitMQSettings();
+builder.Configuration.GetSection(RabbitMQSettings.SectionName).Bind(rabbitMqSettings);
 
-builder.Services.AddDbContext<PaymentDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddScoped<ITicketRepository, TicketRepository>();
-builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
-builder.Services.AddScoped<ITicketHistoryRepository, TicketHistoryRepository>();
-
-builder.Services.AddScoped<IProcessPaymentApprovedUseCase, ProcessPaymentApprovedUseCase>();
-builder.Services.AddScoped<IProcessPaymentRejectedUseCase, ProcessPaymentRejectedUseCase>();
-
-builder.Services.Configure<RabbitMQSettings>(builder.Configuration.GetSection("RabbitMQ"));
-builder.Services.AddScoped<PaymentApprovedEventHandler>();
-builder.Services.AddScoped<PaymentRejectedEventHandler>();
-
-builder.Services.AddHostedService<TicketPaymentConsumer>();
+builder.Services.AddPaymentServiceInfrastructure(
+    dbOptions => dbOptions.UseNpgsql(builder.Configuration.GetConnectionString("TicketingDb")),
+    options =>
+    {
+        options.Host = rabbitMqSettings.Host;
+        options.Port = rabbitMqSettings.Port;
+        options.Username = rabbitMqSettings.Username;
+        options.Password = rabbitMqSettings.Password;
+        options.ApprovedQueueName = rabbitMqSettings.ApprovedQueueName;
+        options.RejectedQueueName = rabbitMqSettings.RejectedQueueName;
+    });
 
 var app = builder.Build();
 

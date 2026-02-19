@@ -1,184 +1,115 @@
-using System.Text.Json;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using PaymentService.Application.Dtos;
-using PaymentService.Application.Ports.Inbound;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
 namespace PaymentService.Infrastructure.Messaging;
 
-public class RabbitMQSettings
-{
-    public string HostName { get; set; } = "localhost";
-    public string UserName { get; set; } = "guest";
-    public string Password { get; set; } = "guest";
-    public string ApprovedQueueName { get; set; } = "payment-approved-queue";
-    public string RejectedQueueName { get; set; } = "payment-rejected-queue";
-    public string ExchangeName { get; set; } = "payment-events";
-}
-
-public interface IPaymentEventHandler
-{
-    string QueueName { get; }
-    Task<ValidationResult> HandleAsync(string json, CancellationToken cancellationToken = default);
-}
-
-public class PaymentApprovedEventHandler : IPaymentEventHandler
-{
-    private readonly IProcessPaymentApprovedUseCase _useCase;
-    private readonly RabbitMQSettings _settings;
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-
-    public PaymentApprovedEventHandler(
-        IProcessPaymentApprovedUseCase useCase,
-        IOptions<RabbitMQSettings> settings)
-    {
-        _useCase = useCase;
-        _settings = settings.Value;
-    }
-
-    public string QueueName => _settings.ApprovedQueueName;
-
-    public async Task<ValidationResult> HandleAsync(string json, CancellationToken cancellationToken = default)
-    {
-        var evt = JsonSerializer.Deserialize<PaymentApprovedEventDto>(json, JsonOptions);
-        if (evt == null)
-            return ValidationResult.Failure("Invalid JSON for PaymentApprovedEvent");
-
-        return await _useCase.ExecuteAsync(evt);
-    }
-}
-
-public class PaymentRejectedEventHandler : IPaymentEventHandler
-{
-    private readonly IProcessPaymentRejectedUseCase _useCase;
-    private readonly RabbitMQSettings _settings;
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-
-    public PaymentRejectedEventHandler(
-        IProcessPaymentRejectedUseCase useCase,
-        IOptions<RabbitMQSettings> settings)
-    {
-        _useCase = useCase;
-        _settings = settings.Value;
-    }
-
-    public string QueueName => _settings.RejectedQueueName;
-
-    public async Task<ValidationResult> HandleAsync(string json, CancellationToken cancellationToken = default)
-    {
-        var evt = JsonSerializer.Deserialize<PaymentRejectedEventDto>(json, JsonOptions);
-        if (evt == null)
-            return ValidationResult.Failure("Invalid JSON for PaymentRejectedEvent");
-
-        return await _useCase.ExecuteAsync(evt);
-    }
-}
-
 public class TicketPaymentConsumer : BackgroundService
 {
-    private readonly ILogger<TicketPaymentConsumer> _logger;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly RabbitMQSettings _settings;
+    private readonly ILogger<TicketPaymentConsumer> _logger;
+
     private IConnection? _connection;
-    private IModel? _channel;
+    private IChannel? _channel;
 
     public TicketPaymentConsumer(
-        ILogger<TicketPaymentConsumer> logger,
+        IServiceScopeFactory scopeFactory,
         IOptions<RabbitMQSettings> settings,
-        IServiceProvider serviceProvider)
+        ILogger<TicketPaymentConsumer> logger)
     {
-        _logger = logger;
+        _scopeFactory = scopeFactory;
         _settings = settings.Value;
-        _serviceProvider = serviceProvider;
+        _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Yield();
-
-        try
+        var factory = new ConnectionFactory
         {
-            var factory = new ConnectionFactory
-            {
-                HostName = _settings.HostName,
-                UserName = _settings.UserName,
-                Password = _settings.Password
-            };
+            HostName = _settings.Host,
+            Port = _settings.Port,
+            UserName = _settings.Username,
+            Password = _settings.Password
+        };
 
-            _connection = factory.CreateConnection();
-            _channel = _connection.CreateModel();
+        _connection = await factory.CreateConnectionAsync(stoppingToken);
+        _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
-            _channel.ExchangeDeclare(_settings.ExchangeName, ExchangeType.Direct, durable: true);
+        _logger.LogInformation(
+            "Connected to RabbitMQ. Listening on queues: {ApprovedQueue}, {RejectedQueue}",
+            _settings.ApprovedQueueName, _settings.RejectedQueueName);
 
-            var handlerTypes = new[] { typeof(PaymentApprovedEventHandler), typeof(PaymentRejectedEventHandler) };
+        // Consumer for approved payments
+        await ConsumeQueueAsync<PaymentApprovedEventHandler>(_settings.ApprovedQueueName, stoppingToken);
 
-            foreach (var handlerType in handlerTypes)
-            {
-                _channel.QueueDeclare(handlerType.Name.Replace("EventHandler", "-queue"), durable: true, exclusive: false, autoDelete: false);
-                _channel.QueueBind(handlerType.Name.Replace("EventHandler", "-queue"), _settings.ExchangeName, handlerType.Name.Replace("EventHandler", ""));
-            }
+        // Consumer for rejected payments
+        await ConsumeQueueAsync<PaymentRejectedEventHandler>(_settings.RejectedQueueName, stoppingToken);
 
-            foreach (var handlerType in handlerTypes)
-            {
-                var consumer = new EventingBasicConsumer(_channel);
-                var queueName = handlerType.Name.Replace("EventHandler", "-queue");
-                var routingKey = handlerType.Name.Replace("EventHandler", "");
+        _logger.LogInformation("Consumer started, waiting for messages...");
 
-                consumer.Received += async (model, ea) =>
-                {
-                    var body = ea.Body.ToArray();
-                    var json = System.Text.Encoding.UTF8.GetString(body);
-
-                    _logger.LogInformation("Received message from queue {Queue}", queueName);
-
-                    try
-                    {
-                        using var scope = _serviceProvider.CreateScope();
-                        var handler = scope.ServiceProvider.GetRequiredService(handlerType) as IPaymentEventHandler;
-                        var result = await handler!.HandleAsync(json, stoppingToken);
-
-                        if (result.IsSuccess || result.IsAlreadyProcessed)
-                        {
-                            _channel.BasicAck(ea.DeliveryTag, false);
-                            _logger.LogInformation("Message processed successfully");
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Message processing failed: {Reason}", result.FailureReason);
-                            _channel.BasicNack(ea.DeliveryTag, false, true);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error processing message");
-                        _channel.BasicNack(ea.DeliveryTag, false, true);
-                    }
-                };
-
-                _channel.BasicConsume(queue: queueName, autoAck: false, consumer: consumer);
-            }
-
-            _logger.LogInformation("Consumer started, waiting for messages...");
-
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                await Task.Delay(1000, stoppingToken);
-            }
-        }
-        catch (Exception ex)
+        while (!stoppingToken.IsCancellationRequested)
         {
-            _logger.LogError(ex, "Error in RabbitMQ consumer");
+            await Task.Delay(1000, stoppingToken);
         }
     }
 
-    public override void Dispose()
+    private async Task ConsumeQueueAsync<THandler>(string queueName, CancellationToken stoppingToken)
+        where THandler : IPaymentEventHandler
     {
-        _channel?.Close();
-        _connection?.Close();
-        base.Dispose();
+        var consumer = new AsyncEventingBasicConsumer(_channel!);
+
+        consumer.ReceivedAsync += async (_, eventArgs) =>
+        {
+            var bodyBytes = eventArgs.Body.ToArray();
+            var json = Encoding.UTF8
+                .GetString(bodyBytes)
+                .Replace("\u00A0", " ")
+                .Trim();
+            _logger.LogInformation("Message received from queue {Queue}: {Json}", queueName, json);
+
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var handler = scope.ServiceProvider.GetRequiredService<THandler>();
+                var result = await handler.HandleAsync(json, stoppingToken);
+
+                _logger.LogInformation(
+                    "Result: IsSuccess={IsSuccess}, FailureReason={FailureReason}",
+                    result.IsSuccess, result.FailureReason);
+
+                if (result.IsSuccess || result.IsAlreadyProcessed)
+                {
+                    await _channel!.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, stoppingToken);
+                    _logger.LogInformation("Message processed successfully");
+                }
+                else
+                {
+                    _logger.LogWarning("Message processing failed: {Reason}. Discarding message (ACK).", result.FailureReason);
+                    await _channel!.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, stoppingToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing message from queue {Queue}. Discarding message (NACK without requeue).", queueName);
+                await _channel!.BasicNackAsync(eventArgs.DeliveryTag, multiple: false, requeue: false, cancellationToken: stoppingToken);
+            }
+        };
+
+        await _channel!.BasicConsumeAsync(queueName, autoAck: false, consumer, stoppingToken);
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Stopping consumer...");
+
+        if (_channel is not null) await _channel.CloseAsync(cancellationToken);
+        if (_connection is not null) await _connection.CloseAsync(cancellationToken);
+
+        await base.StopAsync(cancellationToken);
     }
 }

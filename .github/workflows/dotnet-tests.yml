@@ -32,15 +32,15 @@ jobs:
       - name: Run tests
         run: |
           set -e
-          dotnet test producer/tests/Producer.Application.Tests/Producer.Application.Tests.csproj --logger "trx;LogFileName=TestResults/Producer.trx"
-          dotnet test paymentService/tests/PaymentService.Application.Tests/PaymentService.Application.Tests.csproj --logger "trx;LogFileName=TestResults/PaymentService.trx"
-          dotnet test ReservationService/tests/ReservationService.Worker.Tests/ReservationService.Worker.Tests.csproj --logger "trx;LogFileName=TestResults/ReservationWorker.trx"
-          dotnet test ReservationService/tests/ReservationService.Application.Tests/ReservationService.Application.Tests.csproj --logger "trx;LogFileName=TestResults/ReservationApp.trx"
-          dotnet test crud_service/tests/CrudService.Application.Tests/CrudService.Application.Tests.csproj --logger "trx;LogFileName=TestResults/Crud.trx"
+          dotnet test producer/tests/Producer.Application.Tests/Producer.Application.Tests.csproj --logger "trx" --results-directory TestResults
+          dotnet test paymentService/tests/PaymentService.Application.Tests/PaymentService.Application.Tests.csproj --logger "trx" --results-directory TestResults
+          dotnet test ReservationService/tests/ReservationService.Worker.Tests/ReservationService.Worker.Tests.csproj --logger "trx" --results-directory TestResults
+          dotnet test ReservationService/tests/ReservationService.Application.Tests/ReservationService.Application.Tests.csproj --logger "trx" --results-directory TestResults
+          dotnet test crud_service/tests/CrudService.Application.Tests/CrudService.Application.Tests.csproj --logger "trx" --results-directory TestResults
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: TestResults
+          path: TestResults/**

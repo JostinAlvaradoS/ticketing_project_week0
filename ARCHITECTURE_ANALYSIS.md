@@ -478,3 +478,54 @@ La **deuda técnica principal** proviene de:
 4. Manejo inconsistente de errores y transacciones
 
 La migración a MongoDB (como mencionaste) sería más sencilla si se aborda primero la deuda de duplicación de entidades.
+
+---
+
+## Diagrama de Arquitectura (flujo)
+
+```mermaid
+flowchart TB
+    subgraph Frontend["Frontend - Next.js :3000"]
+        F[Client]
+    end
+    subgraph ProducerService["Producer Service :8001"]
+        PC[Controllers]
+        PU[UseCases]
+        PPub[RabbitMQ Publishers]
+    end
+    subgraph RabbitMQ["RabbitMQ"]
+        Q1["q.ticket.reserved"]
+        Q2["q.ticket.payments.approved"]
+        Q3["q.ticket.payments.rejected"]
+    end
+    subgraph ReservationService["Reservation Service"]
+        RSC[Consumer]
+        RSU[UseCases]
+        RSI[Repositories]
+    end
+    subgraph PaymentService["Payment Service"]
+        PSC[Consumer]
+        PSU[UseCases]
+        PSI[Repositories]
+    end
+    subgraph CrudService["CRUD Service :8002"]
+        CSC[Controllers]
+        CSU[UseCases]
+        CSI[Repositories]
+    end
+    subgraph PostgreSQL["PostgreSQL :5432"]
+        DB[(ticketing_db)]
+    end
+    F -->|HTTP| PC
+    PC --> PU
+    PU --> PPub
+    PPub -->|ticket.reserved| Q1
+    PPub -->|ticket.payments.approved| Q2
+    PPub -->|ticket.payments.rejected| Q3
+    Q1 --> RSC
+    Q2 --> PSC
+    Q3 --> PSC
+    RSC --> RSU --> RSI --> DB
+    PSC --> PSU --> PSI --> DB
+    CSC --> CSU --> CSI --> DB
+```

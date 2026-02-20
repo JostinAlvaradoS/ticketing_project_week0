@@ -1,5 +1,7 @@
+using System.Data;
 using Microsoft.Extensions.Logging;
 using PaymentService.Application.Dtos;
+using PaymentService.Application.Exceptions;
 using PaymentService.Application.Ports.Inbound;
 using PaymentService.Application.Ports.Outbound;
 using PaymentService.Domain.Entities;
@@ -12,53 +14,70 @@ public class ProcessPaymentApprovedUseCase : IProcessPaymentApprovedUseCase
     private readonly ITicketRepository _ticketRepository;
     private readonly IPaymentRepository _paymentRepository;
     private readonly ITicketHistoryRepository _historyRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ProcessPaymentApprovedUseCase> _logger;
 
     public ProcessPaymentApprovedUseCase(
         ITicketRepository ticketRepository,
         IPaymentRepository paymentRepository,
         ITicketHistoryRepository historyRepository,
+        IUnitOfWork unitOfWork,
         ILogger<ProcessPaymentApprovedUseCase> logger)
     {
         _ticketRepository = ticketRepository;
         _paymentRepository = paymentRepository;
         _historyRepository = historyRepository;
+        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
     public async Task<ValidationResult> ExecuteAsync(PaymentApprovedEventDto paymentEvent)
     {
-        var ticket = await _ticketRepository.GetByIdAsync(paymentEvent.TicketId);
-
-        if (ticket == null)
+        try
         {
-            _logger.LogWarning("Ticket {TicketId} not found", paymentEvent.TicketId);
-            return ValidationResult.Failure("Ticket not found");
-        }
+            // 1. Verificar idempotencia por ProviderRef
+            var existingPayment = await _paymentRepository
+                .GetByProviderRefAsync(paymentEvent.TransactionRef, CancellationToken.None);
 
-        if (ticket.Status == TicketStatus.paid)
-        {
-            _logger.LogInformation("Ticket {TicketId} already paid. Skipping duplicate event", paymentEvent.TicketId);
-            return ValidationResult.AlreadyProcessed();
-        }
+            if (existingPayment is not null)
+            {
+                _logger.LogInformation(
+                    "Duplicate payment event detected. ProviderRef: {ProviderRef}",
+                    paymentEvent.TransactionRef);
 
-        if (ticket.Status != TicketStatus.reserved)
-        {
-            _logger.LogWarning("Invalid ticket status for payment. TicketId: {TicketId}, Status: {Status}", paymentEvent.TicketId, ticket.Status);
-            return ValidationResult.Failure($"Invalid ticket status: {ticket.Status}");
-        }
+                return ValidationResult.AlreadyProcessed();
+            }
 
-        if (ticket.ReservedAt == null || !IsWithinTimeLimit(ticket.ReservedAt.Value, paymentEvent.ApprovedAt))
-        {
-            _logger.LogWarning("Payment received after TTL. TicketId: {TicketId}", paymentEvent.TicketId);
-            await TransitionToReleasedAsync(paymentEvent.TicketId, "Payment received after TTL");
-            return ValidationResult.Failure("TTL exceeded");
-        }
+            // 2. Buscar ticket
+            var ticket = await _ticketRepository
+                .GetTrackedByIdAsync(paymentEvent.TicketId, CancellationToken.None);
 
-        var payment = await _paymentRepository.GetByTicketIdAsync(paymentEvent.TicketId);
-        if (payment == null)
-        {
-            payment = await _paymentRepository.CreateAsync(new Payment
+            if (ticket is null)
+            {
+                _logger.LogWarning("Ticket {TicketId} not found", paymentEvent.TicketId);
+                return ValidationResult.Failure("Ticket not found");
+            }
+
+            if (ticket.Status != TicketStatus.reserved)
+            {
+                _logger.LogWarning(
+                    "Invalid ticket status for payment. TicketId: {TicketId}, Status: {Status}",
+                    paymentEvent.TicketId, ticket.Status);
+
+                return ValidationResult.Failure($"Invalid ticket status: {ticket.Status}");
+            }
+
+            // 3. Validar TTL
+            if (ticket.ReservedAt is null ||
+                !IsWithinTimeLimit(ticket.ReservedAt.Value, paymentEvent.ApprovedAt))
+            {
+                _logger.LogWarning("Payment received after TTL. TicketId: {TicketId}", paymentEvent.TicketId);
+                await TransitionToReleasedAsync(paymentEvent.TicketId, "Payment received after TTL");
+                return ValidationResult.Failure("TTL exceeded");
+            }
+
+            // 4. Crear payment
+            await _paymentRepository.AddAsync(new Payment
             {
                 TicketId = paymentEvent.TicketId,
                 Status = PaymentStatus.pending,
@@ -67,114 +86,160 @@ public class ProcessPaymentApprovedUseCase : IProcessPaymentApprovedUseCase
                 ProviderRef = paymentEvent.TransactionRef,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
-            });
-        }
+            }, CancellationToken.None);
 
-        var success = await TransitionToPaidAsync(paymentEvent.TicketId, paymentEvent.TransactionRef);
+            // 5. Transicionar a pagado
+            var success = await TransitionToPaidAsync(paymentEvent.TicketId, paymentEvent.TransactionRef);
 
-        if (success)
-        {
+            if (!success)
+            {
+                _logger.LogWarning("Failed to transition ticket {TicketId} to paid", paymentEvent.TicketId);
+                return ValidationResult.Failure("State transition failed");
+            }
+
             _logger.LogInformation("Payment processed successfully for ticket {TicketId}", paymentEvent.TicketId);
             return ValidationResult.Success();
         }
+        catch (DuplicateEntryException dbEx)
+        {
+            _logger.LogWarning(dbEx,
+                "Duplicate provider reference detected: {ProviderRef}",
+                paymentEvent.TransactionRef);
 
-        return ValidationResult.Failure("Failed to transition ticket to paid status");
+            return ValidationResult.AlreadyProcessed();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error processing approved payment for ticket {TicketId}",
+                paymentEvent.TicketId);
+
+            throw;
+        }
     }
 
     private async Task<bool> TransitionToPaidAsync(long ticketId, string providerRef)
     {
-        var ticket = await _ticketRepository.GetByIdForUpdateAsync(ticketId);
+        await using var tx = await _unitOfWork
+            .BeginTransactionAsync(IsolationLevel.RepeatableRead);
 
-        if (ticket == null || ticket.Status != TicketStatus.reserved)
+        try
         {
-            _logger.LogWarning("Cannot transition to paid - invalid state. TicketId: {TicketId}, Status: {Status}", ticketId, ticket?.Status);
-            return false;
-        }
+            var ticket = await _ticketRepository
+                .GetTrackedByIdAsync(ticketId, CancellationToken.None);
 
-        var oldStatus = ticket.Status;
-        ticket.Status = TicketStatus.paid;
-        ticket.PaidAt = DateTime.UtcNow;
+            if (ticket is null || ticket.Status != TicketStatus.reserved)
+                return false;
 
-        var updated = await _ticketRepository.UpdateAsync(ticket);
+            var oldStatus = ticket.Status;
 
-        if (!updated)
-        {
-            var current = await _ticketRepository.GetByIdAsync(ticketId);
-            if (current != null && current.Status == TicketStatus.released)
+            ticket.Status = TicketStatus.paid;
+            ticket.PaidAt = DateTime.UtcNow;
+
+            var payment = ticket.Payments.FirstOrDefault();
+
+            if (payment is not null)
             {
-                _logger.LogInformation("Ticket {TicketId} already released (idempotent event).", ticketId);
-                return true;
+                payment.Status = PaymentStatus.approved;
+                payment.ProviderRef = providerRef;
+                payment.UpdatedAt = DateTime.UtcNow;
             }
-            _logger.LogWarning("Failed to update ticket {TicketId} - real concurrent modification", ticketId);
+
+            _historyRepository.Add(new TicketHistory
+            {
+                TicketId = ticketId,
+                OldStatus = oldStatus,
+                NewStatus = TicketStatus.paid,
+                ChangedAt = DateTime.UtcNow,
+                Reason = "Payment approved"
+            });
+
+            await _unitOfWork.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            _logger.LogInformation(
+                "Ticket {TicketId} successfully transitioned to Paid with provider ref {ProviderRef}",
+                ticketId, providerRef);
+
+            return true;
+        }
+        catch (ConcurrencyException)
+        {
+            await tx.RollbackAsync();
             return false;
         }
-
-        var payment = await _paymentRepository.GetByTicketIdAsync(ticketId);
-        if (payment != null)
-        {
-            payment.Status = PaymentStatus.approved;
-            payment.ProviderRef = providerRef;
-            payment.UpdatedAt = DateTime.UtcNow;
-            await _paymentRepository.UpdateAsync(payment);
-        }
-
-        await RecordHistoryAsync(ticketId, oldStatus, TicketStatus.paid, "Payment approved");
-
-        _logger.LogInformation("Ticket {TicketId} successfully transitioned to Paid with provider ref {ProviderRef}", ticketId, providerRef);
-        return true;
     }
 
     private async Task<bool> TransitionToReleasedAsync(long ticketId, string reason)
     {
-        var ticket = await _ticketRepository.GetByIdForUpdateAsync(ticketId);
+        await using var tx = await _unitOfWork
+            .BeginTransactionAsync(IsolationLevel.RepeatableRead);
 
-        if (ticket == null)
+        try
         {
-            _logger.LogWarning("Ticket {TicketId} not found", ticketId);
-            return false;
-        }
+            var ticket = await _ticketRepository
+                .GetTrackedByIdAsync(ticketId, CancellationToken.None);
 
-        var oldStatus = ticket.Status;
-        ticket.Status = TicketStatus.released;
-
-        var updated = await _ticketRepository.UpdateAsync(ticket);
-
-        if (!updated)
-        {
-            var current = await _ticketRepository.GetByIdAsync(ticketId);
-            if (current != null && current.Status == TicketStatus.released)
+            if (ticket is null)
             {
-                _logger.LogInformation("Ticket {TicketId} already released (idempotent event).", ticketId);
+                _logger.LogWarning("Ticket {TicketId} not found", ticketId);
+                return false;
+            }
+
+            // Idempotencia
+            if (ticket.Status == TicketStatus.available)
+            {
+                _logger.LogInformation("Ticket {TicketId} already available (idempotent event).", ticketId);
                 return true;
             }
+
+            var oldStatus = ticket.Status;
+
+            ticket.Status = TicketStatus.available;
+            ticket.ExpiresAt = null;
+
+            var payment = ticket.Payments
+                .FirstOrDefault(p => p.Status == PaymentStatus.pending);
+
+            if (payment is not null)
+            {
+                payment.Status = reason.Contains("TTL", StringComparison.OrdinalIgnoreCase)
+                    ? PaymentStatus.expired
+                    : PaymentStatus.failed;
+
+                payment.UpdatedAt = DateTime.UtcNow;
+            }
+
+            _historyRepository.Add(new TicketHistory
+            {
+                TicketId = ticketId,
+                OldStatus = oldStatus,
+                NewStatus = TicketStatus.released,
+                ChangedAt = DateTime.UtcNow,
+                Reason = reason
+            });
+
+            await _unitOfWork.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            _logger.LogInformation(
+                "Ticket {TicketId} successfully transitioned to Released. Reason: {Reason}",
+                ticketId, reason);
+
+            return true;
+        }
+        catch (ConcurrencyException)
+        {
+            await tx.RollbackAsync();
+            _logger.LogWarning("Concurrency conflict while releasing ticket {TicketId}", ticketId);
             return false;
         }
-
-        var payment = await _paymentRepository.GetByTicketIdAsync(ticketId);
-        if (payment != null && payment.Status == PaymentStatus.pending)
+        catch (Exception ex)
         {
-            payment.Status = reason.Contains("TTL") ? PaymentStatus.expired : PaymentStatus.failed;
-            payment.UpdatedAt = DateTime.UtcNow;
-            await _paymentRepository.UpdateAsync(payment);
+            await tx.RollbackAsync();
+            _logger.LogError(ex, "Error transitioning ticket {TicketId} to released", ticketId);
+            throw;
         }
-
-        await RecordHistoryAsync(ticketId, oldStatus, TicketStatus.released, reason);
-        _logger.LogInformation("Ticket {TicketId} successfully transitioned to Released. Reason: {Reason}", ticketId, reason);
-        return true;
-    }
-
-    private async Task RecordHistoryAsync(long ticketId, TicketStatus oldStatus, TicketStatus newStatus, string reason)
-    {
-        var history = new TicketHistory
-        {
-            TicketId = ticketId,
-            OldStatus = oldStatus,
-            NewStatus = newStatus,
-            ChangedAt = DateTime.UtcNow,
-            Reason = reason
-        };
-
-        await _historyRepository.AddAsync(history);
     }
 
     public bool IsWithinTimeLimit(DateTime reservedAt, DateTime paymentReceivedAt)

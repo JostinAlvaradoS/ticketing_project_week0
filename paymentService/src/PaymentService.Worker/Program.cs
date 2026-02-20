@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using PaymentService.Domain.Enums;
 using PaymentService.Infrastructure;
 using PaymentService.Infrastructure.Messaging;
 using PaymentService.Infrastructure.Persistence;
@@ -8,8 +10,14 @@ var builder = WebApplication.CreateBuilder(args);
 var rabbitMqSettings = new RabbitMQSettings();
 builder.Configuration.GetSection(RabbitMQSettings.SectionName).Bind(rabbitMqSettings);
 
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(
+    builder.Configuration.GetConnectionString("TicketingDb"));
+dataSourceBuilder.MapEnum<TicketStatus>();
+dataSourceBuilder.MapEnum<PaymentStatus>();
+var dataSource = dataSourceBuilder.Build();
+
 builder.Services.AddPaymentServiceInfrastructure(
-    dbOptions => dbOptions.UseNpgsql(builder.Configuration.GetConnectionString("TicketingDb")),
+    dbOptions => dbOptions.UseNpgsql(dataSource),
     options =>
     {
         options.Host = rabbitMqSettings.Host;

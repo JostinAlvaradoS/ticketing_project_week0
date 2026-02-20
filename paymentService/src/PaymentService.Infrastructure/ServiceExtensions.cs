@@ -20,6 +20,7 @@ public static class ServiceExtensions
         services.AddScoped<ITicketRepository, TicketRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ITicketHistoryRepository, TicketHistoryRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Use Cases
         services.AddScoped<IProcessPaymentApprovedUseCase, ProcessPaymentApprovedUseCase>();

@@ -49,12 +49,7 @@ public class TicketRepository : ITicketRepository
 
             var affected = await _context.Database.ExecuteSqlRawAsync(
                 sql,
-                reservedBy,
-                orderId,
-                DateTime.UtcNow,
-                expiresAt,
-                ticket.Id,
-                currentVersion,
+                new object[] { reservedBy, orderId, DateTime.UtcNow, expiresAt, ticket.Id, currentVersion },
                 cancellationToken);
 
             if (affected == 0)

@@ -41,7 +41,8 @@ Resumen: este documento lista los 3 "pecados capitales" más relevantes detectad
   - [crud_service/src/CrudService.Infrastructure/Persistence/Repositories.cs](crud_service/src/CrudService.Infrastructure/Persistence/Repositories.cs#L1) implementa `SaveChangesAsync()` y lo invoca desde varios repositorios.
 - SOLID violado: **Interface Segregation Principle (ISP)** — las interfaces mezclan responsabilidades de acceso a datos y control de persistencia/commit.
 - Riesgo: cambios incompletos (commits parciales), pruebas más complicadas, menor claridad del flujo transaccional.
-- Remediación rápida: introducir `IUnitOfWork` por microservicio que centralice `CommitAsync()`/`RollbackAsync()`; eliminar `SaveChangesAsync()` de las interfaces de repositorio y mantener repositorios centrados en operaciones CRUD.
+- Remediación rápida: introducir `IUnitOfWork` por microservicio que centralice `CommitAsync()`/`RollbackAsync()`; eliminar `SaveChangesAsync()` de las interfaces de repositorio y mantener repositorios centrados en operaciones 
+## 3) Repositorios con responsabilidad de transacción (`SaveChangesAsync` por repo) — falta Unit of WorkCRUD.
 
 ---
 
@@ -53,5 +54,6 @@ Resumen: este documento lista los 3 "pecados capitales" más relevantes detectad
 +- Estas correcciones mejoran mantenibilidad, testabilidad y disminuyen deuda técnica.
 
 Si quieres, puedo abrir PRs con:
-- Un PR esqueleto que extraiga las entidades a una librería `Domain/Models` compartida.
+- Un PR esqueleto que extraiga las ent
+## 3) Repositorios con responsabilidad de transacción (`SaveChangesAsync` por repo) — falta Unit of Workidades a una librería `Domain/Models` compartida.
 - Un PR que añada `IUnitOfWork` y refactorice un servicio pequeño para usarla (ejemplo incremental).

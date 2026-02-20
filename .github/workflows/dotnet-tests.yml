@@ -1,0 +1,46 @@
+name: .NET Tests
+
+on:
+  push:
+    branches: [ main, master, '**/refactor/**', '**' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore solutions
+        run: |
+          dotnet restore producer/Producer.sln
+          dotnet restore paymentService/PaymentService.sln
+          dotnet restore paymentService/MsPaymentService.sln
+          dotnet restore ReservationService/ReservationService.sln
+          dotnet restore crud_service/CrudService.sln
+
+      - name: Create TestResults directory
+        run: mkdir -p TestResults
+
+      - name: Run tests
+        run: |
+          set -e
+          dotnet test producer/tests/Producer.Application.Tests/Producer.Application.Tests.csproj --logger "trx" --results-directory TestResults
+          dotnet test paymentService/tests/PaymentService.Application.Tests/PaymentService.Application.Tests.csproj --logger "trx" --results-directory TestResults
+          dotnet test ReservationService/tests/ReservationService.Worker.Tests/ReservationService.Worker.Tests.csproj --logger "trx" --results-directory TestResults
+          dotnet test ReservationService/tests/ReservationService.Application.Tests/ReservationService.Application.Tests.csproj --logger "trx" --results-directory TestResults
+          dotnet test crud_service/tests/CrudService.Application.Tests/CrudService.Application.Tests.csproj --logger "trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**

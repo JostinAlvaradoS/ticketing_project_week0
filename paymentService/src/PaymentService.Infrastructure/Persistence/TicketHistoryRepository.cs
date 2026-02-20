@@ -14,10 +14,9 @@ public class TicketHistoryRepository : ITicketHistoryRepository
         _dbContext = dbContext;
     }
 
-    public async Task AddAsync(TicketHistory history)
+    public void Add(TicketHistory history)
     {
         _dbContext.TicketHistory.Add(history);
-        await _dbContext.SaveChangesAsync();
     }
 
     public async Task<List<TicketHistory>> GetByTicketIdAsync(long ticketId)

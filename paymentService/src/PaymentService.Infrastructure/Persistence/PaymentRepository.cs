@@ -27,24 +27,16 @@ public class PaymentRepository : IPaymentRepository
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
-    public async Task<bool> UpdateAsync(Payment payment)
+    public async Task AddAsync(Payment payment, CancellationToken ct)
     {
-        _dbContext.Payments.Update(payment);
-        try
-        {
-            await _dbContext.SaveChangesAsync();
-            return true;
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            return false;
-        }
+        payment.CreatedAt = DateTime.UtcNow;
+        payment.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.Payments.AddAsync(payment, ct);
     }
 
-    public async Task<Payment> CreateAsync(Payment payment)
+    public async Task<Payment?> GetByProviderRefAsync(string providerRef, CancellationToken ct)
     {
-        _dbContext.Payments.Add(payment);
-        await _dbContext.SaveChangesAsync();
-        return payment;
+        return await _dbContext.Payments
+            .FirstOrDefaultAsync(p => p.ProviderRef == providerRef, ct);
     }
 }

@@ -8,9 +8,14 @@ using RabbitMQ.Client.Events;
 
 namespace PaymentService.Infrastructure.Messaging;
 
+/// <summary>
+/// RabbitMQ consumer that uses the Strategy pattern to dispatch messages
+/// to the correct handler based on queue-to-event-type mappings.
+/// Adding a new event type does NOT require modifying this class (OCP).
+/// </summary>
 public class TicketPaymentConsumer : BackgroundService
 {
-    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly PaymentEventStrategyResolver _strategyResolver;
     private readonly RabbitMQSettings _settings;
     private readonly ILogger<TicketPaymentConsumer> _logger;
 
@@ -18,11 +23,11 @@ public class TicketPaymentConsumer : BackgroundService
     private IChannel? _channel;
 
     public TicketPaymentConsumer(
-        IServiceScopeFactory scopeFactory,
+        PaymentEventStrategyResolver strategyResolver,
         IOptions<RabbitMQSettings> settings,
         ILogger<TicketPaymentConsumer> logger)
     {
-        _scopeFactory = scopeFactory;
+        _strategyResolver = strategyResolver;
         _settings = settings.Value;
         _logger = logger;
     }
@@ -40,15 +45,17 @@ public class TicketPaymentConsumer : BackgroundService
         _connection = await factory.CreateConnectionAsync(stoppingToken);
         _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
+        var queueMappings = _settings.GetQueueEventTypeMappings();
+
         _logger.LogInformation(
-            "Connected to RabbitMQ. Listening on queues: {ApprovedQueue}, {RejectedQueue}",
-            _settings.ApprovedQueueName, _settings.RejectedQueueName);
+            "Connected to RabbitMQ. Listening on queues: {Queues}",
+            string.Join(", ", queueMappings.Keys));
 
-        // Consumer for approved payments
-        await ConsumeQueueAsync<PaymentApprovedEventHandler>(_settings.ApprovedQueueName, stoppingToken);
-
-        // Consumer for rejected payments
-        await ConsumeQueueAsync<PaymentRejectedEventHandler>(_settings.RejectedQueueName, stoppingToken);
+        // Subscribe to each queue with its mapped event type
+        foreach (var (queueName, eventType) in queueMappings)
+        {
+            await ConsumeQueueAsync(queueName, eventType, stoppingToken);
+        }
 
         _logger.LogInformation("Consumer started, waiting for messages...");
 
@@ -58,8 +65,7 @@ public class TicketPaymentConsumer : BackgroundService
         }
     }
 
-    private async Task ConsumeQueueAsync<THandler>(string queueName, CancellationToken stoppingToken)
-        where THandler : IPaymentEventHandler
+    private async Task ConsumeQueueAsync(string queueName, string eventType, CancellationToken stoppingToken)
     {
         var consumer = new AsyncEventingBasicConsumer(_channel!);
 
@@ -70,33 +76,40 @@ public class TicketPaymentConsumer : BackgroundService
                 .GetString(bodyBytes)
                 .Replace("\u00A0", " ")
                 .Trim();
-            _logger.LogInformation("Message received from queue {Queue}: {Json}", queueName, json);
+            _logger.LogInformation("Message received from queue {Queue} (eventType={EventType}): {Json}",
+                queueName, eventType, json);
 
             try
             {
-                using var scope = _scopeFactory.CreateScope();
-                var handler = scope.ServiceProvider.GetRequiredService<THandler>();
-                var result = await handler.HandleAsync(json, stoppingToken);
-
-                _logger.LogInformation(
-                    "Result: IsSuccess={IsSuccess}, FailureReason={FailureReason}",
-                    result.IsSuccess, result.FailureReason);
-
-                if (result.IsSuccess || result.IsAlreadyProcessed)
+                var (strategy, scope) = _strategyResolver.Resolve(eventType);
+                using (scope)
                 {
-                    await _channel!.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, stoppingToken);
-                    _logger.LogInformation("Message processed successfully");
-                }
-                else
-                {
-                    _logger.LogWarning("Message processing failed: {Reason}. Discarding message (ACK).", result.FailureReason);
-                    await _channel!.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, stoppingToken);
+                    var result = await strategy.HandleAsync(json, stoppingToken);
+
+                    _logger.LogInformation(
+                        "Result: IsSuccess={IsSuccess}, FailureReason={FailureReason}",
+                        result.IsSuccess, result.FailureReason);
+
+                    if (result.IsSuccess || result.IsAlreadyProcessed)
+                    {
+                        await _channel!.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, stoppingToken);
+                        _logger.LogInformation("Message processed successfully");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Message processing failed: {Reason}. Discarding message (ACK).",
+                            result.FailureReason);
+                        await _channel!.BasicAckAsync(eventArgs.DeliveryTag, multiple: false, stoppingToken);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing message from queue {Queue}. Discarding message (NACK without requeue).", queueName);
-                await _channel!.BasicNackAsync(eventArgs.DeliveryTag, multiple: false, requeue: false, cancellationToken: stoppingToken);
+                _logger.LogError(ex,
+                    "Error processing message from queue {Queue}. Discarding message (NACK without requeue).",
+                    queueName);
+                await _channel!.BasicNackAsync(eventArgs.DeliveryTag, multiple: false, requeue: false,
+                    cancellationToken: stoppingToken);
             }
         };
 

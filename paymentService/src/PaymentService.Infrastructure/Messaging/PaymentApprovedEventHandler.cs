@@ -1,29 +1,27 @@
 using System.Text.Json;
-using Microsoft.Extensions.Options;
 using PaymentService.Application.Dtos;
 using PaymentService.Application.Ports.Inbound;
 
 namespace PaymentService.Infrastructure.Messaging;
 
-public class PaymentApprovedEventHandler : IPaymentEventHandler
+/// <summary>
+/// Strategy implementation for handling approved payment events.
+/// </summary>
+public class PaymentApprovedEventHandler : IPaymentEventStrategy
 {
     private readonly IProcessPaymentApprovedUseCase _useCase;
-    private readonly RabbitMQSettings _settings;
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    public PaymentApprovedEventHandler(
-        IProcessPaymentApprovedUseCase useCase,
-        IOptions<RabbitMQSettings> settings)
+    public PaymentApprovedEventHandler(IProcessPaymentApprovedUseCase useCase)
     {
         _useCase = useCase;
-        _settings = settings.Value;
     }
 
-    public string QueueName => _settings.ApprovedQueueName;
+    public string EventType => PaymentEventTypes.Approved;
 
-    public async Task<ValidationResult> HandleAsync(string json, CancellationToken cancellationToken = default)
+    public async Task<ValidationResult> HandleAsync(string payload, CancellationToken cancellationToken = default)
     {
-        var evt = JsonSerializer.Deserialize<PaymentApprovedEventDto>(json, JsonOptions);
+        var evt = JsonSerializer.Deserialize<PaymentApprovedEventDto>(payload, JsonOptions);
         if (evt == null)
             return ValidationResult.Failure("Invalid JSON for PaymentApprovedEvent");
 

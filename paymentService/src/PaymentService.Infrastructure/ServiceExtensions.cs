@@ -26,10 +26,13 @@ public static class ServiceExtensions
         services.AddScoped<IProcessPaymentApprovedUseCase, ProcessPaymentApprovedUseCase>();
         services.AddScoped<IProcessPaymentRejectedUseCase, ProcessPaymentRejectedUseCase>();
 
-        // Messaging
+        // Messaging — Strategy pattern: each handler is registered as IPaymentEventStrategy.
+        // To add a new event type: create a new IPaymentEventStrategy implementation,
+        // register it here, and add the queue mapping in RabbitMQSettings.
         services.Configure(rabbitMqOptions);
-        services.AddScoped<PaymentApprovedEventHandler>();
-        services.AddScoped<PaymentRejectedEventHandler>();
+        services.AddScoped<IPaymentEventStrategy, PaymentApprovedEventHandler>();
+        services.AddScoped<IPaymentEventStrategy, PaymentRejectedEventHandler>();
+        services.AddSingleton<PaymentEventStrategyResolver>();
         services.AddHostedService<TicketPaymentConsumer>();
 
         return services;

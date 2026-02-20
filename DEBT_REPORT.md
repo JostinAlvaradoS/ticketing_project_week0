@@ -21,8 +21,6 @@ Resumen: este documento lista los 3 "pecados capitales" más relevantes detectad
 
 ---
 
-## 2) Repositorios dependen de `DbContext` (esperado) — verificar que servicios solo usen interfaces
-
 ## 2) Reglas de validación y números mágicos hardcodeados en controllers
 
 - Descripción: varias validaciones de entrada y límites aparecen directamente en los controllers (por ejemplo `Quantity <= 1000` in `crud_service/src/CrudService.Api/Controllers/TicketsController.cs`), lo que dispersa reglas de negocio/contrato y complica cambios futuros.
@@ -34,8 +32,6 @@ Resumen: este documento lista los 3 "pecados capitales" más relevantes detectad
 - Remediación rápida: mover validaciones a DTOs con atributos (`[Range]`, `[Required]`) o usar un componente centralizado de validación (FluentValidation) y configurar límites en opciones/constantes versionadas.
 
 ---
-
-## 3) Repositorios con responsabilidad de transacción (`SaveChangesAsync` por repo) — falta Unit of Work
 
 ## 3) Repositorios exponen `SaveChangesAsync()` — falta de Unit of Work por servicio
 

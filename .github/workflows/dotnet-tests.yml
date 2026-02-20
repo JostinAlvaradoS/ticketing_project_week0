@@ -18,8 +18,13 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore
-        run: dotnet restore
+      - name: Restore solutions
+        run: |
+          dotnet restore producer/Producer.sln
+          dotnet restore paymentService/PaymentService.sln
+          dotnet restore paymentService/MsPaymentService.sln
+          dotnet restore ReservationService/ReservationService.sln
+          dotnet restore crud_service/CrudService.sln
 
       - name: Create TestResults directory
         run: mkdir -p TestResults

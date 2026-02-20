@@ -1,3 +1,21 @@
+// 🛡️ ARCHITECTURE DECISION:
+// Esta clase pertenece a la capa Application dentro de una arquitectura hexagonal.
+// La capa Application no debe depender de detalles de infraestructura como Entity Framework.
+// 
+// Para evitar acoplamiento directo a excepciones de EF Core (DbUpdateConcurrencyException,
+// DbUpdateException), se definieron excepciones abstractas propias del dominio de aplicación:
+// - ConcurrencyException
+// - DuplicateEntryException
+//
+// La capa Infrastructure es responsable de traducir las excepciones específicas del framework
+// hacia estas abstracciones mediante un mecanismo de "exception translation".
+//
+// Esto garantiza:
+// 1. Inversión de dependencias (DIP)
+// 2. Independencia de framework
+// 3. Testabilidad sin EF Core
+// 4. Sustituibilidad de persistencia sin modificar Application
+
 using System.Data;
 using Microsoft.Extensions.Logging;
 using PaymentService.Application.Dtos;

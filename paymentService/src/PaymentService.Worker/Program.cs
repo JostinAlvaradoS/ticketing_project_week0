@@ -11,7 +11,7 @@ var rabbitMqSettings = new RabbitMQSettings();
 builder.Configuration.GetSection(RabbitMQSettings.SectionName).Bind(rabbitMqSettings);
 
 var dataSourceBuilder = new NpgsqlDataSourceBuilder(
-    builder.Configuration.GetConnectionString("TicketingDb"));
+    builder.Configuration.GetConnectionString("DefaultConnection"));
 dataSourceBuilder.MapEnum<TicketStatus>();
 dataSourceBuilder.MapEnum<PaymentStatus>();
 var dataSource = dataSourceBuilder.Build();

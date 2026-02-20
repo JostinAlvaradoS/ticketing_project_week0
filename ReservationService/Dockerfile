@@ -1,22 +1,27 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copiar archivos de proyecto y restaurar dependencias
-COPY src/ReservationService.Worker/*.csproj ./ReservationService.Worker/
+# Copiar archivos de proyecto (hexagonal architecture)
+COPY src/ReservationService.Worker/ReservationService.Worker.csproj ./ReservationService.Worker/
+COPY src/ReservationService.Application/ReservationService.Application.csproj ./ReservationService.Application/
+COPY src/ReservationService.Domain/ReservationService.Domain.csproj ./ReservationService.Domain/
+COPY src/ReservationService.Infrastructure/ReservationService.Infrastructure.csproj ./ReservationService.Infrastructure/
+
+# Restaurar dependencias
 RUN dotnet restore ReservationService.Worker/ReservationService.Worker.csproj
 
-# Copiar codigo fuente y compilar
-COPY src/ReservationService.Worker/. ./ReservationService.Worker/
+# Copiar codigo fuente
+COPY src/ReservationService.Worker/ ./ReservationService.Worker/
+COPY src/ReservationService.Application/ ./ReservationService.Application/
+COPY src/ReservationService.Domain/ ./ReservationService.Domain/
+COPY src/ReservationService.Infrastructure/ ./ReservationService.Infrastructure/
+
 WORKDIR /src/ReservationService.Worker
-RUN dotnet publish -c Release -o /app/publish --no-restore
+RUN dotnet publish -c Release -o /app/publish
 
 # Imagen final
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
-
-# Usuario no-root por seguridad
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-USER appuser
 
 COPY --from=build /app/publish .
 

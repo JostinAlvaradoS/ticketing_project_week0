@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
-using Producer.Application.Dtos;
-using Producer.Application.Ports.Inbound;
 
 namespace Producer.Api.Controllers;
 

@@ -22,7 +22,7 @@ public class MigrationSmokeTests : IAsyncLifetime
     {
         _container = new PostgreSqlBuilder()
             .WithImage("postgres:16-alpine")
-            .WithDatabase("identity_test")
+            .WithDatabase("ticketing")
             .WithUsername("postgres")
             .WithPassword("postgres")
             .Build();
@@ -71,40 +71,40 @@ public class MigrationSmokeTests : IAsyncLifetime
         using (var scope = serviceProvider.CreateScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            var connection = dbContext.Database.GetDbConnection();
+            await connection.OpenAsync();
             
             // Verificar que el schema existe
-            var schemaExists = await dbContext.Database
-                .SqlQueryRaw<bool>(
-                    $@"SELECT EXISTS (
-                        SELECT 1 FROM information_schema.schemata 
-                        WHERE schema_name = 'bc_identity'
-                    )")
-                .FirstOrDefaultAsync();
-            
+            using var schemaCommand = connection.CreateCommand();
+            schemaCommand.CommandText = @"SELECT EXISTS (
+                SELECT 1 FROM information_schema.schemata 
+                WHERE schema_name = 'bc_identity'
+            )";
+            var schemaExists = (bool)(await schemaCommand.ExecuteScalarAsync() ?? false);
             schemaExists.Should().Be(true);
 
             // Verificar que la tabla Users existe
-            var userTableExists = await dbContext.Database
-                .SqlQueryRaw<bool>(
-                    $@"SELECT EXISTS (
-                        SELECT 1 FROM information_schema.tables 
-                        WHERE table_schema = 'bc_identity' AND table_name = 'Users'
-                    )")
-                .FirstOrDefaultAsync();
-            
+            using var tableCommand = connection.CreateCommand();
+            tableCommand.CommandText = @"SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables 
+                WHERE table_schema = 'bc_identity' AND table_name = 'Users'
+            )";
+            var userTableExists = (bool)(await tableCommand.ExecuteScalarAsync() ?? false);
             userTableExists.Should().Be(true);
 
             // Verificar que las columnas necesarias existen
-            var columnsQuery = @"
-                SELECT column_name FROM information_schema.columns 
-                WHERE table_schema = 'bc_identity' AND table_name = 'Users'
-                ORDER BY column_name";
+            using var columnsCommand = connection.CreateCommand();
+            columnsCommand.CommandText = @"
+                SELECT array_agg(column_name ORDER BY column_name)::text[] 
+                FROM information_schema.columns 
+                WHERE table_schema = 'bc_identity' AND table_name = 'Users'";
             
-            var columns = await dbContext.Database
-                .SqlQueryRaw<string>(columnsQuery)
-                .ToListAsync();
+            var columnsResult = await columnsCommand.ExecuteScalarAsync();
+            var columns = (columnsResult as string[] ?? Array.Empty<string>()).ToList();
             
             columns.Should().Contain(new[] { "Id", "Email", "PasswordHash" });
+            
+            await connection.CloseAsync();
         }
     }
 

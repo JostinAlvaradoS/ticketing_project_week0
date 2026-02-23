@@ -12,8 +12,8 @@ Notes:
 - [X] T001 Crear `infra/docker-compose.yml` con `postgres`, `redis`, `zookeeper`, `kafka` y healthchecks (Prioridad P0, Est: 4h)
 - [X] T002 Añadir volumen y `infra/db/init-schemas.sql` que crea schemas `bc_identity, bc_catalog, bc_inventory, bc_ordering, bc_payment, bc_fulfillment, bc_notification` (P0, Est: 2h)
 - [X] T003 Añadir script de inicialización en compose para ejecutar `init-schemas.sql` al arrancar Postgres (P0, Est: 1h) [Dependencias: T001, T002]
-- [ ] T004 Crear README ops corto describiendo connection string y roles por schema (P0, Est: 1h) [Dependencias: T002]
-- [ ] T005 Crear Identity Service skeleton (services/identity/src) - Minimal API con endpoints `/health` y `/token` (dev JWT) (P0, Est: 6h) [Dependencias: T001]
+- [X] T004 Crear README ops corto describiendo connection string y roles por schema (P0, Est: 1h) [Dependencias: T002]
+- [X] T005 Crear Identity Service skeleton (services/identity/src) - Minimal API con endpoints `/health` y `/token` (dev JWT) (P0, Est: 6h) [Dependencias: T001]
 - [ ] T006 Añadir EF Core `DbContext` base en `services/identity/src/Infrastructure` y migration inicial en `migrations/identity` (P0, Est: 3h) [Dependencias: T002, T005]
 - [ ] T007 Crear CI job (GitHub Action) para levantar infra con Testcontainers y ejecutar smoke migrations (P0, Est: 4h) [Dependencias: T001, T003]
 - [ ] T008 Crear contratos iniciales (Carpeta `contracts/openapi`) placeholder para `identity`, `catalog`, `inventory`, `ordering`, `payment`, `fulfillment` (P0, Est: 3h)

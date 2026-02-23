@@ -7,6 +7,7 @@ using Inventory.Infrastructure.Locking;
 using Inventory.Infrastructure.Messaging;
 using StackExchange.Redis;
 using Confluent.Kafka;
+using Microsoft.Extensions.Hosting;
 
 namespace Inventory.Infrastructure;
 
@@ -38,6 +39,14 @@ public static class ServiceCollectionExtensions
         var producer = new ProducerBuilder<string?, string>(kafkaConfig).Build();
         services.AddSingleton(producer);
         services.AddScoped<IKafkaProducer, KafkaProducer>();
+
+        // Register expiry worker as hosted service (optional in tests)
+        services.AddSingleton<IHostedService, Inventory.Infrastructure.Workers.ReservationExpiryWorker>(sp =>
+        {
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            var kafka = sp.GetRequiredService<IKafkaProducer>();
+            return new Inventory.Infrastructure.Workers.ReservationExpiryWorker(scopeFactory, kafka);
+        });
 
         return services;
     }

@@ -1,0 +1,1 @@
+public record IssueTokenCommand(string Email);

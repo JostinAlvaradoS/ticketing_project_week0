@@ -32,13 +32,13 @@ Catalog (read side)
 
 Inventory (reservation core)
 - [X] T015 Crear proyecto `services/inventory/src` con estructura Hexagonal (P1, Est: 2h) [Dependencias: T005]
-- [ ] T016 Crear `InventoryDbContext` con schema `bc_inventory` y migration inicial (P1, Est: 3h) [Dependencias: T002]
-- [ ] T017 Crear entidad `Seat` y columna `version` (rowversion/timestamp) en `bc_catalog`/`bc_inventory` modelo (P1, Est: 3h) [Dependencias: T012, T016]
-- [ ] T018 Implementar Redis lock helper (adapter) en `Infrastructure` (StackExchange.Redis) (P1, Est: 4h) [Dependencias: T001]
-- [ ] T019 Implementar endpoint `POST /reservations` (Inventory) que: adquiere Redis lock, verifica seat version, crea `Reservation` con `expires_at = now + 15m`, actualiza seat status `reserved`, publica `reservation-created` en Kafka (P1, Est: 12h) [Dependencias: T016, T017, T018, T009]
-- [ ] T020 Implementar background worker en Inventory para expirar reservations (cron/poll every minute) y publicar `reservation-expired` (P1, Est: 6h) [Dependencias: T019]
-- [ ] T021 Unit tests para lógica de reserva y expiración (P1, Est: 6h) [Dependencias: T019, T020]
-- [ ] T022 Integration test (Testcontainers) que simula dos clientes intentando reservar el mismo seat y verifica sólo 1 reserva se crea (P1, Est: 10h) [Dependencias: T010, T019]
+- [X] T016 Crear `InventoryDbContext` con schema `bc_inventory` y migration inicial (P1, Est: 3h) [Dependencias: T002]
+- [X] T017 Crear entidad `Seat` y columna `version` (rowversion/timestamp) en `bc_catalog`/`bc_inventory` modelo (P1, Est: 3h) [Dependencias: T012, T016]
+- [X] T018 Implementar Redis lock helper (adapter) en `Infrastructure` (StackExchange.Redis) (P1, Est: 4h) [Dependencias: T001]
+- [X] T019 Implementar endpoint `POST /reservations` (Inventory) que: adquiere Redis lock, verifica seat version, crea `Reservation` con `expires_at = now + 15m`, actualiza seat status `reserved`, publica `reservation-created` en Kafka (P1, Est: 12h) [Dependencias: T016, T017, T018, T009]
+- [X] T020 Implementar background worker en Inventory para expirar reservations (cron/poll every minute) y publicar `reservation-expired` (P1, Est: 6h) [Dependencias: T019]
+- [X] T021 Unit tests para lógica de reserva y expiración (P1, Est: 6h) [Dependencias: T019, T020]
+- [X] T022 Integration test (Testcontainers) que simula dos clientes intentando reservar el mismo seat y verifica sólo 1 reserva se crea (P1, Est: 10h) [Dependencias: T010, T019]
 
 Ordering (cart + order persistence)
 - [ ] T023 Crear proyecto `services/ordering/src` con estructura Hexagonal (P1, Est: 2h) [Dependencias: T005]

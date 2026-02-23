@@ -3,6 +3,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Inventory.Domain.Ports;
 using Inventory.Infrastructure.Persistence;
+using Inventory.Infrastructure.Locking;
+using Inventory.Infrastructure.Messaging;
+using StackExchange.Redis;
+using Confluent.Kafka;
+using Microsoft.Extensions.Hosting;
 
 namespace Inventory.Infrastructure;
 
@@ -16,6 +21,32 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddScoped<IDbInitializer, DbInitializer>();
+
+        // Configure Redis connection multiplexer and Redis lock adapter
+        var redisConn = configuration.GetConnectionString("Redis") ?? configuration["Redis:Connection"] ?? "localhost:6379";
+        var multiplexer = ConnectionMultiplexer.Connect(redisConn);
+        services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+        services.AddScoped<IRedisLock, RedisLock>();
+
+        // Configure Kafka producer
+        var kafkaBootstrapServers = configuration.GetConnectionString("Kafka") ?? configuration["Kafka:BootstrapServers"] ?? "localhost:9092";
+        var kafkaConfig = new ProducerConfig
+        {
+            BootstrapServers = kafkaBootstrapServers,
+            AllowAutoCreateTopics = true,
+            Acks = Acks.All
+        };
+        var producer = new ProducerBuilder<string?, string>(kafkaConfig).Build();
+        services.AddSingleton(producer);
+        services.AddScoped<IKafkaProducer, KafkaProducer>();
+
+        // Register expiry worker as hosted service (optional in tests)
+        services.AddSingleton<IHostedService, Inventory.Infrastructure.Workers.ReservationExpiryWorker>(sp =>
+        {
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            var kafka = sp.GetRequiredService<IKafkaProducer>();
+            return new Inventory.Infrastructure.Workers.ReservationExpiryWorker(scopeFactory, kafka);
+        });
 
         return services;
     }

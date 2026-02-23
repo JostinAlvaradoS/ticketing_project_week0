@@ -18,28 +18,36 @@ public class DbInitializer : IDbInitializer
 
     /// <summary>
     /// Aplica todas las migraciones pendientes a la base de datos.
-    /// Valida que el schema bc_identity existe antes de proceder.
+    /// Crea el schema bc_identity si no existe, luego aplica las migraciones.
     /// </summary>
     public async Task InitializeAsync()
     {
         try
         {
-            // Verificar que el schema "bc_identity" existe
-            var schemaExists = await _dbContext.Database
-                .SqlQueryRaw<bool>(
-                    @"SELECT EXISTS (
-                        SELECT 1 FROM information_schema.schemata 
-                        WHERE schema_name = 'bc_identity'
-                    )")
-                .FirstOrDefaultAsync();
-
+            // Obtener conexión a la base de datos
+            var connection = _dbContext.Database.GetDbConnection();
+            await connection.OpenAsync();
+            
+            // Verificar si el schema "bc_identity" existe
+            using var checkCommand = connection.CreateCommand();
+            checkCommand.CommandText = @"SELECT EXISTS (
+                SELECT 1 FROM information_schema.schemata 
+                WHERE schema_name = 'bc_identity'
+            )";
+            
+            var result = await checkCommand.ExecuteScalarAsync();
+            var schemaExists = (bool)(result ?? false);
+            
+            // Si el schema no existe, crearlo
             if (!schemaExists)
             {
-                throw new InvalidOperationException(
-                    "Schema 'bc_identity' does not exist. " +
-                    "Make sure you're connected to the correct database (ticketing) " +
-                    "and that init-schemas.sql has been executed.");
+                using var createCommand = connection.CreateCommand();
+                createCommand.CommandText = @"CREATE SCHEMA IF NOT EXISTS bc_identity;";
+                await createCommand.ExecuteNonQueryAsync();
+                Console.WriteLine("✓ Schema 'bc_identity' creado exitosamente");
             }
+            
+            await connection.CloseAsync();
 
             // Aplicar migraciones
             await _dbContext.Database.MigrateAsync();

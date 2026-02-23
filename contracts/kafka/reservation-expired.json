@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reservation Expired Event",
+  "description": "Event published when a reservation expires after 15 minutes without confirmation",
+  "type": "object",
+  "properties": {
+    "reservationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Reservation identifier that expired"
+    },
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Event identifier"
+    },
+    "seatId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Seat identifier now available again"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Customer who had the reservation"
+    },
+    "expiredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the reservation expired"
+    },
+    "reason": {
+      "type": "string",
+      "enum": ["ttl_expired", "manual_cancellation"],
+      "description": "Reason for expiration"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["expired"],
+      "description": "Final status"
+    }
+  },
+  "required": [
+    "reservationId",
+    "eventId",
+    "seatId",
+    "expiredAt",
+    "reason",
+    "status"
+  ],
+  "additionalProperties": false
+}

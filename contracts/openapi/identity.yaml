@@ -1,0 +1,90 @@
+openapi: 3.0.0
+info:
+  title: Identity Service API
+  description: Authentication and token generation service for SpecKit Ticketing
+  version: 1.0.0
+  contact:
+    name: SpecKit Team
+
+servers:
+  - url: http://localhost:5000
+    description: Development environment
+  - url: https://api.speckit.local
+    description: Production environment
+
+paths:
+  /token:
+    post:
+      summary: Issue JWT token
+      description: Authenticate user by email and password, return JWT token
+      operationId: issueToken
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: Password123!
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Token issued successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT access token
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    description: Token expiration timestamp
+        '400':
+          description: Invalid credentials
+        '500':
+          description: Internal server error
+
+  /health:
+    get:
+      summary: Health check
+      description: Check if identity service is running
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, unhealthy]
+        '503':
+          description: Service is unavailable
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

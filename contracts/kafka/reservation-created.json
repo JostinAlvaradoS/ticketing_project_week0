@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reservation Created Event",
+  "description": "Event published when a seat reservation is successfully created",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Event identifier"
+    },
+    "reservationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique reservation identifier"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Customer who made the reservation"
+    },
+    "seatId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Reserved seat identifier"
+    },
+    "seatNumber": {
+      "type": "string",
+      "description": "Human-readable seat number (e.g., A-123)"
+    },
+    "section": {
+      "type": "string",
+      "description": "Seat section (VIP, Regular, etc.)"
+    },
+    "basePrice": {
+      "type": "number",
+      "format": "decimal",
+      "description": "Base price of the seat"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the reservation was created"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the reservation expires (15 minutes from creation)"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "expired", "confirmed"],
+      "description": "Current reservation status"
+    }
+  },
+  "required": [
+    "eventId",
+    "reservationId",
+    "customerId",
+    "seatId",
+    "seatNumber",
+    "createdAt",
+    "expiresAt",
+    "status"
+  ],
+  "additionalProperties": false
+}

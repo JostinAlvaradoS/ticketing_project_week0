@@ -12,6 +12,22 @@ Verify all services are healthy:
 docker compose ps
 ```
 
+## Smoke Test
+
+Run the infrastructure smoke test to verify all services are running:
+
+```bash
+# From repo root
+chmod +x smoke-test.sh
+./smoke-test.sh
+```
+
+This script verifies:
+- ✓ PostgreSQL is responding
+- ✓ Redis is responding
+- ✓ Kafka broker is responding
+- ✓ Identity Service health endpoint (if running)
+
 ## PostgreSQL Connection String
 
 **Development Connection String:**

@@ -1,0 +1,85 @@
+openapi: 3.0.0
+info:
+  title: Catalog Service API
+  description: Read-side service for event and seat information
+  version: 1.0.0
+  contact:
+    name: SpecKit Team
+
+servers:
+  - url: http://localhost:5001
+    description: Development environment
+  - url: https://api.speckit.local
+    description: Production environment
+
+paths:
+  /events/{eventId}/seatmap:
+    get:
+      summary: Get event seatmap
+      description: Retrieve available seats and base prices for an event
+      operationId: getEventSeatmap
+      tags:
+        - Catalog
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Event identifier
+      responses:
+        '200':
+          description: Seatmap retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eventId:
+                    type: string
+                    format: uuid
+                  eventName:
+                    type: string
+                  seats:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        seatId:
+                          type: string
+                          format: uuid
+                        seatNumber:
+                          type: string
+                        section:
+                          type: string
+                        basePrice:
+                          type: number
+                          format: decimal
+                        status:
+                          type: string
+                          enum: [available, reserved, sold]
+        '404':
+          description: Event not found
+        '500':
+          description: Internal server error
+
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

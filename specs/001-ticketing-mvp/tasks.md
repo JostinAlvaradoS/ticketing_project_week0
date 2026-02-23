@@ -16,9 +16,9 @@ Notes:
 - [X] T005 Crear Identity Service skeleton (services/identity/src) - Minimal API con endpoints `/health` y `/token` (dev JWT) (P0, Est: 6h) [Dependencias: T001]
 - [X] T006 Añadir EF Core `DbContext` base en `services/identity/src/Infrastructure` y migration inicial en `migrations/identity` (P0, Est: 3h) [Dependencias: T002, T005]
 - [X] T007 Crear CI job (GitHub Action) para levantar infra con Testcontainers y ejecutar smoke migrations (P0, Est: 4h) [Dependencias: T001, T003]
-- [ ] T008 Crear contratos iniciales (Carpeta `contracts/openapi`) placeholder para `identity`, `catalog`, `inventory`, `ordering`, `payment`, `fulfillment` (P0, Est: 3h)
-- [ ] T009 Crear carpeta `contracts/kafka/` y añadir JSON schemas iniciales: `reservation-created.json`, `reservation-expired.json`, `payment-succeeded.json`, `payment-failed.json`, `ticket-issued.json` (P0, Est: 3h)
-- [ ] T010 Smoke test infra: ejecutar `docker compose` y verificar `postgres`, `redis`, `kafka` y `identity` health endpoints (P0, Est: 2h) [Dependencias: T001, T005]
+- [X] T008 Crear contratos iniciales (Carpeta `contracts/openapi`) placeholder para `identity`, `catalog`, `inventory`, `ordering`, `payment`, `fulfillment` (P0, Est: 3h)
+- [X] T009 Crear carpeta `contracts/kafka/` y añadir JSON schemas iniciales: `reservation-created.json`, `reservation-expired.json`, `payment-succeeded.json`, `payment-failed.json`, `ticket-issued.json` (P0, Est: 3h)
+- [X] T010 Smoke test infra: ejecutar `docker compose` y verificar `postgres`, `redis`, `kafka` y `identity` health endpoints (P0, Est: 2h) [Dependencias: T001, T005]
 
 ---
 

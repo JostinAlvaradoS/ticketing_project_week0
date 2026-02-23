@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Payment Failed Event",
+  "description": "Event published when a payment fails or is rejected",
+  "type": "object",
+  "properties": {
+    "paymentId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique payment identifier"
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Order identifier"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Customer who attempted payment"
+    },
+    "reservationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Reservation that failed to be paid"
+    },
+    "amount": {
+      "type": "number",
+      "format": "decimal",
+      "description": "Payment amount attempted"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "Currency code (ISO 4217)"
+    },
+    "paymentMethod": {
+      "type": "string",
+      "enum": ["credit_card", "debit_card", "wallet", "bank_transfer"],
+      "description": "Payment method attempted"
+    },
+    "errorCode": {
+      "type": "string",
+      "description": "Error code from payment processor"
+    },
+    "errorMessage": {
+      "type": "string",
+      "description": "Human-readable error message"
+    },
+    "failureReason": {
+      "type": "string",
+      "enum": ["insufficient_funds", "card_declined", "invalid_card", "processor_error", "timeout"],
+      "description": "Reason for failure"
+    },
+    "attemptedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the payment was attempted"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["failed"],
+      "description": "Payment status"
+    }
+  },
+  "required": [
+    "paymentId",
+    "orderId",
+    "customerId",
+    "amount",
+    "currency",
+    "paymentMethod",
+    "failureReason",
+    "attemptedAt",
+    "status"
+  ],
+  "additionalProperties": false
+}

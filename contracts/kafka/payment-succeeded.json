@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Payment Succeeded Event",
+  "description": "Event published when a payment is successfully processed",
+  "type": "object",
+  "properties": {
+    "paymentId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique payment identifier"
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Order identifier"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Customer who paid"
+    },
+    "reservationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Reservation that was paid for"
+    },
+    "amount": {
+      "type": "number",
+      "format": "decimal",
+      "description": "Payment amount"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "Currency code (ISO 4217)"
+    },
+    "paymentMethod": {
+      "type": "string",
+      "enum": ["credit_card", "debit_card", "wallet", "bank_transfer"],
+      "description": "Payment method used"
+    },
+    "transactionId": {
+      "type": "string",
+      "description": "External transaction identifier from payment processor"
+    },
+    "processedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the payment was processed"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["succeeded"],
+      "description": "Payment status"
+    }
+  },
+  "required": [
+    "paymentId",
+    "orderId",
+    "customerId",
+    "amount",
+    "currency",
+    "paymentMethod",
+    "processedAt",
+    "status"
+  ],
+  "additionalProperties": false
+}

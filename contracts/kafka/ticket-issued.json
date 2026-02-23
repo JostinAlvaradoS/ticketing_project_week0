@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Ticket Issued Event",
+  "description": "Event published when a ticket is generated and ready for delivery",
+  "type": "object",
+  "properties": {
+    "ticketId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique ticket identifier"
+    },
+    "ticketNumber": {
+      "type": "string",
+      "description": "Human-readable ticket number for scanning"
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Order identifier"
+    },
+    "paymentId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Payment identifier"
+    },
+    "customerId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Customer who owns the ticket"
+    },
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Event identifier"
+    },
+    "seatId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Seat identifier"
+    },
+    "seatNumber": {
+      "type": "string",
+      "description": "Human-readable seat number"
+    },
+    "section": {
+      "type": "string",
+      "description": "Seat section"
+    },
+    "pdfPath": {
+      "type": "string",
+      "description": "Path to generated PDF ticket file"
+    },
+    "qrCode": {
+      "type": "string",
+      "description": "QR code content for ticket validation"
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the ticket was generated"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["generated", "delivered", "used", "cancelled"],
+      "description": "Ticket status"
+    }
+  },
+  "required": [
+    "ticketId",
+    "ticketNumber",
+    "orderId",
+    "paymentId",
+    "customerId",
+    "eventId",
+    "seatId",
+    "seatNumber",
+    "pdfPath",
+    "qrCode",
+    "issuedAt",
+    "status"
+  ],
+  "additionalProperties": false
+}

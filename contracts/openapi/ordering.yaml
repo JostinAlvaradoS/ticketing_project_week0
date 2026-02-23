@@ -1,0 +1,121 @@
+openapi: 3.0.0
+info:
+  title: Ordering Service API
+  description: Shopping cart and order management service
+  version: 1.0.0
+  contact:
+    name: SpecKit Team
+
+servers:
+  - url: http://localhost:5003
+    description: Development environment
+  - url: https://api.speckit.local
+    description: Production environment
+
+paths:
+  /cart/add:
+    post:
+      summary: Add reservation to cart
+      description: Add a valid reservation to customer's shopping cart
+      operationId: addToCart
+      tags:
+        - Ordering
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId:
+                  type: string
+                  format: uuid
+                reservationId:
+                  type: string
+                  format: uuid
+              required:
+                - customerId
+                - reservationId
+      responses:
+        '200':
+          description: Item added to cart
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cartId:
+                    type: string
+                    format: uuid
+                  itemCount:
+                    type: integer
+                  total:
+                    type: number
+                    format: decimal
+        '404':
+          description: Reservation not found
+        '422':
+          description: Reservation invalid or expired
+
+  /orders/checkout:
+    post:
+      summary: Create order from cart
+      description: Convert cart items into a confirmed order
+      operationId: checkout
+      tags:
+        - Ordering
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId:
+                  type: string
+                  format: uuid
+                cartId:
+                  type: string
+                  format: uuid
+              required:
+                - customerId
+                - cartId
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [draft, pending_payment, confirmed]
+                  total:
+                    type: number
+                    format: decimal
+        '422':
+          description: Cart invalid or empty
+
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

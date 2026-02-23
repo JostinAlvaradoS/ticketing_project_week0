@@ -1,1 +1,1 @@
-public record IssueTokenCommand(string Email);
+public record IssueTokenCommand(string Email, string Password);

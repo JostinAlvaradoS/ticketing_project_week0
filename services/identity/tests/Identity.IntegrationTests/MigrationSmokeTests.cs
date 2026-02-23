@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -70,22 +73,24 @@ public class MigrationSmokeTests : IAsyncLifetime
             var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
             
             // Verificar que el schema existe
-            var schemaExists = await dbContext.Database.ExecuteScalarAsync(
-                $@"SELECT EXISTS (
-                    SELECT 1 FROM information_schema.schemata 
-                    WHERE schema_name = 'bc_identity'
-                )"
-            );
+            var schemaExists = await dbContext.Database
+                .SqlQueryRaw<bool>(
+                    $@"SELECT EXISTS (
+                        SELECT 1 FROM information_schema.schemata 
+                        WHERE schema_name = 'bc_identity'
+                    )")
+                .FirstOrDefaultAsync();
             
             schemaExists.Should().Be(true);
 
             // Verificar que la tabla Users existe
-            var userTableExists = await dbContext.Database.ExecuteScalarAsync(
-                $@"SELECT EXISTS (
-                    SELECT 1 FROM information_schema.tables 
-                    WHERE table_schema = 'bc_identity' AND table_name = 'Users'
-                )"
-            );
+            var userTableExists = await dbContext.Database
+                .SqlQueryRaw<bool>(
+                    $@"SELECT EXISTS (
+                        SELECT 1 FROM information_schema.tables 
+                        WHERE table_schema = 'bc_identity' AND table_name = 'Users'
+                    )")
+                .FirstOrDefaultAsync();
             
             userTableExists.Should().Be(true);
 

@@ -18,4 +18,10 @@ public class UserRepository : IUserRepository
         return await _context.Users
             .FirstOrDefaultAsync(x => x.Email == email);
     }
+
+    public async Task SaveAsync(User user)
+    {
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+    }
 }

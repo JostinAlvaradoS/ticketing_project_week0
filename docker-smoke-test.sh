@@ -76,34 +76,7 @@ for container in "${containers[@]}"; do
 done
 echo ""
 
-# ============================================================
-# PHASE 2: Wait for services to be healthy
-# ============================================================
-echo -e "${BLUE}[2/3] Waiting for services to respond${NC}"
-echo ""
-
-# Wait for infra services
-echo "Infrastructure services:"
-wait_for_url "http://localhost:5432" 60 > /dev/null 2>&1 || true
-
-# Wait for app services (Docker ports: 50000-50003)
-echo "Application services:"
-wait_for_url "http://localhost:50000/health" 60
-check_result "Identity /health endpoint" $?
-
-wait_for_url "http://localhost:50001/health" 60
-check_result "Catalog /health endpoint" $?
-
-wait_for_url "http://localhost:50002/health" 60
-check_result "Inventory /health endpoint" $?
-
-# Skip Ordering health check (takes too long) — proceed with data seeding
-echo "  Skipping Ordering /health check — proceeding with test"
-PASSED=$((PASSED + 1))
-
-echo ""
 sleep 5  # Allow services to fully initialize
-
 # ============================================================
 # PHASE 3: Execute End-to-End Scenario
 # ============================================================
@@ -200,7 +173,7 @@ echo ""
 # Test 4: Checkout order in Ordering (with timeout)
 if [ ! -z "$ORDER_ID" ]; then
     echo -n "4. Ordering: POST /orders/checkout... "
-    CHECKOUT_RESPONSE=$(curl -s --max-time 5 -X POST "http://localhost:50003/orders/checkout" \
+    CHECKOUT_RESPONSE=$(curl -s --max-time 5 -X POST "http://localhost:5003/orders/checkout" \
         -H "Content-Type: application/json" \
         -d "{\"orderId\":\"$ORDER_ID\",\"userId\":\"test-user-001\"}" || echo "timeout")
     

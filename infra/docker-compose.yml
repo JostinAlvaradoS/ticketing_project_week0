@@ -152,7 +152,7 @@ services:
       dockerfile: services/ordering/src/Api/Dockerfile
     container_name: speckit-ordering
     ports:
-      - "50003:5003"
+      - "5003:5003"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres;SearchPath=bc_ordering;Include Error Detail=true

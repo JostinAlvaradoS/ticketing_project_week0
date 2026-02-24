@@ -30,9 +30,9 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"✗ FATAL: Could not initialize database");
+        Console.WriteLine($"⚠ Warning: Could not initialize database");
         Console.WriteLine($"  Reason: {ex.Message}");
-        throw;
+        Console.WriteLine($"  Service will continue to run. DB will be initialized on next startup.");
     }
 }
 
@@ -45,6 +45,19 @@ if (app.Environment.IsDevelopment())
 app.UseRouting();
 app.MapControllers();
 
-app.Run();
+Console.WriteLine("🚀 Ordering API is starting...");
+Console.WriteLine("📍 Listening on http://0.0.0.0:5003");
+Console.Out.Flush();
+
+try
+{
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ Application failed: {ex.Message}");
+    Console.WriteLine(ex.StackTrace);
+    throw;
+}
 
 public partial class Program { }

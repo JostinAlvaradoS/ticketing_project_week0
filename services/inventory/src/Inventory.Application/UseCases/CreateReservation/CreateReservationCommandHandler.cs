@@ -114,7 +114,11 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
             Status: reservation.Status
         );
 
-        var json = JsonSerializer.Serialize(@event);
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+        var json = JsonSerializer.Serialize(@event, jsonOptions);
         await _kafkaProducer.ProduceAsync("reservation-created", json, reservation.SeatId.ToString("N"))
             .ConfigureAwait(false);
     }

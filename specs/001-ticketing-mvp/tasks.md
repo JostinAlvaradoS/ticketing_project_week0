@@ -46,7 +46,7 @@ Ordering (cart + order persistence)
 - [X] T025 Implementar modelo `Order` y endpoints: `POST /cart/add`, `POST /orders/checkout` (P1, Est: 10h) [Dependencias: T023, T024, T019]
 - [X] T026 Implementar listeners/validation in Ordering to validate reservation existence on add-to-cart (consumes `reservation-created` o consulta directa a Inventory) (P1, Est: 6h) [Dependencias: T019, T023]
 - [X] T027 Unit tests for Ordering domain and cart flows (P1, Est: 6h) [Dependencias: T025]
-- [ ] T028 Integration test: full flow reserve → add to cart → create order draft (Testcontainers) (P1, Est: 8h) [Dependencias: T022, T025]
+- [X] T028 Integration test: full flow reserve → add to cart → create order draft (Testcontainers) (P1, Est: 8h) [Dependencias: T022, T025]
 
 - [ ] T029 Phase 1 smoke test: run infra + catalog + inventory + ordering, execute end-to-end reservation → cart scenario (P1, Est: 3h) [Dependencias: T010, T013, T019, T025]
 

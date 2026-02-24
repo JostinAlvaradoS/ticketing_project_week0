@@ -13,6 +13,21 @@ public class CatalogRepository : ICatalogRepository
         _context = context;
     }
 
+    public async Task<IEnumerable<Event>> GetAllEventsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Events
+            .AsNoTracking()
+            .OrderByDescending(e => e.EventDate)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Event?> GetEventAsync(Guid eventId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Events
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == eventId, cancellationToken);
+    }
+
     public async Task<Event?> GetEventWithSeatsAsync(Guid eventId, CancellationToken cancellationToken = default)
     {
         return await _context.Events

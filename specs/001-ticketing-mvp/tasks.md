@@ -56,7 +56,7 @@ Ordering (cart + order persistence)
 
 Payment (simulado)
 - [X] T030 Crear proyecto `services/payment/src` (P1, Est: 2h) [Dependencias: T005]
-- [ ] T031 Crear `PaymentDbContext` with schema `bc_payment` and initial migration (P1, Est: 3h) [Dependencias: T002]
+- [X] T031 Crear `PaymentDbContext` with schema `bc_payment` and initial migration (P1, Est: 3h) [Dependencias: T002]
 - [ ] T032 Implementar endpoint `POST /payments` que valida order state, re-checks reservation, simula charge, persiste Payment record, y publica `payment-succeeded` o `payment-failed` (P1, Est: 10h) [Dependencias: T025, T019]
 - [ ] T033 Unit tests for Payment service (P1, Est: 4h) [Dependencias: T032]
 

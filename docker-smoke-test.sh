@@ -64,7 +64,7 @@ check_result() {
 echo -e "${BLUE}[1/3] Checking Docker containers${NC}"
 echo ""
 
-containers=("postgres" "redis" "kafka" "identity" "catalog" "inventory" "ordering")
+containers=("postgres" "redis" "kafka" "identity" "catalog" "inventory" "ordering" "payment")
 for container in "${containers[@]}"; do
     if docker ps | grep "speckit-$container" > /dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} Container speckit-$container is running"
@@ -86,6 +86,7 @@ echo ""
 # Generate test data IDs
 TEST_EVENT_ID="550e8400-e29b-41d4-a716-446655440000"
 TEST_SEAT_ID="550e8400-e29b-41d4-a716-446655440002"
+TEST_USER_ID="0d99a497-9013-4d79-9242-b47781d833b5"
 
 # Create test data in database
 echo "Seeding test event and seats..."
@@ -130,7 +131,7 @@ if [ ! -z "$SEAT_ID" ]; then
     echo -n "2. Inventory: POST /reservations... "
     RESERVATION_RESPONSE=$(curl -s --max-time 5 -X POST "http://localhost:50002/reservations" \
         -H "Content-Type: application/json" \
-        -d "{\"seatId\":\"$SEAT_ID\",\"customerId\":\"test-customer-001\"}" || echo "timeout")
+        -d "{\"seatId\":\"$SEAT_ID\",\"customerId\":\"$TEST_USER_ID\"}" || echo "timeout")
     
     if echo "$RESERVATION_RESPONSE" | grep -q "reservationId"; then
         echo -e "${GREEN}✓${NC}"
@@ -154,7 +155,7 @@ if [ ! -z "$RESERVATION_ID" ]; then
     echo -n "3. Ordering: POST /cart/add... "
     CART_RESPONSE=$(curl -s --max-time 5 -X POST "http://localhost:5003/cart/add" \
         -H "Content-Type: application/json" \
-        -d "{\"reservationId\":\"$RESERVATION_ID\",\"seatId\":\"$SEAT_ID\",\"price\":50.00,\"userId\":\"test-user-001\"}" || echo "timeout")
+        -d "{\"reservationId\":\"$RESERVATION_ID\",\"seatId\":\"$SEAT_ID\",\"price\":50.00,\"userId\":\"$TEST_USER_ID\"}" || echo "timeout")
     
     if echo "$CART_RESPONSE" | grep -q "id"; then
         echo -e "${GREEN}✓${NC}"
@@ -175,18 +176,39 @@ if [ ! -z "$ORDER_ID" ]; then
     echo -n "4. Ordering: POST /orders/checkout... "
     CHECKOUT_RESPONSE=$(curl -s --max-time 5 -X POST "http://localhost:5003/orders/checkout" \
         -H "Content-Type: application/json" \
-        -d "{\"orderId\":\"$ORDER_ID\",\"userId\":\"test-user-001\"}" || echo "timeout")
+        -d "{\"orderId\":\"$ORDER_ID\",\"userId\":\"$TEST_USER_ID\"}" || echo "timeout")
     
     if echo "$CHECKOUT_RESPONSE" | grep -q "pending\|completed"; then
         echo -e "${GREEN}✓${NC}"
         PASSED=$((PASSED + 1))
-        echo "   Status: $(echo $CHECKOUT_RESPONSE | grep -o '"status":"[^"]*' | head -1 | cut -d'"' -f4)"
+        echo "   Status: $(echo $CHECKOUT_RESPONSE | grep -o '"state":"[^"]*' | head -1 | cut -d'"' -f4)"
     else
         echo -e "${YELLOW}⊘ SKIP${NC} - Checkout response slow or unexpected"
         PASSED=$((PASSED + 1))
     fi
 else
     echo -e "${YELLOW}⊘ SKIP${NC} - No order ID"
+fi
+
+# Test 5: Process payment in Payment service
+if [ ! -z "$ORDER_ID" ]; then
+    echo -n "5. Payment: POST /payments... "
+    PAYMENT_RESPONSE=$(curl -s --max-time 8 -X POST "http://localhost:5004/payments" \
+        -H "Content-Type: application/json" \
+        -d "{\"orderId\":\"$ORDER_ID\",\"customerId\":\"$TEST_USER_ID\",\"reservationId\":\"$RESERVATION_ID\",\"amount\":50.00,\"currency\":\"USD\",\"paymentMethod\":\"credit_card\"}" || echo "timeout")
+
+    if echo "$PAYMENT_RESPONSE" | grep -q '"success":true'; then
+        echo -e "${GREEN}✓${NC}"
+        PASSED=$((PASSED + 1))
+        PAYMENT_ID=$(echo "$PAYMENT_RESPONSE" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+        echo "   Payment ID: $PAYMENT_ID"
+    else
+        echo -e "${RED}✗ FAIL${NC} - Payment service did not return success"
+        FAILED=$((FAILED + 1))
+        echo "   Response: $PAYMENT_RESPONSE"
+    fi
+else
+    echo -e "${YELLOW}⊘ SKIP${NC} - No order ID for payment"
 fi
 
 echo ""

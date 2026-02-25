@@ -55,6 +55,7 @@ public static class ServiceCollectionExtensions
             app.UseDeveloperExceptionPage();
         }
 
+        app.UseCors("FrontendPolicy");
         app.UseRouting();
         app.MapControllers();
 

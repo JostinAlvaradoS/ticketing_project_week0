@@ -14,7 +14,20 @@ builder.Services.AddScoped<CreateUserHandler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Add CORS policy for frontend on localhost:3000
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
+
+app.UseCors("FrontendPolicy");
 
 app.MapPost("/token", async (
     IssueTokenRequest request,

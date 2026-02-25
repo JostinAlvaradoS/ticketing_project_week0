@@ -162,6 +162,22 @@ services:
       - redis
       - kafka
 
+  payment:
+    build:
+      context: ..
+      dockerfile: services/payment/src/Api/Dockerfile
+    container_name: speckit-payment
+    ports:
+      - "5004:5004"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres;SearchPath=bc_payment;Include Error Detail=true
+      - Kafka__BootstrapServers=kafka:9092
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+
 # Useful environment variables (for .NET apps or local dev use)
 # Use these values when configuring your services' connection strings.
 # Example POSTGRES_URL: Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres

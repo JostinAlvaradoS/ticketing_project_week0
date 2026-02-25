@@ -91,6 +91,9 @@ services:
         echo 'Kafka is ready. Creating topics...' &&
         kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic reservation-created &&
         kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic reservation-expired &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic payment-succeeded &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic payment-failed &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic ticket-issued &&
         echo 'Topics created successfully!' &&
         kafka-topics --list --bootstrap-server kafka:9092
       "
@@ -162,6 +165,23 @@ services:
       - redis
       - kafka
 
+  fulfillment:
+    build:
+      context: ..
+      dockerfile: services/fulfillment/src/Api/Dockerfile
+    container_name: speckit-fulfillment
+    ports:
+      - "50004:5004"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres;SearchPath=bc_fulfillment;Include Error Detail=true
+      - Kafka__BootstrapServers=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+    volumes:
+      - fulfillment-data:/app/data/tickets
+
 # Useful environment variables (for .NET apps or local dev use)
 # Use these values when configuring your services' connection strings.
 # Example POSTGRES_URL: Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres
@@ -174,6 +194,7 @@ networks:
 
 volumes:
   postgres-data:
+  fulfillment-data:
 
 # Notes:
 # - This compose file is targeted for local development only.

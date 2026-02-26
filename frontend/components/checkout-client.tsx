@@ -11,24 +11,116 @@ import { Separator } from "@/components/ui/separator"
 import type { Order } from "@/lib/types"
 
 export function CheckoutClient() {
-  const { order, reservations, doCheckout, isCheckingOut, error, clearCart } =
+  const { order, reservations, doCheckout, isCheckingOut, processOrderPayment, isProcessingPayment, error, clearCart } =
     useCart()
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [paymentStep, setPaymentStep] = useState<'checkout' | 'processing-payment' | 'completed'>('checkout')
 
   const handleCheckout = async () => {
     setCheckoutError(null)
     try {
-      const result = await doCheckout()
-      setCompletedOrder(result)
+      // Step 1: Checkout (draft -> pending)
+      const checkoutResult = await doCheckout()
+      setCompletedOrder(checkoutResult)
+      setPaymentStep('processing-payment')
+      
+      // Step 2: Process Payment (pending -> paid)
+      const paidOrder = await processOrderPayment()
+      setCompletedOrder(paidOrder)
+      setPaymentStep('completed')
     } catch (err) {
       setCheckoutError(
-        err instanceof Error ? err.message : "Checkout failed"
+        err instanceof Error ? err.message : "Checkout or payment failed"
       )
     }
   }
 
-  // Checkout completed
+  // Processing payment
+  if (paymentStep === 'processing-payment') {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center px-4">
+        <Card className="bg-card border-border max-w-lg w-full">
+          <CardContent className="p-8 flex flex-col items-center gap-6 text-center">
+            <div className="size-16 rounded-full bg-accent/20 flex items-center justify-center">
+              <Loader2 className="size-8 text-accent animate-spin" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h1 className="text-2xl font-bold text-foreground">
+                Processing Payment
+              </h1>
+              <p className="text-muted-foreground leading-relaxed">
+                Your order has been confirmed. We're now processing your payment...
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    )
+  }
+
+  // Payment completed successfully
+  if (paymentStep === 'completed' && completedOrder && completedOrder.state === 'paid') {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center px-4">
+        <Card className="bg-card border-border max-w-lg w-full">
+          <CardContent className="p-8 flex flex-col items-center gap-6 text-center">
+            <div className="size-16 rounded-full bg-green-500/20 flex items-center justify-center">
+              <CheckCircle2 className="size-8 text-green-500" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h1 className="text-2xl font-bold text-foreground">
+                Payment Successful!
+              </h1>
+              <p className="text-muted-foreground leading-relaxed">
+                Your payment has been processed successfully. Your tickets are confirmed!
+              </p>
+            </div>
+
+            <div className="w-full rounded-lg border border-border bg-secondary/30 p-4 text-left">
+              <div className="flex flex-col gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Order ID</span>
+                  <span className="font-mono text-foreground">
+                    {completedOrder.id}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="font-medium text-green-500 capitalize">
+                    {completedOrder.state}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Items</span>
+                  <span className="text-foreground">
+                    {completedOrder.items.length}
+                  </span>
+                </div>
+                <Separator className="bg-border my-1" />
+                <div className="flex justify-between">
+                  <span className="font-medium text-foreground">Total</span>
+                  <span className="font-bold text-foreground">
+                    ${completedOrder.totalAmount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              asChild
+              className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+              onClick={() => clearCart()}
+            >
+              <Link href="/">Browse More Events</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    )
+  }
+
+  // Checkout completed (legacy state - should not show in normal flow)
   if (completedOrder && completedOrder.state !== "draft") {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center px-4">

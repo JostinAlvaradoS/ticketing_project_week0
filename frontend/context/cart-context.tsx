@@ -11,6 +11,7 @@ import {
 import type { Order, ReservationInfo, Seat } from "@/lib/types"
 import { addToCartWithRetry, checkout } from "@/lib/api/ordering"
 import { createReservation } from "@/lib/api/inventory"
+import { processPayment } from "@/lib/api/payment"
 import { useAuth } from "@/context/auth-context"
 
 const CART_STORAGE_KEY = "ticketing_cart"
@@ -21,11 +22,13 @@ interface CartContextType {
   reservations: ReservationInfo[]
   isAddingToCart: boolean
   isCheckingOut: boolean
+  isProcessingPayment: boolean
   error: string | null
   reserveSeatAndAddToCart: (seat: Seat) => Promise<void>
   removeSeatFromCart: (seatId: string) => void
   isSeatInCart: (seatId: string) => boolean
   doCheckout: () => Promise<Order>
+  processOrderPayment: () => Promise<Order>
   clearError: () => void
   clearCart: () => void
 }
@@ -44,6 +47,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [reservations, setReservations] = useState<ReservationInfo[]>([])
   const [isAddingToCart, setIsAddingToCart] = useState(false)
   const [isCheckingOut, setIsCheckingOut] = useState(false)
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isHydrated, setIsHydrated] = useState(false)
 
@@ -225,7 +229,48 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsCheckingOut(false)
     }
-  }, [order])
+  }, [order, userId])
+
+  const processOrderPayment = useCallback(async () => {
+    if (!order) throw new Error("No order to pay")
+    if (!userId) throw new Error("User not authenticated")
+    setIsProcessingPayment(true)
+    setError(null)
+    try {
+      console.log("[processOrderPayment] Processing payment for order", order.id)
+      const paymentResponse = await processPayment({
+        orderId: order.id,
+        customerId: userId,
+        amount: order.totalAmount / 100, // Convert from cents to dollars
+        currency: "USD",
+        paymentMethod: "credit_card"
+      })
+      
+      console.log("[processOrderPayment] Payment successful:", paymentResponse)
+      
+      // Update the existing order with payment information
+      const updatedOrder: Order = {
+        ...order,
+        state: "paid",
+        paidAt: new Date().toISOString()
+      }
+      
+      setOrder(updatedOrder)
+      
+      // Clear cart after successful payment
+      setReservations([])
+      localStorage.removeItem(RESERVATIONS_STORAGE_KEY)
+      console.log("[processOrderPayment] Cart cleared after successful payment")
+      
+      return updatedOrder
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Payment processing failed"
+      setError(message)
+      throw err
+    } finally {
+      setIsProcessingPayment(false)
+    }
+  }, [order, userId])
 
   return (
     <CartContext.Provider
@@ -234,11 +279,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         reservations,
         isAddingToCart,
         isCheckingOut,
+        isProcessingPayment,
         error,
         reserveSeatAndAddToCart,
         removeSeatFromCart,
         isSeatInCart,
         doCheckout,
+        processOrderPayment,
         clearError,
         clearCart,
       }}

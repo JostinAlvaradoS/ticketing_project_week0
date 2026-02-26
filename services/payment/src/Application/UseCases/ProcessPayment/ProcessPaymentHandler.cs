@@ -96,7 +96,15 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
                 var updatedPayment = await _paymentRepository.UpdateAsync(createdPayment, cancellationToken);
 
                 // Publish payment-succeeded event
-                await PublishPaymentSucceededEvent(updatedPayment, simulationResult.TransactionId, cancellationToken);
+                try
+                {
+                    await PublishPaymentSucceededEvent(updatedPayment, simulationResult.TransactionId, cancellationToken);
+                    _logger.LogInformation("Payment event published successfully for payment {PaymentId}", updatedPayment.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to publish payment-succeeded event for payment {PaymentId}", updatedPayment.Id);
+                }
 
                 _logger.LogInformation("Payment {PaymentId} succeeded for order {OrderId}", 
                     updatedPayment.Id, request.OrderId);
@@ -116,7 +124,15 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
                 var updatedPayment = await _paymentRepository.UpdateAsync(createdPayment, cancellationToken);
 
                 // Publish payment-failed event
-                await PublishPaymentFailedEvent(updatedPayment, cancellationToken);
+                try
+                {
+                    await PublishPaymentFailedEvent(updatedPayment, cancellationToken);
+                    _logger.LogInformation("Payment event published successfully for payment {PaymentId}", updatedPayment.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to publish payment-failed event for payment {PaymentId}", updatedPayment.Id);
+                }
 
                 _logger.LogWarning("Payment {PaymentId} failed for order {OrderId}: {Error}", 
                     updatedPayment.Id, request.OrderId, simulationResult.ErrorMessage);
@@ -147,9 +163,10 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
         );
 
         var eventJson = JsonSerializer.Serialize(paymentEvent, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        _logger.LogInformation("Publishing payment-succeeded event for payment {PaymentId} to topic 'payment-succeeded'", payment.Id);
         await _kafkaProducer.ProduceAsync("payment-succeeded", eventJson, payment.Id.ToString("N"));
         
-        _logger.LogDebug("Published payment-succeeded event for payment {PaymentId}", payment.Id);
+        _logger.LogInformation("Successfully published payment-succeeded event for payment {PaymentId}", payment.Id);
     }
 
     private async Task PublishPaymentFailedEvent(Domain.Entities.Payment payment, CancellationToken cancellationToken)
@@ -169,9 +186,10 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
         );
 
         var eventJson = JsonSerializer.Serialize(paymentEvent, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        _logger.LogInformation("Publishing payment-failed event for payment {PaymentId} to topic 'payment-failed'", payment.Id);
         await _kafkaProducer.ProduceAsync("payment-failed", eventJson, payment.Id.ToString("N"));
         
-        _logger.LogDebug("Published payment-failed event for payment {PaymentId}", payment.Id);
+        _logger.LogInformation("Successfully published payment-failed event for payment {PaymentId}", payment.Id);
     }
 
     private static PaymentDto MapToDto(Domain.Entities.Payment payment)

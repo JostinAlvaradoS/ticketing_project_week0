@@ -39,6 +39,8 @@ public class ReservationEventConsumer : BackgroundService
 
         _logger.LogInformation("Starting reservation event consumer for payment service");
 
+        await Task.Yield();
+
         try
         {
             var config = new ConsumerConfig

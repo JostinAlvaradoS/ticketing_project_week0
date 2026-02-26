@@ -158,6 +158,7 @@ services:
       - "5003:5003"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5003
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres;SearchPath=bc_ordering;Include Error Detail=true
       - Kafka__BootstrapServers=kafka:9092
     depends_on:
@@ -190,12 +191,18 @@ services:
       - "5004:5004"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5004
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres;SearchPath=bc_payment;Include Error Detail=true
       - Kafka__BootstrapServers=kafka:9092
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
 
 # Useful environment variables (for .NET apps or local dev use)
 # Use these values when configuring your services' connection strings.

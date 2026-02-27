@@ -78,7 +78,7 @@ Notification
 
 - [X] T100 Crear `specs/001-ticketing-mvp/catalog-admin.feature` con escenarios Gherkin para el CRUD de eventos y asientos (P1, Est: 2h)
 - [X] T101 Implementar Unit Tests (Domain) para `Event.Create()` y validaciones de negocio siguiendo el Gherkin (P1, Est: 4h) [Dependencias: T100]
-- [ ] T102 Implementar `CreateEventCommandHandler` y sus tests de aplicación correspondientes (P1, Est: 6h) [Dependencias: T101]
+- [X] T102 Implementar `CreateEventCommandHandler` y sus tests de aplicación correspondientes (P1, Est: 6h) [Dependencias: T101]
 - [ ] T103 Implementar lógica de generación masiva de `Seat` (bulk generation) y sus tests asociados (P1, Est: 6h) [Dependencias: T102]
 - [ ] T104 Exponer endpoints de Admin en `Catalog.Api` y proteger con política `RequireRole("Admin")` (P1, Est: 4h) [Dependencias: T103]
 - [ ] T105 Implementar Integration Test con Testcontainers para el flujo completo: Crear Evento -> Generar Asientos -> Verificar en Read Model (P1, Est: 8h) [Dependencias: T104]

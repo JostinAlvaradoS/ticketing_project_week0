@@ -162,13 +162,12 @@ public class GetAllEventsHandlerTests
     // Test Helper Methods
     private static Event CreateEvent(string name, DateTime eventDate, decimal basePrice)
     {
-        return new Event
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Description = $"Description for {name}",
-            EventDate = eventDate,
-            BasePrice = basePrice
-        };
+        return Event.Create(
+            name,
+            $"Description for {name}",
+            eventDate,
+            "Test Venue",
+            1000,
+            basePrice);
     }
 }

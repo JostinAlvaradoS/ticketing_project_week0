@@ -9,4 +9,8 @@ public interface ICatalogRepository
     Task<Event?> GetEventAsync(Guid eventId, CancellationToken cancellationToken = default);
 
     Task<Event?> GetEventWithSeatsAsync(Guid eventId, CancellationToken cancellationToken = default);
+
+    Task<Event> CreateEventAsync(Event eventEntity, CancellationToken cancellationToken = default);
+
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

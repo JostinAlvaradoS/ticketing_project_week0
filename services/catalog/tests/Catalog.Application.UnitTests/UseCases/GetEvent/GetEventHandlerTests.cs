@@ -163,7 +163,7 @@ public class GetEventHandlerTests
         var cancellationToken = CancellationToken.None;
         var query = new GetEventQuery(eventId);
 
-        var eventEntity = CreateEvent(eventId, "E", "", DateTime.UtcNow.AddSeconds(1), 0.01m);
+        var eventEntity = CreateEvent(eventId, "E", "Valid description", DateTime.UtcNow.AddSeconds(1), 0.01m);
 
         _mockRepository
             .Setup(r => r.GetEventAsync(eventId, cancellationToken))
@@ -175,20 +175,24 @@ public class GetEventHandlerTests
         // Assert
         result.Should().NotBeNull();
         result!.Name.Should().Be("E");
-        result.Description.Should().Be("");
+        result.Description.Should().Be("Valid description");
         result.BasePrice.Should().Be(0.01m);
     }
 
     // Test Helper Methods
     private static Event CreateEvent(Guid id, string name, string description, DateTime eventDate, decimal basePrice)
     {
-        return new Event
-        {
-            Id = id,
-            Name = name,
-            Description = description,
-            EventDate = eventDate,
-            BasePrice = basePrice
-        };
+        var eventEntity = Event.Create(
+            name,
+            description,
+            eventDate,
+            "Test Venue",
+            1000,
+            basePrice);
+        
+        // Use reflection to set the ID for testing purposes
+        typeof(Event).GetProperty("Id")?.SetValue(eventEntity, id);
+        
+        return eventEntity;
     }
 }

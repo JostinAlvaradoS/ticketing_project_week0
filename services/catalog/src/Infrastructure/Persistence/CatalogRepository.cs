@@ -34,4 +34,15 @@ public class CatalogRepository : ICatalogRepository
             .Include(e => e.Seats)
             .FirstOrDefaultAsync(e => e.Id == eventId, cancellationToken);
     }
+    
+    public async Task<Event> CreateEventAsync(Event eventEntity, CancellationToken cancellationToken = default)
+    {
+        var entry = await _context.Events.AddAsync(eventEntity, cancellationToken);
+        return entry.Entity;
+    }
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }

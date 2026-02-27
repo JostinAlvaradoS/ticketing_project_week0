@@ -1,0 +1,13 @@
+site_name: Ticketing Project Docs
+site_description: Documentación generada con MkDocs Material
+site_author: Equipo Ticketing
+nav:
+  - Home: index.md
+  - AI Workflow: ai_workflow.md
+  - Human Checks: human_checks.md
+  - Dept Report: dept_report.md
+  - TDD Report: tdd_report.md
+theme:
+  name: material
+plugins:
+  - search

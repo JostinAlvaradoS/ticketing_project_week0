@@ -2,7 +2,7 @@ name: Build and Deploy MkDocs
 
 on:
   push:
-    branches: [ main, feature/Jostin/structured-docs ]
+    branches: [ main, Feature/Jostin/structured-docs ]
   workflow_dispatch:
 
 jobs:

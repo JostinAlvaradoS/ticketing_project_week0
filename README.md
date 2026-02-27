@@ -1,202 +1,93 @@
-# SpecKit Ticketing Platform - Microservices
+# Ticketing Platform — Quickstart y arquitectura
 
-Plataforma de venta de tickets construida con arquitectura de microservicios usando .NET 8.
+[AI Workflow](AI_WORKFLOW.MD) | [Readme](README.md) | [Human Checks](humanchcks.md) | [Dept Report](deptReport.md) | [TDD Report](TDD_report.md)
 
-## Arquitectura
 
-Cada microservicio es independiente y ejecutable por separado, siguiendo arquitectura hexagonal:
-- **Domain**: Entidades de negocio y lógica de dominio
-- **Application**: Casos de uso, comandos, queries
-- **Infrastructure**: Adaptadores a bases de datos y servicios externos
-- **Api**: Puntos de entrada HTTP (Minimal APIs)
+Plataforma de venta de boletos (MVP) compuesta por microservicios .NET (arquitectura hexagonal). Este README explica cómo levantar la pila con Docker Compose, el flujo de comunicación y enlaces útiles.
 
-## Microservicios
+## Quickstart (Docker Compose)
 
-### Identity Service
-**Ubicación**: `services/identity/`  
-**Puerto**: 5100  
-**Propósito**: Autenticación y generación de tokens JWT
-
-```bash
-# Ejecutar desde la raíz del repositorio
-cd services/identity
-dotnet run --project src/Api/Identity.Api.csproj --urls "http://localhost:5100"
-
-# O desde el directorio del servicio
-cd services/identity/src/Api
-dotnet run --urls "http://localhost:5100"
-
-# Build de la solución completa
-cd services/identity
-dotnet build
-```
-
-**Endpoints**:
-- `GET /health` - Health check
-- `POST /token` - Generar JWT (desarrollo)
-
-### Catalog Service (próximamente)
-**Ubicación**: `services/catalog/`  
-**Puerto**: 5101  
-**Propósito**: Catálogo de eventos y asientos
-
-### Inventory Service (próximamente)
-**Ubicación**: `services/inventory/`  
-**Puerto**: 5102  
-**Propósito**: Gestión de inventario y reservas
-
-### Ordering Service (próximamente)
-**Ubicación**: `services/ordering/`  
-**Puerto**: 5103  
-**Propósito**: Carrito de compras y órdenes
-
-### Payment Service (próximamente)
-**Ubicación**: `services/payment/`  
-**Puerto**: 5104  
-**Propósito**: Procesamiento de pagos (simulado)
-
-### Fulfillment Service (próximamente)
-**Ubicación**: `services/fulfillment/`  
-**Puerto**: 5105  
-**Propósito**: Generación de tickets PDF+QR
-
-### Notification Service (próximamente)
-**Ubicación**: `services/notification/`  
-**Puerto**: 5106  
-**Propósito**: Envío de notificaciones por email
-
-## Infraestructura
-
-Los servicios compartidos (PostgreSQL, Redis, Kafka, Zookeeper) se ejecutan con Docker Compose:
+1. Desde la raíz del repo, inicia la infraestructura (Postgres, Redis, Kafka, Zookeeper):
 
 ```bash
 cd infra
 docker compose up -d
 ```
 
-Ver [infra/README.md](infra/README.md) para más detalles sobre configuración de base de datos y servicios.
+2. Verifica servicios:
 
-## Estructura de Proyectos
-
-Cada microservicio tiene su propia solución (.sln):
-
-```
-services/
-├── identity/
-│   ├── Identity.sln          # Solución del microservicio
-│   ├── README.md
-│   └── src/
-│       ├── Domain/           # Identity.Domain.csproj
-│       ├── Application/      # Identity.Application.csproj
-│       ├── Infrastructure/   # Identity.Infrastructure.csproj
-│       └── Api/              # Identity.Api.csproj (entry point)
-├── catalog/
-│   └── Catalog.sln
-├── inventory/
-│   └── Inventory.sln
-└── ...
-```
-
-## Desarrollo
-
-### Requisitos
-- .NET 8 SDK
-- Docker y Docker Compose
-- PostgreSQL (via Docker)
-- Redis (via Docker)
-- Kafka + Zookeeper (via Docker)
-
-### Setup Inicial
-
-1. Iniciar infraestructura:
-```bash
-cd infra
-docker compose up -d
-```
-
-2. Verificar que los servicios estén saludables:
 ```bash
 docker compose ps
 ```
 
-3. Ejecutar un microservicio:
+3. Ejecuta servicios durante desarrollo (ej. Identity):
+
 ```bash
 cd services/identity
-dotnet run --project src/Api/Identity.Api.csproj
+dotnet run --project src/Api/Identity.Api.csproj --urls "http://localhost:5100"
 ```
 
-### Compilar todos los servicios
+Notas:
+- Las variables de conexión se exponen como `POSTGRES_URL`, `REDIS_URL`, `KAFKA_BOOTSTRAP_SERVERS` en `infra/docker-compose.yml`.
+- Para pruebas de integración usamos Testcontainers y una sola instancia de Postgres con schemas por bounded context (`bc_*`).
 
-Cada microservicio se compila independientemente:
+## Arquitectura y flujo de comunicación
 
-```bash
-# Identity
-cd services/identity && dotnet build
+- Arquitectura: Hexagonal (Ports & Adapters) por microservicio.
+- Base de datos: UNA instancia PostgreSQL compartida, schemas por bounded context.
+- Comunicación síncrona: HTTP/REST (Minimal APIs) para consultas y acciones inmediatas.
+- Comunicación asíncrona: Kafka para eventos (reservation-created, payment-succeeded, payment-failed, ticket-issued, reservation-expired).
+- Redis: Locks distribuidos y TTL para reservas temporales.
 
-# Catalog (cuando esté disponible)
-cd services/catalog && dotnet build
+Diagrama (Mermaid):
 
-# etc.
+```mermaid
+graph LR
+	Browser[Cliente (Browser)] -->|HTTP| Frontend[Frontend]
+	Frontend -->|HTTP| ApiGateway[API / Services]
+	ApiGateway -->|HTTP| Catalog[Catalog Service]
+	ApiGateway -->|HTTP| Inventory[Inventory Service]
+	ApiGateway -->|HTTP| Ordering[Ordering Service]
+	ApiGateway -->|HTTP| Payment[Payment Service]
+	ApiGateway -->|HTTP| Identity[Identity Service]
+	Inventory -.->|Redis locks| Redis[Redis]
+	Inventory -->|Postgres (bc_inventory)| Postgres[(Postgres)]
+	Catalog -->|Postgres (bc_catalog)| Postgres
+	Ordering -->|Postgres (bc_ordering)| Postgres
+	Payment -->|Postgres (bc_payment)| Postgres
+	Fulfillment -->|Postgres (bc_fulfillment)| Postgres
+	Inventory -->|Kafka:event reservation-created| Kafka[(Kafka)]
+	Payment -->|Kafka:event payment-succeeded/failed| Kafka
+	Kafka -->|Consumer: ticket issuance| Fulfillment
 ```
 
-### Testing
+## Qué debe contener este README (resumen)
+
+- Breve descripción del proyecto
+- Quickstart con Docker Compose y comandos básicos
+- Diagrama de arquitectura / comunicación (Mermaid)
+- Enlaces a artefactos principales y a `AI_WORKFLOW.MD`
+- Cómo ejecutar tests básicos
+
+## Enlaces útiles
+- Especificación y plan: [specs/001-ticketing-mvp/spec.md](specs/001-ticketing-mvp/spec.md)
+- Plan técnico: [specs/001-ticketing-mvp/plan.md](specs/001-ticketing-mvp/plan.md)
+- Tareas: [specs/001-ticketing-mvp/tasks.md](specs/001-ticketing-mvp/tasks.md)
+- Registro del flujo con IA: [AI_WORKFLOW.MD](AI_WORKFLOW.MD)
+- Infra: [infra/README.md](infra/README.md)
+
+## Tests
+
+Ejecutar tests de un servicio:
 
 ```bash
-# Ejecutar tests de un microservicio
 cd services/identity
 dotnet test
-
-# Ejecutar tests de integración (próximamente)
-cd tests/Integration
-dotnet test
 ```
 
-## Documentación Adicional
+Pruebas de integración (cuando estén disponibles) usan Testcontainers y la misma imagen de Postgres levantada por `infra`.
 
-- [Plan de Implementación](specs/001-ticketing-mvp/plan.md)
-- [Especificación](specs/001-ticketing-mvp/spec.md)
-- [Tareas](specs/001-ticketing-mvp/tasks.md)
-- [Infraestructura](infra/README.md)
-- [Identity Service](services/identity/README.md)
+## Estado y próximos pasos
 
-## Database Schemas
+- Ver [specs/001-ticketing-mvp/tasks.md](specs/001-ticketing-mvp/tasks.md) para tareas priorizadas y progreso.
 
-Cada microservicio tiene su propio schema en PostgreSQL:
-
-| Schema | Microservicio | Propósito |
-|--------|---------------|-----------|
-| `bc_identity` | Identity | Usuarios y autenticación |
-| `bc_catalog` | Catalog | Eventos y catálogo |
-| `bc_inventory` | Inventory | Reservas e inventario |
-| `bc_ordering` | Ordering | Órdenes y carrito |
-| `bc_payment` | Payment | Transacciones de pago |
-| `bc_fulfillment` | Fulfillment | Generación de tickets |
-| `bc_notification` | Notification | Historial de notificaciones |
-
-## Convenciones
-
-- Cada microservicio tiene su propia solución (.sln)
-- Los microservicios NO comparten código entre ellos (solo contratos vía eventos)
-- Comunicación asíncrona vía Kafka
-- Comunicación síncrona solo cuando sea estrictamente necesario
-- Cada microservicio tiene su propio DbContext y schema
-- Logging estructurado con Serilog
-- Tracing distribuido con OpenTelemetry
-
-## Estado del Proyecto
-
-✅ **Fase 0 - Foundation**
-- [x] T001: Docker Compose con Postgres, Redis, Kafka, Zookeeper
-- [x] T002: Schemas de base de datos
-- [x] T003: Scripts de inicialización
-- [x] T004: README de operaciones
-- [x] T005: Identity Service skeleton
-
-🚧 **Fase 1 - Core Services** (En progreso)
-- [ ] T006-T010: Completar Identity con DbContext
-- [ ] T011-T022: Catalog e Inventory services
-- [ ] T023-T029: Ordering service
-
-⏳ **Fase 2 - Payment & Fulfillment** (Pendiente)
-
-⏳ **Fase 3 - Polish & Hardening** (Pendiente)

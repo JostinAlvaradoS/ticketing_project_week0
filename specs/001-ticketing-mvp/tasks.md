@@ -74,6 +74,18 @@ Notification
 
 ---
 
+## Phase Admin — Catalog CRUD (TDD Approach)
+
+- [ ] T100 Crear `specs/001-ticketing-mvp/catalog-admin.feature` con escenarios Gherkin para el CRUD de eventos y asientos (P1, Est: 2h)
+- [ ] T101 Implementar Unit Tests (Domain) para `Event.Create()` y validaciones de negocio siguiendo el Gherkin (P1, Est: 4h) [Dependencias: T100]
+- [ ] T102 Implementar `CreateEventCommandHandler` y sus tests de aplicación correspondientes (P1, Est: 6h) [Dependencias: T101]
+- [ ] T103 Implementar lógica de generación masiva de `Seat` (bulk generation) y sus tests asociados (P1, Est: 6h) [Dependencias: T102]
+- [ ] T104 Exponer endpoints de Admin en `Catalog.Api` y proteger con política `RequireRole("Admin")` (P1, Est: 4h) [Dependencias: T103]
+- [ ] T105 Implementar Integration Test con Testcontainers para el flujo completo: Crear Evento -> Generar Asientos -> Verificar en Read Model (P1, Est: 8h) [Dependencias: T104]
+- [ ] T106 Implementar escenarios de Actualización y Desactivación (Soft Delete) de eventos con sus tests (P1, Est: 6h) [Dependencias: T105]
+
+---
+
 ## Phase 3 — Polish & Hardening
 
 - [ ] T042 Add OpenAPI contract files para endpoints implementados y colocarlos en `contracts/openapi/` (P2, Est: 6h) [Dependencias: T013, T019, T025, T032, T036]

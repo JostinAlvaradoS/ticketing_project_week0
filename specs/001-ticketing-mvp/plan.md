@@ -111,6 +111,16 @@ Compose tips:
 - Start order: postgres -> redis -> zookeeper -> kafka -> identity -> catalog -> inventory -> ordering -> payment -> fulfillment -> notification.
 - Services should retry to connect; use healthchecks and wait-for scripts for robust startup.
 
+## Catalog Admin CRUD (TDD & Gherkin Phase)
+
+- Purpose: Implement the administration side for event and seat management in the Catalog service.
+- Focus: Use `specs/001-ticketing-mvp/catalog-admin.feature` as the source of truth for implementation.
+- TDD Approach: Red-Green-Refactor focusing on domain entities, application handlers (MediatR), and API integration tests using Testcontainers.
+- Phase scope: 
+  - Admin authentication/authorization check.
+  - Event creation, listing, updating, and deactivation.
+  - Bulk seat generation for newly created events.
+
 ## Concurrency & Locking Strategy
 
 1. Read-mostly operations (seat maps) use simple SELECTs; show `reserved`/`sold` status by joining inventory/projections.

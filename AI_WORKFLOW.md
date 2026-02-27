@@ -136,6 +136,27 @@ Implementa la tarea TXXX del tasks.md: "[pega descripción completa de la tarea]
 - Al final, muestra los archivos creados y cómo probarlos (ej: dotnet run, curl, etc.).
 ```
 
+6) Nuevas Funcionalidades (Admin CRUD) con TDD — comando: `/speckit.tdd_feature`
+
+Prompt final (v1.0.0):
+
+```
+Re-elabora el plan de tareas para integrar una fase de CRUD Administración (Eventos y Asientos) en el servicio Catalog, utilizando un enfoque estrictamente TDD (Test-Driven Development) y lenguaje Gherkin.
+
+Requerimientos para la fase:
+- Especificación: Crear un archivo .feature con escenarios Gherkin (Given-When-Then) para el flujo de Admin.
+- Ciclo TDD: Red-Green-Refactor como base de implementación.
+- Prioridad: Event creation, bulk seat generation, soft-delete.
+- Pruebas: Unit tests para dominios (Event, Seat) y tests de integración para casos de uso (Mediatr Handlers) usando Testcontainers.
+
+Tareas a generar:
+- Definición de Gherkin (.feature).
+- Implementación de Unit Tests de Dominio antes que la lógica.
+- Implementación de Command Handlers guiados por Unit Tests.
+- Setup de Integration Tests con Testcontainers para validar la persistencia en el schema bc_catalog.
+- Implementación de API Endpoints con validación de roles (Admin).
+```
+
 Verificación y evidencia de avance
 - Cada artefacto generado (`spec.md`, `plan.md`, `tasks.md`) se diseñó para ser testable y transferible a la fase de implementación.
 - La verificación se planificó contra los Acceptance Scenarios en `spec.md` y contra las tareas en `tasks.md` (checkboxes).

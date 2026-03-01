@@ -99,6 +99,9 @@ public class ReservationEventConsumer : BackgroundService
             {
                 try
                 {
+                    // HUMAN CHECK: Consumo de eventos con reintento manual.
+                    // Se identificó deuda técnica: se recomienda migrar a Polly para manejar
+                    // reintentos con Exponential Backoff y Circuit Breaker.
                     var consumeResult = consumer.Consume(stoppingToken);
                     
                     if (consumeResult?.Message?.Value != null)

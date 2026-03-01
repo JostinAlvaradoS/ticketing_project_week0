@@ -14,6 +14,20 @@ Artefactos generados
 - `specs/001-ticketing-mvp/plan.md` — Plan técnico accionable.
 - `specs/001-ticketing-mvp/tasks.md` — Lista de tareas con checkboxes.
 
+## 🛠️ Adaptaciones y Decisiones Críticas del Equipo
+
+### Personalización de Speckit
+Durante la fase de implementación, se tomaron decisiones de personalización sobre las herramientas de automatización de Spec Kit (scripts `.sh` de Speckit/GitHub):
+
+- **Modificación de Scripts de Git:** Se editaron los archivos `.sh` (como `phase-1-smoke-test.sh` y otros scripts de automatización interna de speckit) para permitir convenciones de nomenclatura de ramas y estructuras de commits personalizadas.
+- **Filosofía del Desarrollador (Jostin):** Se estableció que, aunque se utilicen frameworks de trabajo guiado por IA o metodologías como *Spec Driven Development*, el equipo debe **priorizar las convenciones internas del equipo de desarrollo** por encima de las restricciones rígidas del framework. 
+- **Resultado:** El flujo de trabajo es ahora "Spec-Driven" pero adaptado al lenguaje y cultura del equipo, permitiendo commits automáticos y nombres de ramas que reflejen mejor el contexto del proyecto real más allá del boilerplate del framework.
+
+### Actualización de Estrategia de Implementación (2026-02-28)
+- **Migración a ATDD (Acceptance Test-Driven Development):** Ante las funcionalidades pendientes listadas en [tasks.md](specs/001-ticketing-mvp/tasks.md), se ha tomado la decisión estratégica de abordar su desarrollo bajo el enfoque **ATDD**.
+- **Redefinición con la IA:** Se ha reconfigurado el flujo de trabajo con la IA para que las tareas de implementación restantes se generen y ejecuten basándose primero en las pruebas de aceptación. Esto garantiza que cada funcionalidad pendiente cumpla con los criterios de éxito definidos antes de dar por terminada la codificación.
+- **Registro de Pruebas:** El progreso y los resultados de este enfoque se documentarán detalladamente en [TDD_report.md](TDD_report.md).
+
 Referencias (archivos en el repo)
 - [spec.md](specs/001-ticketing-mvp/spec.md)
 - [plan.md](specs/001-ticketing-mvp/plan.md)
@@ -134,6 +148,27 @@ Implementa la tarea TXXX del tasks.md: "[pega descripción completa de la tarea]
 - Usa .NET 9+ y paquetes recomendados (EF Core, MediatR, etc.).
 - Genera código completo y funcional para esta tarea específica.
 - Al final, muestra los archivos creados y cómo probarlos (ej: dotnet run, curl, etc.).
+```
+
+6) Nuevas Funcionalidades (Admin CRUD) con TDD — comando: `/speckit.tdd_feature`
+
+Prompt final (v1.0.0):
+
+```
+Re-elabora el plan de tareas para integrar una fase de CRUD Administración (Eventos y Asientos) en el servicio Catalog, utilizando un enfoque estrictamente TDD (Test-Driven Development) y lenguaje Gherkin.
+
+Requerimientos para la fase:
+- Especificación: Crear un archivo .feature con escenarios Gherkin (Given-When-Then) para el flujo de Admin.
+- Ciclo TDD: Red-Green-Refactor como base de implementación.
+- Prioridad: Event creation, bulk seat generation, soft-delete.
+- Pruebas: Unit tests para dominios (Event, Seat) y tests de integración para casos de uso (Mediatr Handlers) usando Testcontainers.
+
+Tareas a generar:
+- Definición de Gherkin (.feature).
+- Implementación de Unit Tests de Dominio antes que la lógica.
+- Implementación de Command Handlers guiados por Unit Tests.
+- Setup de Integration Tests con Testcontainers para validar la persistencia en el schema bc_catalog.
+- Implementación de API Endpoints con validación de roles (Admin).
 ```
 
 Verificación y evidencia de avance

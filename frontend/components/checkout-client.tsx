@@ -266,6 +266,10 @@ export function CheckoutClient() {
                           </span>
                           <CountdownTimer
                             expiresAt={reservation.expiresAt}
+                            onExpired={() => {
+                              clearCart()
+                              window.location.href = "/"
+                            }}
                           />
                         </div>
                       )}

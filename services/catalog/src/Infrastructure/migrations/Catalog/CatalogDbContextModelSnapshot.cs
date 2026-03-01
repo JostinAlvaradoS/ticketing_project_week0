@@ -78,6 +78,9 @@ namespace Catalog.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric");
 
+                    b.Property<Guid?>("CurrentReservationId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EventId");

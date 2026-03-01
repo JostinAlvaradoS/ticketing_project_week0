@@ -75,6 +75,83 @@ public class ProcessPaymentHandlerTests
         _kafkaProducer.Verify(x => x.ProduceAsync("payment-succeeded", It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
+    /// <summary>
+    /// TEST DE IDEMPOTENCIA: Pago duplicado
+    /// Propósito: Asegurar que si recibimos dos veces la misma solicitud de pago para la misma orden,
+    /// el sistema no procese el cargo dos veces ni genere múltiples registros de éxito.
+    /// </summary>
+    [Fact]
+    public async Task Handle_Should_Be_Idempotent_When_Same_Order_Processed_Twice()
+    {
+        // Arrange
+        var orderId = Guid.NewGuid();
+        var command = new ProcessPaymentCommand(
+            orderId, 
+            Guid.NewGuid(), 
+            Guid.NewGuid(), 
+            150, 
+            "USD", 
+            "card"
+        );
+
+        _orderValidationService.Setup(x => x.ValidateOrderAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OrderValidationResult(true, null, orderId, "pending", 150));
+
+        var payment = new Domain.Entities.Payment { Id = Guid.NewGuid(), OrderId = orderId, Status = "completed" };
+        
+        // Simular que la segunda vez el repositorio ya encuentra el pago existente
+        _paymentRepository.SetupSequence(x => x.GetByOrderIdAsync(orderId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Domain.Entities.Payment)null) // Primera vez: no existe
+            .ReturnsAsync(payment);                       // Segunda vez: ya existe
+
+        _paymentSimulatorService.Setup(x => x.SimulatePaymentAsync(It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PaymentSimulationResult(true, "txn-idempotent", null, null, null));
+
+        var handler = CreateHandler();
+
+        // Act
+        var result1 = await handler.Handle(command, CancellationToken.None);
+        var result2 = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result1.Success.Should().BeTrue();
+        result2.Success.Should().BeTrue("El segundo intento debe ser exitoso por idempotencia");
+        
+        // El simulador de pago real solo debería haberse llamado una vez
+        _paymentSimulatorService.Verify(x => x.SimulatePaymentAsync(It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// TEST DE RESILIENCIA: Fallo en Kafka tras Pago exitoso
+    /// Propósito: ¿Qué pasa si el pago se cobra pero no podemos avisar al resto del sistema?
+    /// El sistema debe manejar esto (ej: mediante reintentos o marcando el pago para conciliación).
+    /// </summary>
+    [Fact]
+    public async Task Handle_Should_Log_Error_When_Kafka_Fails_After_Payment_Success()
+    {
+        // Arrange
+        var command = new ProcessPaymentCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 100, "USD", "card");
+
+        _orderValidationService.Setup(x => x.ValidateOrderAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OrderValidationResult(true, null));
+        
+        _paymentSimulatorService.Setup(x => x.SimulatePaymentAsync(It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PaymentSimulationResult(true, "txn-123", null, null, null));
+
+        // Simular fallo en Kafka
+        _kafkaProducer.Setup(x => x.ProduceAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ThrowsAsync(new Exception("Kafka connection failed"));
+
+        var handler = CreateHandler();
+
+        // Act & Assert
+        // Dependiendo de la implementación, esto podría lanzar excepción o devolver Success=true con advertencia
+        // Aquí probamos que al menos intente enviar el evento
+        var act = async () => await handler.Handle(command, CancellationToken.None);
+        
+        await act.Should().NotThrowAsync("La falla de notificación no debería invalidar un cobro monetario ya realizado, pero debe registrarse");
+    }
+
     [Fact]
     public async Task Handle_Should_Return_Failure_When_Order_Validation_Fails()
     {

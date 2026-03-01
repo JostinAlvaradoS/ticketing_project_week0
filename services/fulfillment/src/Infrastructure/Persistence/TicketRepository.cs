@@ -18,6 +18,11 @@ public class TicketRepository : ITicketRepository
         return await _context.Tickets.FirstOrDefaultAsync(t => t.OrderId == orderId);
     }
 
+    public async Task<Ticket?> GetByIdAsync(Guid id)
+    {
+        return await _context.Tickets.FirstOrDefaultAsync(t => t.Id == id);
+    }
+
     public async Task<Ticket> CreateAsync(Ticket ticket)
     {
         ticket.CreatedAt = DateTime.UtcNow;

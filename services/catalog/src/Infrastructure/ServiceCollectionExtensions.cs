@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Catalog.Application.Ports;
 using Catalog.Application.UseCases.GetEventSeatmap;
 using Catalog.Infrastructure.Persistence;
+using Catalog.Infrastructure.Messaging;
 
 namespace Catalog.Infrastructure;
 
@@ -27,6 +28,9 @@ public static class ServiceCollectionExtensions
         
         services.AddScoped<ICatalogRepository, CatalogRepository>();
         services.AddScoped<IDbInitializer, DbInitializer>();
+
+        // Kafka Event Consumer
+        services.AddHostedService<CatalogEventConsumer>();
         
         return services;
     }

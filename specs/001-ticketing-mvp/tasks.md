@@ -67,10 +67,10 @@ Fulfillment & Ticketing
 - [X] T037 Unit tests for Ticket generation (mock PDF/QR libs) (P1, Est: 4h) [Dependencias: T036]
 
 Notification
-- [ ] T038 Crear proyecto `services/notification/src` con consumer de `ticket-issued` y envío via SMTP adapter (dev) (P1, Est: 6h) [Dependencias: T036]
-- [ ] T039 Unit tests for Notification consumer (P1, Est: 3h) [Dependencias: T038]
-- [ ] T040 Integration test: end-to-end purchase flow (reserve → cart → payment → ticket → email queued) usando Testcontainers (P1, Est: 12h) [Dependencias: T028, T032, T036, T038]
-- [ ] T041 Phase 2 smoke test: run full infra + services and execute a successful payment → ticket issuance scenario (P1, Est: 3h) [Dependencias: T040]
+- [X] T038 Crear proyecto `services/notification/src` con consumer de `ticket-issued` y envío via SMTP adapter (dev) (P1, Est: 6h) [Dependencias: T036]
+- [X] T039 Unit tests for Notification consumer (P1, Est: 3h) [Dependencias: T038]
+- [X] T040 Integration test: end-to-end purchase flow (reserve → cart → payment → ticket → email queued) usando Testcontainers (P1, Est: 12h) [Dependencias: T028, T032, T036, T038]
+- [X] T041 Phase 2 smoke test: run full infra + services and execute a successful payment → ticket issuance scenario (P1, Est: 3h) [Dependencias: T040]
 
 ---
 

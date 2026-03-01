@@ -52,7 +52,8 @@ Principios obligatorios:
 - Despliegue local: Docker Compose con 1 postgres + redis + kafka + zookeeper + servicios .NET.
 - Calidad: Unit tests con mocks de puertos; integration con Testcontainers (single Postgres).
 - Tech stack base: .NET 9+, EF Core + Npgsql, Confluent.Kafka, MediatR, FluentValidation, Serilog + OTEL.
-- Seguridad: JWT desde Identity Service, rate limiting, secrets via .env/User Secrets.
+- Configuración: Uso de valores por defecto en `appsettings.json` y `docker-compose.yml`, omitiendo `.env` para facilitar el intercambio de código entre pares (Contexto Training).
+- Seguridad: JWT desde Identity Service, rate limiting, secrets via .env/User Secrets (Omitido intencionalmente según decisión de equipo).
 ```
 
 2) Especificación — comando: `/speckit.specify`

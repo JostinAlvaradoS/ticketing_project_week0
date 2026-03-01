@@ -114,7 +114,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const reserveSeatAndAddToCart = useCallback(
     async (seat: Seat) => {
-      if (!userId) throw new Error("User not authenticated")
+      // Step 0: Initial validation - remove restrictive auth check if we want to allow guest flow
+      // if (!userId) throw new Error("User not authenticated")
       
       // Check if seat is already in cart
       const seatAlreadyInCart = reservations.some(r => r.seatId === seat.id)
@@ -130,7 +131,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         console.log(`[reserveSeatAndAddToCart] Creating reservation for seat ${seat.id}`)
         const reservation = await createReservation({
           seatId: seat.id,
-          customerId: userId,
+          customerId: userId || "guest-user", // Fallback for guest
         })
         console.log(`[reserveSeatAndAddToCart] Reservation created:`, reservation)
 
@@ -141,6 +142,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           seat,
         }
 
+        // Update reservations locally first
         setReservations((prev) => [...prev, reservationInfo])
 
         // Step 2: Add to cart with retry (Kafka delay)
@@ -149,22 +151,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
           reservationId: reservation.reservationId,
           seatId: seat.id,
           price: seat.price,
-          userId: userId,
+          userId: userId || null, // Allow null for guest
         })
         console.log(`[reserveSeatAndAddToCart] Add to cart response:`, response)
 
-        // The server returns the Order directly, not a wrapper object
-        if (response && response.id) {
-          // Response is the Order object itself
-          const order = response as Order
-          setOrder(order)
-          console.log(`[reserveSeatAndAddToCart] Order created successfully:`, order)
-        } else if (response.success && response.order) {
-          // Fallback for wrapped response format
-          setOrder(response.order)
-          console.log(`[reserveSeatAndAddToCart] Order created successfully:`, response.order)
+        // Ensure we handle both direct Order response and wrapped response
+        let finalOrder: Order | null = null;
+        if (response && (response as Order).id) {
+          finalOrder = response as Order;
+        } else if (response && (response as any).success && (response as any).order) {
+          finalOrder = (response as any).order;
+        }
+
+        if (finalOrder) {
+          // IMPORTANT: Merge with existing order items if needed, though the server-side
+          // Ordering service should already return the complete list of items in the draft order.
+          setOrder(finalOrder)
+          console.log(`[reserveSeatAndAddToCart] Order updated successfully:`, finalOrder)
         } else {
-          throw new Error(response.errorMessage || "Failed to add to cart")
+          throw new Error((response as any).errorMessage || "Failed to add to cart: Invalid server response")
         }
       } catch (err) {
         // Remove reservation from state if cart add failed
@@ -188,18 +193,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
   )
 
   const removeSeatFromCart = useCallback((seatId: string) => {
+    // 1. First remove the local reservation reference
     setReservations((prev) => prev.filter(r => r.seatId !== seatId))
+    
+    // 2. If we have an existing order with items, update it locally.
+    // NOTE: Ideally, we should call the backend to remove the item from the draft order.
     if (order && order.items) {
-      // Filter out the item with this seatId from the order
       const updatedItems = order.items.filter(item => item.seatId !== seatId)
-      const newTotal = updatedItems.reduce((sum, item) => sum + item.price, 0)
-      setOrder({
-        ...order,
-        items: updatedItems,
-        totalAmount: newTotal,
-      })
+      
+      // If no items left, clear the order. Otherwise update total.
+      if (updatedItems.length === 0) {
+        setOrder(null)
+      } else {
+        const newTotal = updatedItems.reduce((sum, item) => sum + item.price, 0)
+        setOrder({
+          ...order,
+          items: updatedItems,
+          totalAmount: newTotal,
+        })
+      }
     }
-  }, [order])
+    
+    // If the cart becomes empty, clean up completely
+    if (reservations.length <= 1) {
+      localStorage.removeItem(RESERVATIONS_STORAGE_KEY)
+    }
+  }, [order, reservations])
 
   const doCheckout = useCallback(async () => {
     if (!order) throw new Error("No order to checkout")
@@ -233,22 +252,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const processOrderPayment = useCallback(async () => {
     if (!order) throw new Error("No order to pay")
-    if (!userId) throw new Error("User not authenticated")
+    if (!userId) {
+      // For guest checkout, we might need a placeholder or the backend might handle guest orders
+      console.warn("[processOrderPayment] Guest payment - using guest-user customerId")
+    }
+    
     setIsProcessingPayment(true)
     setError(null)
     try {
       console.log("[processOrderPayment] Processing payment for order", order.id)
+      
+      // Use the first reservation ID as the primary reservation associated with this order
+      // (Simplified for MVP, assuming 1 ticket/reservation per order for now or using first if multiple)
+      const primaryReservationId = reservations[0]?.reservationId;
+      
       const paymentResponse = await processPayment({
         orderId: order.id,
-        customerId: userId,
-        amount: order.totalAmount / 100, // Convert from cents to dollars
+        customerId: userId || "guest-user",
+        reservationId: primaryReservationId,
+        amount: order.totalAmount, // Note: Use full amount value from server
         currency: "USD",
         paymentMethod: "credit_card"
       })
       
-      console.log("[processOrderPayment] Payment successful:", paymentResponse)
+      console.log("[processOrderPayment] Payment response:", paymentResponse)
       
-      // Update the existing order with payment information
+      if (!paymentResponse.success) {
+        throw new Error(paymentResponse.errorMessage || "Payment declined")
+      }
+
+      // If successful, the backend will update the order state via events.
+      // We optimistically update the local state to match the expected 'paid' state.
       const updatedOrder: Order = {
         ...order,
         state: "paid",
@@ -257,7 +291,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       
       setOrder(updatedOrder)
       
-      // Clear cart after successful payment
+      // Clear cart and reservations after successful payment
       setReservations([])
       localStorage.removeItem(RESERVATIONS_STORAGE_KEY)
       console.log("[processOrderPayment] Cart cleared after successful payment")

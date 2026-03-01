@@ -82,7 +82,7 @@ Notification
 - [X] T103 Implementar lógica de generación masiva de `Seat` (bulk generation) y sus tests asociados (P1, Est: 6h) [Dependencias: T102]
 - [X] T104 Exponer endpoints de Admin en `Catalog.Api` y proteger con política `RequireRole("Admin")` (P1, Est: 4h) [Dependencias: T103]
 - [X] T105 Implementar Integration Test con Testcontainers para el flujo completo: Crear Evento -> Generar Asientos -> Verificar en Read Model (P1, Est: 8h) [Dependencias: T104]
-- [ ] T106 Implementar escenarios de Actualización y Desactivación (Soft Delete) de eventos con sus tests (P1, Est: 6h) [Dependencias: T105]
+- [X] T106 Implementar escenarios de Actualización y Desactivación (Soft Delete) de eventos con sus tests (P1, Est: 6h) [Dependencias: T105]
 
 ---
 

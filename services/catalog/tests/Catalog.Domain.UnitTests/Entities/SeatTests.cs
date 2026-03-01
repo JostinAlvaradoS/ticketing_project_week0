@@ -443,7 +443,101 @@ public class SeatTests
         Seat.StatusAvailable.Should().Be("available");
         Seat.StatusReserved.Should().Be("reserved");
         Seat.StatusSold.Should().Be("sold");
+        Seat.StatusUnavailable.Should().Be("unavailable");
     }
+
+    #region Seat Unavailable Status Tests - T106
+
+    [Fact]
+    public void Seat_IsUnavailable_WithUnavailableStatus_ShouldReturnTrue()
+    {
+        // Arrange
+        var seat = CreateValidSeat();
+        seat.Status = Seat.StatusUnavailable;
+
+        // Act & Assert
+        seat.IsUnavailable().Should().BeTrue();
+    }
+
+    [Fact]
+    public void Seat_IsUnavailable_WithAvailableStatus_ShouldReturnFalse()
+    {
+        // Arrange
+        var seat = CreateValidSeat();
+        seat.Status = Seat.StatusAvailable;
+
+        // Act & Assert
+        seat.IsUnavailable().Should().BeFalse();
+    }
+
+    [Fact]
+    public void Seat_MakeUnavailable_FromAvailable_ShouldChangeToUnavailable()
+    {
+        // Arrange - Following Gherkin: seats become unavailable when event is deactivated
+        var seat = CreateValidSeat();
+        seat.Status = Seat.StatusAvailable;
+
+        // Act
+        seat.MakeUnavailable();
+
+        // Assert
+        seat.Status.Should().Be(Seat.StatusUnavailable);
+    }
+
+    [Fact]
+    public void Seat_MakeUnavailable_FromReserved_ShouldThrowException()
+    {
+        // Arrange
+        var seat = CreateValidSeat();
+        seat.Status = Seat.StatusReserved;
+
+        // Act & Assert
+        var action = () => seat.MakeUnavailable();
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot make seat unavailable. Seat has active reservation or is sold. Current status: reserved");
+    }
+
+    [Fact]
+    public void Seat_MakeUnavailable_FromSold_ShouldThrowException()
+    {
+        // Arrange
+        var seat = CreateValidSeat();
+        seat.Status = Seat.StatusSold;
+
+        // Act & Assert
+        var action = () => seat.MakeUnavailable();
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot make seat unavailable. Seat has active reservation or is sold. Current status: sold");
+    }
+
+    [Fact]
+    public void Seat_MakeAvailable_FromUnavailable_ShouldChangeToAvailable()
+    {
+        // Arrange - Following Gherkin: seats become available when event is reactivated
+        var seat = CreateValidSeat();
+        seat.Status = Seat.StatusUnavailable;
+
+        // Act
+        seat.MakeAvailable();
+
+        // Assert
+        seat.Status.Should().Be(Seat.StatusAvailable);
+    }
+
+    [Fact]
+    public void Seat_MakeAvailable_FromAvailable_ShouldThrowException()
+    {
+        // Arrange
+        var seat = CreateValidSeat();
+        seat.Status = Seat.StatusAvailable;
+
+        // Act & Assert
+        var action = () => seat.MakeAvailable();
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot make seat available. Current status: available. Only unavailable seats can be made available.");
+    }
+
+    #endregion
 
     // Test Helper Methods
     private static Seat CreateValidSeat()

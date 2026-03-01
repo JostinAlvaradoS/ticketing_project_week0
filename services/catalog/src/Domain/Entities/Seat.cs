@@ -5,6 +5,7 @@ public class Seat
     public const string StatusAvailable = "available";
     public const string StatusReserved = "reserved";
     public const string StatusSold = "sold";
+    public const string StatusUnavailable = "unavailable";
 
     public Guid Id { get; set; }
     public Guid EventId { get; set; }
@@ -30,6 +31,11 @@ public class Seat
     public bool IsSold()
     {
         return Status.Equals(StatusSold, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public bool IsUnavailable()
+    {
+        return Status.Equals(StatusUnavailable, StringComparison.OrdinalIgnoreCase);
     }
 
     public bool CanBeReserved()
@@ -71,6 +77,22 @@ public class Seat
         Status = StatusAvailable;
     }
 
+    public void MakeUnavailable()
+    {
+        if (IsReserved() || IsSold())
+            throw new InvalidOperationException($"Cannot make seat unavailable. Seat has active reservation or is sold. Current status: {Status}");
+        
+        Status = StatusUnavailable;
+    }
+
+    public void MakeAvailable()
+    {
+        if (!IsUnavailable())
+            throw new InvalidOperationException($"Cannot make seat available. Current status: {Status}. Only unavailable seats can be made available.");
+        
+        Status = StatusAvailable;
+    }
+
     public bool IsValidForCreation()
     {
         return !string.IsNullOrWhiteSpace(SectionCode) &&
@@ -102,6 +124,7 @@ public class Seat
     {
         return status.Equals(StatusAvailable, StringComparison.OrdinalIgnoreCase) ||
                status.Equals(StatusReserved, StringComparison.OrdinalIgnoreCase) ||
-               status.Equals(StatusSold, StringComparison.OrdinalIgnoreCase);
+               status.Equals(StatusSold, StringComparison.OrdinalIgnoreCase) ||
+               status.Equals(StatusUnavailable, StringComparison.OrdinalIgnoreCase);
     }
 }

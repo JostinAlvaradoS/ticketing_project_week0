@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using MediatR;
 using Catalog.Application.UseCases.CreateEvent;
 using Catalog.Application.UseCases.GenerateSeats;
+using Catalog.Application.UseCases.UpdateEvent;
+using Catalog.Application.UseCases.DeactivateEvent;
+using Catalog.Application.UseCases.ReactivateEvent;
 
 namespace Catalog.Api.Controllers;
 
@@ -58,6 +61,83 @@ public class AdminController : ControllerBase
         
         return Ok(result);
     }
+
+    /// <summary>
+    /// Update an existing event (Admin only). 
+    /// Event date and base price cannot be modified if reservations exist.
+    /// </summary>
+    [HttpPut("events/{eventId:guid}")]
+    public async Task<IActionResult> UpdateEvent(Guid eventId, [FromBody] UpdateEventRequest request)
+    {
+        var command = new UpdateEventCommand(
+            eventId,
+            request.Name,
+            request.Description,
+            request.MaxCapacity
+        );
+
+        try
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Deactivate an event (Soft Delete) (Admin only).
+    /// Fails if the event has active reservations.
+    /// </summary>
+    [HttpPost("events/{eventId:guid}/deactivate")]
+    public async Task<IActionResult> DeactivateEvent(Guid eventId)
+    {
+        var command = new DeactivateEventCommand(eventId);
+
+        try
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Reactivate a deactivated event (Admin only).
+    /// Fails if the event date is in the past.
+    /// </summary>
+    [HttpPost("events/{eventId:guid}/reactivate")]
+    public async Task<IActionResult> ReactivateEvent(Guid eventId)
+    {
+        var command = new ReactivateEventCommand(eventId);
+
+        try
+        {
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
 
 /// <summary>
@@ -77,4 +157,13 @@ public record CreateEventRequest(
 /// </summary>
 public record GenerateSeatsRequest(
     SeatSectionConfiguration[] SectionConfigurations
+);
+
+/// <summary>
+/// Request DTO for updating events.
+/// </summary>
+public record UpdateEventRequest(
+    string Name,
+    string Description,
+    int MaxCapacity
 );

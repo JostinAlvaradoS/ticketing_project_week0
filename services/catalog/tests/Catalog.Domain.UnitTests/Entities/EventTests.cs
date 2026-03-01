@@ -1,5 +1,6 @@
 using Catalog.Domain.Entities;
 using FluentAssertions;
+using System.Reflection;
 
 namespace Catalog.Domain.UnitTests;
 
@@ -621,6 +622,244 @@ public class EventTests
             Price = 75.00m,
             Status = status
         };
+    }
+
+    #endregion
+
+    #region Event Update and Deactivation Tests - Following Gherkin Scenarios (T106)
+
+    [Fact]
+    public void Event_UpdateDetails_WithValidParameters_ShouldUpdateSuccessfully()
+    {
+        // Arrange - Following Gherkin: "Actualizar información de evento existente"
+        var eventEntity = CreateValidEvent();
+        var newName = "Concierto Foo Fighters 2026 - SOLD OUT";
+        var newDescription = "Evento agotado - últimas entradas";
+        var newMaxCapacity = 45000;
+
+        // Act
+        eventEntity.UpdateDetails(newName, newDescription, newMaxCapacity);
+
+        // Assert - Following Gherkin: "los cambios se persisten"
+        eventEntity.Name.Should().Be(newName);
+        eventEntity.Description.Should().Be(newDescription);
+        eventEntity.MaxCapacity.Should().Be(newMaxCapacity);
+        eventEntity.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public void Event_UpdateDetails_ReducingCapacityBelowSeatCount_ShouldThrowException()
+    {
+        // Arrange
+        var eventEntity = CreateValidEvent();
+        AddSeatsToEvent(eventEntity, 10); // Add 10 seats
+        var newMaxCapacity = 5; // Try to reduce below seat count
+
+        // Act & Assert
+        var action = () => eventEntity.UpdateDetails("Updated Name", "Updated Description", newMaxCapacity);
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("No se puede reducir la capacidad por debajo del número de asientos existentes");
+    }
+
+    [Fact]
+    public void Event_Deactivate_WithoutActiveReservations_ShouldDeactivateSuccessfully()
+    {
+        // Arrange - Following Gherkin: "Desactivar evento (Soft Delete)"
+        var eventEntity = CreateValidEvent();
+        AddAvailableSeatsToEvent(eventEntity, 5);
+
+        // Act
+        eventEntity.Deactivate();
+
+        // Assert - Following Gherkin expectations
+        eventEntity.Status.Should().Be("inactive"); // "evento cambia a estado 'inactive'"
+        eventEntity.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1)); // "fecha de desactivación se registra"
+        eventEntity.IsActive.Should().BeFalse();
+        
+        // All available seats should become unavailable
+        foreach (var seat in eventEntity.Seats)
+        {
+            seat.Status.Should().Be(Seat.StatusUnavailable); // "todos los asientos asociados cambian a estado 'unavailable'"
+        }
+    }
+
+    [Fact]
+    public void Event_Deactivate_WithActiveReservations_ShouldThrowException()
+    {
+        // Arrange - Following Gherkin: "Intentar desactivar evento con reservas activas"
+        var eventEntity = CreateValidEvent();
+        AddReservedSeatsToEvent(eventEntity, 5); // "el evento tiene 5 reservas activas"
+
+        // Act & Assert
+        var action = () => eventEntity.Deactivate();
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("No se puede desactivar un evento con reservas activas"); // Gherkin: "error 'No se puede desactivar un evento con reservas activas'"
+        
+        // Event should remain active
+        eventEntity.Status.Should().Be("active"); // "el evento permanece en estado 'active'"
+    }
+
+    [Fact]
+    public void Event_Reactivate_InactiveEventWithFutureDate_ShouldReactivateSuccessfully()
+    {
+        // Arrange - Following Gherkin: "Reactivar evento desactivado"
+        var eventEntity = CreateValidEvent();
+        AddUnavailableSeatsToEvent(eventEntity, 5);
+        eventEntity.Deactivate(); // First deactivate it
+        
+        // Manually set to inactive to simulate an inactive event
+        var inactiveEvent = Event.Create(
+            "Test Event",
+            "Description", 
+            DateTime.UtcNow.AddDays(30), // Future date
+            "Venue",
+            1000,
+            100m);
+        AddUnavailableSeatsToEvent(inactiveEvent, 3);
+        inactiveEvent.Deactivate(); // Properly set to inactive
+
+        // Act
+        inactiveEvent.Reactivate();
+
+        // Assert - Following Gherkin expectations
+        inactiveEvent.Status.Should().Be("active"); // "evento vuelve a estado 'active'"
+        inactiveEvent.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        
+        // All unavailable seats should become available again
+        foreach (var seat in inactiveEvent.Seats.Where(s => s.Status == Seat.StatusUnavailable))
+        {
+            seat.Status.Should().Be(Seat.StatusAvailable); // "los asientos vuelven a estado 'available'"
+        }
+    }
+
+    [Fact] 
+    public void Event_Reactivate_WithPastDate_ShouldThrowException()
+    {
+        // Arrange - Create event with future date first
+        var pastEvent = Event.Create(
+            "Past Event",
+            "Description",
+            DateTime.UtcNow.AddDays(1), // Future date for creation
+            "Venue", 
+            1000,
+            100m);
+        pastEvent.Deactivate(); // Properly set to inactive
+        
+        // Use reflection to set past date to bypass domain validation during creation
+        var eventDateField = typeof(Event).GetProperty("EventDate");
+        eventDateField?.SetValue(pastEvent, DateTime.UtcNow.AddDays(-1));
+
+        // Act & Assert
+        var action = () => pastEvent.Reactivate();
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("No se puede reactivar un evento que ya pasó");
+    }
+
+    [Fact]
+    public void Event_HasActiveReservations_WithReservedSeats_ShouldReturnTrue()
+    {
+        // Arrange
+        var eventEntity = CreateValidEvent();
+        AddReservedSeatsToEvent(eventEntity, 3);
+
+        // Act & Assert
+        eventEntity.HasActiveReservations().Should().BeTrue();
+    }
+
+    [Fact]
+    public void Event_HasActiveReservations_WithoutReservedSeats_ShouldReturnFalse()
+    {
+        // Arrange
+        var eventEntity = CreateValidEvent();
+        AddAvailableSeatsToEvent(eventEntity, 3);
+
+        // Act & Assert
+        eventEntity.HasActiveReservations().Should().BeFalse();
+    }
+
+    [Fact]
+    public void Event_HasSoldTickets_WithSoldSeats_ShouldReturnTrue()
+    {
+        // Arrange
+        var eventEntity = CreateValidEvent();
+        AddSoldSeatsToEvent(eventEntity, 2);
+
+        // Act & Assert
+        eventEntity.HasSoldTickets().Should().BeTrue();
+    }
+
+    [Fact]
+    public void Event_UpdateBasePriceIfAllowed_WithoutReservationsOrSales_ShouldUpdatePrice()
+    {
+        // Arrange
+        var eventEntity = CreateValidEvent();
+        AddAvailableSeatsToEvent(eventEntity, 3);
+        var newPrice = 150.75m;
+
+        // Act
+        eventEntity.UpdateBasePriceIfAllowed(newPrice);
+
+        // Assert
+        eventEntity.BasePrice.Should().Be(newPrice);
+        eventEntity.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public void Event_UpdateBasePriceIfAllowed_WithActiveReservations_ShouldThrowException()
+    {
+        // Arrange
+        var eventEntity = CreateValidEvent();
+        AddReservedSeatsToEvent(eventEntity, 2);
+        var newPrice = 150.75m;
+
+        // Act & Assert  
+        var action = () => eventEntity.UpdateBasePriceIfAllowed(newPrice);
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("No se puede modificar el precio base si ya existen reservas o boletos vendidos");
+    }
+
+    #endregion
+
+    #region Helper Methods - T106
+
+    private void AddAvailableSeatsToEvent(Event eventEntity, int count)
+    {
+        for (int i = 1; i <= count; i++)
+        {
+            eventEntity.Seats.Add(CreateSeat(eventEntity.Id, Seat.StatusAvailable, i));
+        }
+    }
+
+    private void AddReservedSeatsToEvent(Event eventEntity, int count)
+    {
+        for (int i = 1; i <= count; i++)
+        {
+            eventEntity.Seats.Add(CreateSeat(eventEntity.Id, Seat.StatusReserved, i + 100));
+        }
+    }
+
+    private void AddSoldSeatsToEvent(Event eventEntity, int count)
+    {
+        for (int i = 1; i <= count; i++)
+        {
+            eventEntity.Seats.Add(CreateSeat(eventEntity.Id, Seat.StatusSold, i + 200));
+        }
+    }
+
+    private void AddUnavailableSeatsToEvent(Event eventEntity, int count)
+    {
+        for (int i = 1; i <= count; i++)
+        {
+            eventEntity.Seats.Add(CreateSeat(eventEntity.Id, Seat.StatusUnavailable, i + 300));
+        }
+    }
+
+    private void AddSeatsToEvent(Event eventEntity, int count)
+    {
+        for (int i = 1; i <= count; i++)
+        {
+            eventEntity.Seats.Add(CreateSeat(eventEntity.Id, Seat.StatusAvailable, i));
+        }
     }
 
     #endregion

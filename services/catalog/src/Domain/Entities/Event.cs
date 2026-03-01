@@ -121,10 +121,10 @@ public class Event
     public void UpdateDetails(string name, string description, int maxCapacity)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("El nombre del evento es obligatorio", nameof(name));
+            throw new ArgumentException("Event name is required", nameof(name));
 
         if (string.IsNullOrWhiteSpace(description))
-            throw new ArgumentException("La descripción del evento es obligatoria", nameof(description));
+            throw new ArgumentException("Event description is required", nameof(description));
 
         if (maxCapacity <= 0)
             throw new ArgumentException("La capacidad máxima debe ser mayor a cero", nameof(maxCapacity));
@@ -141,8 +141,17 @@ public class Event
 
     public void Deactivate()
     {
+        if (HasActiveReservations())
+            throw new InvalidOperationException("No se puede desactivar un evento con reservas activas");
+
         Status = "inactive";
         UpdatedAt = DateTime.UtcNow;
+        
+        // Make all available seats unavailable
+        foreach (var seat in Seats.Where(s => s.IsAvailable()))
+        {
+            seat.MakeUnavailable();
+        }
     }
 
     public void Reactivate()
@@ -151,6 +160,34 @@ public class Event
             throw new InvalidOperationException("No se puede reactivar un evento que ya pasó");
 
         Status = "active";
+        UpdatedAt = DateTime.UtcNow;
+        
+        // Make all unavailable seats available again
+        foreach (var seat in Seats.Where(s => s.IsUnavailable()))
+        {
+            seat.MakeAvailable();
+        }
+    }
+
+    public bool HasActiveReservations()
+    {
+        return Seats.Any(s => s.IsReserved());
+    }
+
+    public bool HasSoldTickets()
+    {
+        return Seats.Any(s => s.IsSold());
+    }
+
+    public void UpdateBasePriceIfAllowed(decimal newBasePrice)
+    {
+        if (newBasePrice <= 0)
+            throw new ArgumentException("El precio base debe ser mayor a cero", nameof(newBasePrice));
+
+        if (HasActiveReservations() || HasSoldTickets())
+            throw new InvalidOperationException("No se puede modificar el precio base si ya existen reservas o boletos vendidos");
+
+        BasePrice = newBasePrice;
         UpdatedAt = DateTime.UtcNow;
     }
 

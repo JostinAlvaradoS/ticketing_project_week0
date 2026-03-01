@@ -14,6 +14,9 @@ public class InventoryDbContext : DbContext
     {
         modelBuilder.HasDefaultSchema("bc_inventory");
 
+        // HUMAN CHECK: Uso de RowVersion para Concurrencia Optimista.
+        // Se asegura que si dos procesos intentan actualizar el mismo registro 
+        // simultáneamente fuera del lock de Redis, el motor de DB detecte el conflicto.
         modelBuilder.Entity<Seat>(eb =>
         {
             eb.HasKey(e => e.Id);

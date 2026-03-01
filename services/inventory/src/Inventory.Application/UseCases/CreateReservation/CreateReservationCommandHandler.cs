@@ -35,6 +35,9 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
         if (request.SeatId == Guid.Empty) throw new ArgumentException("SeatId cannot be empty", nameof(request));
         if (string.IsNullOrEmpty(request.CustomerId)) throw new ArgumentException("CustomerId cannot be empty", nameof(request));
 
+        // HUMAN CHECK: Se utiliza Redis para asegurar exclusión mutua en la reserva del asiento.
+        // Se prefiere un lock distribuido sobre un lock de DB para reducir la carga en PostgreSQL
+        // y permitir una mayor concurrencia en el escalado de servicios.
         var lockKey = $"{RedisLockKeyPrefix}{request.SeatId:N}";
         var lockToken = await _redisLock.AcquireLockAsync(lockKey, TimeSpan.FromSeconds(LockExpirySeconds))
             .ConfigureAwait(false);

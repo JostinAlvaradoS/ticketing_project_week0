@@ -15,6 +15,9 @@ public class CatalogRepository : ICatalogRepository
 
     public async Task<IEnumerable<Event>> GetAllEventsAsync(CancellationToken cancellationToken = default)
     {
+        // HUMAN CHECK: Uso de AsNoTracking() para optimización de lectura.
+        // Se decide no rastrear entidades en consultas de catálogo para reducir 
+        // consumo de memoria y mejorar performance en el listado masivo.
         return await _context.Events
             .AsNoTracking()
             .OrderByDescending(e => e.EventDate)

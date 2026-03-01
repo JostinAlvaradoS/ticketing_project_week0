@@ -261,9 +261,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setError(null)
     try {
       console.log("[processOrderPayment] Processing payment for order", order.id)
+      
+      // Use the first reservation ID as the primary reservation associated with this order
+      // (Simplified for MVP, assuming 1 ticket/reservation per order for now or using first if multiple)
+      const primaryReservationId = reservations[0]?.reservationId;
+      
       const paymentResponse = await processPayment({
         orderId: order.id,
         customerId: userId || "guest-user",
+        reservationId: primaryReservationId,
         amount: order.totalAmount, // Note: Use full amount value from server
         currency: "USD",
         paymentMethod: "credit_card"

@@ -37,6 +37,8 @@ graph TD
         Payment -->|payment-succeeded/failed| Kafka
         Kafka -->|Emitir Ticket| Fulfillment[Fulfillment Service]
         Fulfillment -->|ticket-issued| Kafka
+        Kafka -->|Notificar Cliente| Notification[Notification Service]
+        Kafka -->|Confirmar Inventario| Inventory
     end
 
     style Kafka fill:#f9f,stroke:#333,stroke-width:2px

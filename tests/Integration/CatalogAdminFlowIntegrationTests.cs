@@ -1,0 +1,212 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using FluentAssertions;
+using TicketingFlow.IntegrationTests.Infrastructure;
+using Catalog.Application.UseCases.GetEventSeatmap;
+using Xunit;
+
+namespace TicketingFlow.IntegrationTests;
+
+/// <summary>
+/// T105 Integration Test: Flujo completo Admin - Crear Evento → Generar Asientos → Verificar Read Model
+/// 
+/// This test validates the complete admin catalog flow as defined in catalog-admin.feature:
+/// 
+/// Escenario: Flujo completo Admin - Crear Evento → Generar Asientos → Verificar Read Model (T105)
+///   Dado que soy un administrador autenticado con Testcontainers ejecutándose
+///   Cuando creo un evento "Rock Festival 2026"
+///   Y genero 1000 asientos distribuidos en 4 secciones
+///   Entonces puedo consultar el evento a través del endpoint público GET /events/{id}/seatmap
+///   Y la respuesta contiene:
+///     | event_id | coincide con el ID del evento creado |
+///     | event_name | Rock Festival 2026 |
+///     | seats | array de 1000 asientos |
+///     | all_seats_status | available |
+///   Y cada asiento tiene:
+///     | id | GUID válido |
+///     | section_code | A, B, C, o D |
+///     | row_number | 1-25 |
+///     | seat_number | 1-10 |
+///     | price | precio calculado según sección |
+///     | status | available |
+///
+/// DEPENDENCIES:
+/// - T100: ✅ Gherkin scenarios (COMPLETED)
+/// - T101: ✅ Domain Event.Create() validation (COMPLETED)
+/// - T102: ✅ CreateEventCommandHandler (COMPLETED)
+/// - T103: ✅ GenerateSeatsCommand bulk generation (COMPLETED)
+/// - T104: ✅ Admin endpoints with RequireAdmin policy (COMPLETED)
+/// </summary>
+[Trait("Category", "IntegrationTest")]
+[Trait("Task", "T105")]
+public class CatalogAdminFlowIntegrationTests : IntegrationTestBase
+{
+    [Fact]
+    public async Task AdminFlow_CreateEventGenerateSeatsVerifyReadModel_CompletesSuccessfully()
+    {
+        // ARRANGE: Given I am an authenticated admin with Testcontainers running
+        using var adminClient = CreateAuthenticatedCatalogClient();
+        
+        var createEventRequest = new
+        {
+            Name = "Rock Festival 2026",
+            Description = "The biggest rock festival of the year",
+            EventDate = DateTime.UtcNow.AddMonths(3),
+            Venue = "National Stadium",
+            MaxCapacity = 1000,
+            BasePrice = 100.00m
+        };
+
+        // ACT 1: When I create an event "Rock Festival 2026"
+        var createResponse = await adminClient.PostAsJsonAsync("/admin/events", createEventRequest);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        
+        var createResponseJson = await createResponse.Content.ReadAsStringAsync();
+        var createdEvent = JsonSerializer.Deserialize<JsonElement>(createResponseJson, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        var eventId = Guid.Parse(createdEvent.GetProperty("id").GetString()!);
+        eventId.Should().NotBe(Guid.Empty);
+
+        // ACT 2: And I generate 1000 seats distributed in 4 sections (A, B, C, D)
+        var generateSeatsRequest = new
+        {
+            SectionConfigurations = new[]
+            {
+                new { SectionCode = "A", Rows = 25, SeatsPerRow = 10, PriceMultiplier = 2.0m }, // VIP: 250 seats
+                new { SectionCode = "B", Rows = 25, SeatsPerRow = 10, PriceMultiplier = 1.5m }, // Premium: 250 seats  
+                new { SectionCode = "C", Rows = 25, SeatsPerRow = 10, PriceMultiplier = 1.2m }, // Standard: 250 seats
+                new { SectionCode = "D", Rows = 25, SeatsPerRow = 10, PriceMultiplier = 1.0m }  // General: 250 seats
+            }
+        };
+
+        var generateSeatsResponse = await adminClient.PostAsJsonAsync($"/admin/events/{eventId}/seats", generateSeatsRequest);
+        generateSeatsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // ACT 3: Then I can query the event via public GET /events/{id}/seatmap endpoint
+        var seatmapResponse = await CatalogClient.GetAsync($"/events/{eventId}/seatmap");
+        seatmapResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        
+        var seatmapJson = await seatmapResponse.Content.ReadAsStringAsync();
+        var seatmap = JsonSerializer.Deserialize<GetEventSeatmapResponse>(seatmapJson, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        // ASSERT: Validate the response contains expected event data
+        seatmap.Should().NotBeNull();
+        seatmap!.EventId.Should().Be(eventId); // event_id matches created event ID
+        seatmap.EventName.Should().Be("Rock Festival 2026"); // event_name matches
+        seatmap.Seats.Should().NotBeNull();
+        seatmap.Seats.Should().HaveCount(1000); // seats array has 1000 elements
+
+        // ASSERT: All seats should have status "available"
+        seatmap.Seats.Should().OnlyContain(seat => seat.Status == "available");
+
+        // ASSERT: Validate each seat has required properties
+        foreach (var seat in seatmap.Seats)
+        {
+            // id: GUID válido
+            seat.Id.Should().NotBe(Guid.Empty);
+            
+            // section_code: A, B, C, or D
+            seat.SectionCode.Should().BeOneOf("A", "B", "C", "D");
+            
+            // row_number: 1-25
+            seat.RowNumber.Should().BeInRange(1, 25);
+            
+            // seat_number: 1-10  
+            seat.SeatNumber.Should().BeInRange(1, 10);
+            
+            // status: available
+            seat.Status.Should().Be("available");
+            
+            // price: calculated according to section
+            ValidatePriceBySection(seat.SectionCode, seat.Price, createEventRequest.BasePrice);
+        }
+
+        // ASSERT: Validate distribution across sections (250 seats per section)
+        var seatsBySection = seatmap.Seats.GroupBy(s => s.SectionCode).ToList();
+        seatsBySection.Should().HaveCount(4); // 4 sections
+        
+        foreach (var sectionGroup in seatsBySection)
+        {
+            sectionGroup.Should().HaveCount(250, $"Section {sectionGroup.Key} should have 250 seats");
+        }
+
+        // ASSERT: Validate row and seat distribution within each section
+        foreach (var sectionGroup in seatsBySection)
+        {
+            var rowGroups = sectionGroup.GroupBy(s => s.RowNumber).ToList();
+            rowGroups.Should().HaveCount(25, $"Section {sectionGroup.Key} should have 25 rows");
+            
+            foreach (var rowGroup in rowGroups)
+            {
+                rowGroup.Should().HaveCount(10, $"Row {rowGroup.Key} in section {sectionGroup.Key} should have 10 seats");
+                
+                var seatNumbers = rowGroup.Select(s => s.SeatNumber).OrderBy(x => x).ToList();
+                seatNumbers.Should().BeEquivalentTo(Enumerable.Range(1, 10), $"Row {rowGroup.Key} should have seats 1-10");
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AdminFlow_UnauthorizedAccess_ReturnsUnauthorized()
+    {
+        // ARRANGE: No authentication token
+        var createEventRequest = new
+        {
+            Name = "Unauthorized Event",
+            Description = "This should fail",
+            EventDate = DateTime.UtcNow.AddMonths(1),
+            Venue = "Test Venue", 
+            MaxCapacity = 100,
+            BasePrice = 50.00m
+        };
+
+        // ACT & ASSERT: Unauthorized request should return 401
+        var response = await CatalogClient.PostAsJsonAsync("/admin/events", createEventRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task AdminFlow_CustomerAccess_ReturnsForbidden()
+    {
+        // ARRANGE: Customer token (not admin)
+        using var customerClient = CreateCustomerCatalogClient();
+        
+        var createEventRequest = new
+        {
+            Name = "Customer Event",
+            Description = "This should fail",
+            EventDate = DateTime.UtcNow.AddMonths(1),
+            Venue = "Test Venue",
+            MaxCapacity = 100,
+            BasePrice = 50.00m
+        };
+
+        // ACT & ASSERT: Customer request should return 403 Forbidden
+        var response = await customerClient.PostAsJsonAsync("/admin/events", createEventRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    /// <summary>
+    /// Validate that the seat price matches the expected calculation based on section and base price.
+    /// </summary>
+    private static void ValidatePriceBySection(string sectionCode, decimal actualPrice, decimal basePrice)
+    {
+        var expectedPrice = sectionCode switch
+        {
+            "A" => basePrice * 2.0m,   // VIP
+            "B" => basePrice * 1.5m,   // Premium  
+            "C" => basePrice * 1.2m,   // Standard
+            "D" => basePrice * 1.0m,   // General
+            _ => throw new ArgumentException($"Unknown section code: {sectionCode}")
+        };
+
+        actualPrice.Should().Be(expectedPrice, $"Section {sectionCode} should have price {expectedPrice:C}");
+    }
+}

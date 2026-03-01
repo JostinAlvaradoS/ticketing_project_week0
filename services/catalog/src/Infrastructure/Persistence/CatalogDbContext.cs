@@ -21,7 +21,12 @@ public class CatalogDbContext : DbContext
             entity.Property(x => x.Name).IsRequired();
             entity.Property(x => x.Description).IsRequired();
             entity.Property(x => x.EventDate).IsRequired();
+            entity.Property(x => x.Venue).IsRequired();
+            entity.Property(x => x.MaxCapacity).IsRequired();
             entity.Property(x => x.BasePrice).IsRequired().HasPrecision(18, 2);
+            entity.Property(x => x.Status).IsRequired().HasDefaultValue("active");
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt);
             entity.HasMany(x => x.Seats)
                 .WithOne(x => x.Event)
                 .HasForeignKey(x => x.EventId)

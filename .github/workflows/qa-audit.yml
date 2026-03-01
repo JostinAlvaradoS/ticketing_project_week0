@@ -41,8 +41,9 @@ jobs:
         run: |
           dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Restore Workload
-        run: dotnet restore speckit-ticketing.sln
+      - name: Restore Dependencies for All Solutions
+        run: |
+          find . -name "*.sln" -exec dotnet restore {} \;
 
       - name: Build All Services
         run: |
@@ -64,9 +65,20 @@ jobs:
       - name: Generate QA Coverage Report (Mojohaus/Spring Style)
         run: |
           reportgenerator \
-            -reports:./TestResults/**/coverage.cobertura.xml \
-            -targetdir:./CoverageReport \
-            -reporttypes:HtmlInline_AzurePipelines;Badges;MarkdownSummary
+            -reports:"./TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"./CoverageReport" \
+            -reporttypes:"HtmlInline_AzurePipelines;Badges;MarkdownSummary;MarkdownSummaryGithub"
+
+      - name: Publish Test Results to Job Summary
+        if: always()
+        run: |
+          echo "## 📊 Resumen de Ejecución de Tests" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 Auditoría de QA terminada con éxito." >> $GITHUB_STEP_SUMMARY
+          if [ -f "./CoverageReport/SummaryGithub.md" ]; then
+            cat ./CoverageReport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No se pudo generar el resumen detallado de cobertura." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload Test Results & Coverage
         uses: actions/upload-artifact@v4

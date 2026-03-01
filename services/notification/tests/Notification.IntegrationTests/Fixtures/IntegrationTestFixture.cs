@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Notification.Infrastructure;
 using Notification.Infrastructure.Persistence;
 using Testcontainers.Kafka;
 using Testcontainers.PostgreSql;
@@ -45,13 +46,8 @@ public class IntegrationTestFixture : IAsyncLifetime
             builder.SetMinimumLevel(LogLevel.Debug);
         });
 
-        services.AddDbContext<NotificationDbContext>(options =>
-        {
-            options.UseNpgsql(_postgresContainer.GetConnectionString(),
-                npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "bc_notification"));
-        });
-
-        services.AddScoped<IDbInitializer, DbInitializer>();
+        // Use the actual AddInfrastructure method to register ALL dependencies including MediatR
+        services.AddInfrastructure(configuration);
 
         _serviceProvider = services.BuildServiceProvider();
 

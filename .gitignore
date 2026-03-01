@@ -32,6 +32,8 @@ node_modules/
 
 # Coverage
 coverage/
+TestResults/
+CoverageReport/
 
 # Temporary files
 tmp/

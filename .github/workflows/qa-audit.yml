@@ -41,8 +41,9 @@ jobs:
         run: |
           dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Restore Workload
-        run: dotnet restore speckit-ticketing.sln
+      - name: Restore Dependencies for All Solutions
+        run: |
+          find . -name "*.sln" -exec dotnet restore {} \;
 
       - name: Build All Services
         run: |

@@ -3,6 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.Security.Claims;
 using Catalog.Application.Ports;
 using Catalog.Application.UseCases.GetEventSeatmap;
 using Catalog.Infrastructure.Persistence;
@@ -19,15 +23,51 @@ public static class ServiceCollectionExtensions
         // Add MediatR
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(GetEventSeatmapHandler).Assembly));
 
+        // Add Database Context
         services.AddDbContext<CatalogDbContext>(options =>
         {
             options.UseNpgsql(configuration.GetConnectionString("Default"), 
                 npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "bc_catalog"));
         });
         
+        // Add Repository
         services.AddScoped<ICatalogRepository, CatalogRepository>();
         services.AddScoped<IDbInitializer, DbInitializer>();
         
+        // Add JWT Authentication
+        var jwtKey = configuration["Jwt:Key"]!;
+        var jwtIssuer = configuration["Jwt:Issuer"]!;
+        var jwtAudience = configuration["Jwt:Audience"]!;
+        
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtAudience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+                };
+            });
+
+        // Add Authorization with Admin policy
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("RequireAdmin", policy =>
+                policy.RequireAssertion(context =>
+                {
+                    // For MVP: Check if user email contains "admin" or matches test admin
+                    var emailClaim = context.User.FindFirst(ClaimTypes.Email)?.Value;
+                    return !string.IsNullOrEmpty(emailClaim) && 
+                           (emailClaim.Contains("admin", StringComparison.OrdinalIgnoreCase) ||
+                            emailClaim.Equals("test@example.com", StringComparison.OrdinalIgnoreCase));
+                }));
+        });
+
         return services;
     }
 
@@ -57,6 +97,11 @@ public static class ServiceCollectionExtensions
 
         app.UseCors("FrontendPolicy");
         app.UseRouting();
+        
+        // Add Authentication & Authorization middleware
+        app.UseAuthentication();
+        app.UseAuthorization();
+        
         app.MapControllers();
 
         return app;

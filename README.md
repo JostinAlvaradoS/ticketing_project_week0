@@ -68,6 +68,9 @@ cd infra
 docker compose up -d
 ```
 
+> [!IMPORTANT]
+> **Configuración Simplificada (Contexto de Entrenamiento):** Este proyecto **NO utiliza archivos `.env`** ni secretos externos. Todas las configuraciones necesarias están pre-cargadas en `docker-compose.yml` y `appsettings.json` para facilitar las revisiones de pares y permitir un levantamiento inmediato sin intercambio manual de archivos.
+
 ### 2. Levantar Frontend
 En una nueva terminal, instala las dependencias e inicia el servidor de desarrollo:
 ```bash
@@ -84,7 +87,7 @@ El sistema estará disponible en `http://localhost:3000`.
 
 | Documento | Descripción |
 | :--- | :--- |
-| [AI Workflow](AI_WORKFLOW.MD) | Registro de prompts y flujo con IA (Personalizaciones de Jostin). |
+| [AI Workflow](AI_WORKFLOW.MD) | Registro de prompts y flujo con IA. |
 | [Human Checks](humanchcks.md) | Registro de decisiones técnicas y correcciones a la IA. |
 | [Technical Debt](deptReport.md) | Reporte de puntos de mejora y arquitectura. |
 | [TDD Report](TDD_report.md) | Seguimiento de pruebas bajo enfoque **ATDD**. |

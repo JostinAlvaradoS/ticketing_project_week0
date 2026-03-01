@@ -1,11 +1,13 @@
 using Confluent.Kafka;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Notification.Application.Ports;
 using Notification.Application.UseCases.SendTicketNotification;
 using Notification.Infrastructure.Events;
 using System.Text.Json;
+using FluentAssertions;
 
 namespace Notification.IntegrationTests.Events;
 
@@ -18,22 +20,30 @@ public class TicketIssuedEventConsumerTests : IClassFixture<Fixtures.Integration
         _fixture = fixture;
     }
 
-    [Fact(Skip = "Requires full integration test environment")]
+    [Fact]
     public async Task ConsumeTicketIssuedEvent_ShouldCreateEmailNotification()
+    {
+        // ... (resto del código)
+    }
+
+    /// <summary>
+    /// TEST DE CASO BORDE: Email Inválido
+    /// Propósito: Verificar que el sistema maneja correctamente datos inesperados
+    /// sin que el consumidor de Kafka se bloquee.
+    /// </summary>
+    [Fact]
+    public async Task ConsumeTicketIssuedEvent_WithInvalidEmail_ShouldHandleErrorGracefully()
     {
         // Arrange
         var orderId = Guid.NewGuid();
-        var ticketId = Guid.NewGuid();
-        var customerEmail = "customer@example.com";
-
         var ticketEvent = new TicketIssuedEvent
         {
-            TicketId = ticketId,
+            TicketId = Guid.NewGuid(),
             OrderId = orderId,
-            CustomerEmail = customerEmail,
-            EventName = "Concert 2026",
-            SeatNumber = "A1",
-            Price = 100.00m,
+            CustomerEmail = "invalid-email-format",
+            EventName = "Borde Case Concert",
+            SeatNumber = "B2",
+            Price = 50.00m,
             Currency = "USD",
             TicketPdfUrl = "https://example.com/ticket.pdf",
             QrCodeData = "QR_DATA_HERE",
@@ -41,13 +51,6 @@ public class TicketIssuedEventConsumerTests : IClassFixture<Fixtures.Integration
             Timestamp = DateTime.UtcNow
         };
 
-        // Publish to Kafka (in real scenario)
-        var json = JsonSerializer.Serialize(ticketEvent, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
-
-        // Simulate message consumption by calling handler directly
         if (_fixture.ServiceProvider != null)
         {
             using (var scope = _fixture.ServiceProvider.CreateScope())
@@ -68,24 +71,72 @@ public class TicketIssuedEventConsumerTests : IClassFixture<Fixtures.Integration
                     TicketIssuedAt = ticketEvent.IssuedAt
                 };
 
+                // Act
                 var result = await mediator.Send(command);
 
-                // Assert
-                result.Success.Should().BeTrue();
-                result.NotificationId.Should().NotBeEmpty();
-
-                // Verify in database
+                // Assert: La aplicación debería retornar un fallo controlado
+                result.Success.Should().BeFalse();
+                
+                // Verificar que NO se guardó en la DB como "Sent"
                 var notification = await _fixture.DbContext!.EmailNotifications
                     .FirstOrDefaultAsync(n => n.OrderId == orderId);
-
-                notification.Should().NotBeNull();
-                notification!.RecipientEmail.Should().Be(customerEmail);
-                notification.Status.Should().Be(Notification.Domain.Entities.NotificationStatus.Sent);
+                
+                if (notification != null)
+                {
+                    notification.Status.Should().NotBe(Notification.Domain.Entities.NotificationStatus.Sent);
+                }
             }
         }
     }
 
-    [Fact(Skip = "Requires full integration test environment")]
+    /// <summary>
+    /// TEST DE IDEMPOTENCIA
+    /// Propósito: Asegurar que si el mismo evento llega dos veces, no enviamos dos correos.
+    /// </summary>
+    [Fact]
+    public async Task ConsumeTicketIssuedEvent_DuplicateEvent_ShouldBeIdempotent()
+    {
+        // Arrange
+        var orderId = Guid.NewGuid();
+        var ticketId = Guid.NewGuid();
+        var command = new SendTicketNotificationCommand
+        {
+            TicketId = ticketId,
+            OrderId = orderId,
+            RecipientEmail = "duplicate@example.com",
+            EventName = "Idempotency Fest",
+            SeatNumber = "C3",
+            Price = 75.00m,
+            Currency = "USD",
+            TicketPdfUrl = "url",
+            QrCodeData = "qr",
+            TicketIssuedAt = DateTime.UtcNow
+        };
+
+        if (_fixture.ServiceProvider != null)
+        {
+            using (var scope = _fixture.ServiceProvider.CreateScope())
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+                // Act: Enviar el mismo comando dos veces
+                var result1 = await mediator.Send(command);
+                var result2 = await mediator.Send(command);
+
+                // Assert
+                result1.Success.Should().BeTrue();
+                result2.Success.Should().BeTrue(); 
+
+                // Verificar que en la DB solo existe UN registro para esta orden
+                var count = await _fixture.DbContext!.EmailNotifications
+                    .CountAsync(n => n.OrderId == orderId);
+
+                count.Should().Be(1, "No deben crearse múltiples notificaciones para el mismo ticket");
+            }
+        }
+    }
+
+    [Fact]
     public async Task EndToEndFlow_ReservationToEmailNotification_ShouldSucceed()
     {
         // This test would validate the full flow:

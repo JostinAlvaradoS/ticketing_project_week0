@@ -108,6 +108,6 @@ public class IntegrationTestFixture : IAsyncLifetime
         // Using kafka-topics script would require executing commands in the container
         // For testing purposes, topics are auto-created by Kafka on first message
         // This is a placeholder for now
-        await Task.Completed;
+        await Task.CompletedTask;
     }
 }

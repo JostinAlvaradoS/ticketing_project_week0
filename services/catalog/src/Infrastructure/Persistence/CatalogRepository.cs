@@ -37,4 +37,41 @@ public class CatalogRepository : ICatalogRepository
             .Include(e => e.Seats)
             .FirstOrDefaultAsync(e => e.Id == eventId, cancellationToken);
     }
+
+    public async Task UpdateSeatStatusAsync(Guid seatId, string status, CancellationToken cancellationToken = default)
+    {
+        var seat = await _context.Seats.FindAsync(new object[] { seatId }, cancellationToken);
+        if (seat != null)
+        {
+            seat.Status = status;
+            _context.Seats.Update(seat);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    public async Task UpdateSeatStatusAsync(Guid seatId, string status, Guid? reservationId, CancellationToken cancellationToken = default)
+    {
+        var seat = await _context.Seats.FindAsync(new object[] { seatId }, cancellationToken);
+        if (seat != null)
+        {
+            seat.Status = status;
+            if (reservationId.HasValue)
+            {
+                seat.CurrentReservationId = reservationId;
+            }
+            _context.Seats.Update(seat);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    public async Task UpdateSeatStatusByReservationAsync(Guid reservationId, string status, CancellationToken cancellationToken = default)
+    {
+        var seat = await _context.Seats.FirstOrDefaultAsync(s => s.CurrentReservationId == reservationId, cancellationToken);
+        if (seat != null)
+        {
+            seat.Status = status;
+            _context.Seats.Update(seat);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
 }

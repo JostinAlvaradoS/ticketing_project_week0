@@ -70,6 +70,7 @@ public class PaymentSucceededEventConsumer : BackgroundService
                     using (var scope = _serviceProvider.CreateScope())
                     {
                         var ticketRepository = scope.ServiceProvider.GetRequiredService<ITicketRepository>();
+                        var orderingServiceClient = scope.ServiceProvider.GetRequiredService<IOrderingServiceClient>();
 
                         // Check if ticket already exists (idempotency)
                         var existingTicket = await ticketRepository.GetByOrderIdAsync(paymentEvent.OrderId);
@@ -79,18 +80,26 @@ public class PaymentSucceededEventConsumer : BackgroundService
                             continue;
                         }
 
-                        // Create new ticket entity
+                        // ENRICHMENT: Fetch missing details from Ordering Service
+                        var orderDetails = await orderingServiceClient.GetOrderDetailsAsync(paymentEvent.OrderId);
+                        if (orderDetails == null)
+                        {
+                            _logger.LogWarning($"Could not enrich ticket data for order {paymentEvent.OrderId}. Order not found in Ordering service.");
+                            continue;
+                        }
+
+                        // Create new ticket entity with enriched data
                         var ticket = new Ticket
                         {
                             Id = Guid.NewGuid(),
-                            OrderId = paymentEvent.OrderId,
-                            CustomerEmail = paymentEvent.CustomerEmail,
-                            EventName = paymentEvent.EventName,
-                            SeatNumber = paymentEvent.SeatNumber,
-                            Price = paymentEvent.Price,
-                            Currency = paymentEvent.Currency,
+                            OrderId = orderDetails.OrderId,
+                            CustomerEmail = orderDetails.CustomerEmail,
+                            EventName = orderDetails.EventName,
+                            SeatNumber = orderDetails.SeatNumber,
+                            Price = orderDetails.Price,
+                            Currency = orderDetails.Currency,
                             Status = TicketStatus.Pending,
-                            QrCodeData = $"{paymentEvent.OrderId}:{paymentEvent.SeatNumber}:{paymentEvent.EventId}",
+                            QrCodeData = $"{orderDetails.OrderId}:{orderDetails.SeatNumber}:{orderDetails.EventId}",
                             CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
                         };

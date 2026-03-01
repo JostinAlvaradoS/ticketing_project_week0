@@ -21,7 +21,12 @@
    - **Razón:** Implementación de `IsRowVersion` en la base de datos como segunda capa de protección para la integridad de los datos de asientos.
    - **Referencia de Código:** [InventoryDbContext.cs](services/inventory/src/Inventory.Infrastructure/Persistence/InventoryDbContext.cs#L18) (Ver comentario `HUMAN CHECK`).
 
-4. **Arquitectura Hexagonal + CQRS:**
+4. **Gestión de Configuración y Secretos (.env):**
+   - **Decisión:** Se ha decidido **NO utilizar archivos `.env`** ni mecanismos de secretos externos para este proyecto.
+   - **Razón (Contexto Training):** Para facilitar las revisiones de pares y el proceso de evaluación en el marco del entrenamiento, permitiendo que cualquier desarrollador pueda clonar y ejecutar `docker compose up` sin necesidad de intercambiar archivos de configuración manualmente por canales externos.
+   - **Nota de Seguridad:** Esta es una decisión puramente educativa/académica; en un entorno profesional, se deben utilizar Secret Managers o variables de entorno protegidas.
+
+5. **Arquitectura Hexagonal + CQRS:**
    - **Razón:** Desacoplamiento total de lógica de negocio e infraestructura.
    - **Referencia:** Estructura de carpetas global `Domain -> Application -> Infrastructure`.
 

@@ -9,8 +9,10 @@ export function useSeatmap(eventId: string) {
     eventId ? `seatmap-${eventId}` : null,
     () => getSeatmap(eventId),
     {
-      revalidateOnFocus: false,
-      dedupingInterval: 30000,
+      revalidateOnFocus: true,
+      revalidateIfStale: true,
+      dedupingInterval: 5000,
+      refreshInterval: 10000, // Sync UI every 10s automatically
     }
   )
 }

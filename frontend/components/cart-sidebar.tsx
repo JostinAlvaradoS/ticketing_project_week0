@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ShoppingCart, Trash2 } from "lucide-react"
+import { ShoppingCart, Trash2, Loader2 } from "lucide-react"
 import { useCart } from "@/context/cart-context"
 import { CountdownTimer } from "@/components/countdown-timer"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
 export function CartSidebar() {
-  const { order, reservations, error, clearError, removeSeatFromCart } = useCart()
+  const { order, reservations, error, clearError, removeSeatFromCart, isAddingToCart } = useCart()
   const itemCount = order?.items.length ?? 0
 
   return (
@@ -72,7 +72,10 @@ export function CartSidebar() {
                           <span className="text-xs text-muted-foreground">
                             Expires:
                           </span>
-                          <CountdownTimer expiresAt={reservation.expiresAt} />
+                          <CountdownTimer 
+                            expiresAt={reservation.expiresAt} 
+                            onExpired={() => removeSeatFromCart(item.seatId)} 
+                          />
                         </div>
                       )}
                     </div>
@@ -108,9 +111,19 @@ export function CartSidebar() {
             {/* Checkout button */}
             <Button
               asChild
+              disabled={isAddingToCart}
               className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
             >
-              <Link href="/checkout">Checkout</Link>
+              <Link href="/checkout">
+                {isAddingToCart ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Checkout"
+                )}
+              </Link>
             </Button>
           </>
         )}

@@ -247,6 +247,29 @@ services:
       - inventory
       - ordering
       - payment
+  notification:
+    build:
+      context: ..
+      dockerfile: services/notification/src/Api/Dockerfile
+    container_name: speckit-notification
+    ports:
+      - "50005:5005"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5005
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres;SearchPath=bc_notification;Include Error Detail=true
+      - Kafka__BootstrapServers=kafka:9092
+      - SmtpEmailOptions__UseDevMode=true
+      - SmtpEmailOptions__SmtpServer=localhost
+      - SmtpEmailOptions__SmtpPort=587
+      - SmtpEmailOptions__FromEmail=noreply@ticketing.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
 
 # Useful environment variables (for .NET apps or local dev use)
 # Use these values when configuring your services' connection strings.

@@ -18,7 +18,7 @@ VALUES
 -- ============================================================================
 
 -- Event 1: Concierto Jazz (8 rows x 100 seats)
-INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status")
+INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status", "CurrentReservationId")
 SELECT 
   md5('seat-11111111-' || row_num::text || '-' || seat_num::text)::uuid,
   '11111111-1111-1111-1111-111111111111'::uuid,
@@ -26,14 +26,15 @@ SELECT
   row_num,
   seat_num,
   CASE WHEN row_num <= 2 THEN 250000.00 WHEN row_num <= 5 THEN 180000.00 ELSE 120000.00 END,
-  'available'
+  'available',
+  null
 FROM (
   SELECT generate_series(1, 8) as row_num, generate_series(1, 100) as seat_num
 ) t
 WHERE row_num <= 8 AND seat_num <= 100;
 
 -- Event 2: Teatro (12 rows x 100 seats)
-INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status")
+INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status", "CurrentReservationId")
 SELECT 
   md5('seat-22222222-' || row_num::text || '-' || seat_num::text)::uuid,
   '22222222-2222-2222-2222-222222222222'::uuid,
@@ -41,14 +42,15 @@ SELECT
   row_num,
   seat_num,
   CASE WHEN row_num <= 3 THEN 200000.00 WHEN row_num <= 6 THEN 150000.00 ELSE 100000.00 END,
-  'available'
+  'available',
+  null
 FROM (
   SELECT generate_series(1, 12) as row_num, generate_series(1, 100) as seat_num
 ) t
 WHERE row_num <= 12 AND seat_num <= 100;
 
 -- Event 3: Fútbol (25 rows x 100 seats)
-INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status")
+INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status", "CurrentReservationId")
 SELECT 
   md5('seat-33333333-' || row_num::text || '-' || seat_num::text)::uuid,
   '33333333-3333-3333-3333-333333333333'::uuid,
@@ -56,14 +58,15 @@ SELECT
   row_num,
   seat_num,
   CASE WHEN row_num <= 5 THEN 250000.00 WHEN row_num <= 15 THEN 180000.00 ELSE 120000.00 END,
-  'available'
+  'available',
+  null
 FROM (
   SELECT generate_series(1, 25) as row_num, generate_series(1, 100) as seat_num
 ) t
 WHERE row_num <= 25 AND seat_num <= 100;
 
 -- Event 4: Conferencia (5 rows x 100 seats)
-INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status")
+INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status", "CurrentReservationId")
 SELECT 
   md5('seat-44444444-' || row_num::text || '-' || seat_num::text)::uuid,
   '44444444-4444-4444-4444-444444444444'::uuid,
@@ -71,14 +74,15 @@ SELECT
   row_num,
   seat_num,
   150000.00,
-  'available'
+  'available',
+  null
 FROM (
   SELECT generate_series(1, 5) as row_num, generate_series(1, 100) as seat_num
 ) t
 WHERE row_num <= 5 AND seat_num <= 100;
 
 -- Event 5: Rock Festival (50 rows x 100 seats)
-INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status")
+INSERT INTO bc_catalog."Seats" ("Id", "EventId", "SectionCode", "RowNumber", "SeatNumber", "Price", "Status", "CurrentReservationId")
 SELECT 
   md5('seat-55555555-' || row_num::text || '-' || seat_num::text)::uuid,
   '55555555-5555-5555-5555-555555555555'::uuid,
@@ -86,7 +90,8 @@ SELECT
   row_num,
   seat_num,
   CASE WHEN row_num <= 10 THEN 300000.00 WHEN row_num <= 25 THEN 250000.00 ELSE 200000.00 END,
-  'available'
+  'available',
+  null
 FROM (
   SELECT generate_series(1, 50) as row_num, generate_series(1, 100) as seat_num
 ) t

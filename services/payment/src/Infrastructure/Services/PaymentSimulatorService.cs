@@ -26,9 +26,9 @@ public class PaymentSimulatorService : IPaymentSimulatorService
             // Special test amounts for different scenarios
             < 0 => SimulateFailure("INVALID_AMOUNT", "Amount cannot be negative", "invalid_amount"),
             0 => SimulateFailure("ZERO_AMOUNT", "Amount cannot be zero", "invalid_amount"),
-            >= 9999.99m => SimulateFailure("AMOUNT_TOO_LARGE", "Amount exceeds maximum limit", "processor_error"),
+            >= 999999.99m => SimulateFailure("AMOUNT_TOO_LARGE", "Amount exceeds maximum limit", "processor_error"),
             
-            // Simulate card declined for amounts ending in .13
+            // Simulate card declined for amounts ending in .13. No limit check anymore!
             var amt when amt % 1 == 0.13m => SimulateFailure("CARD_DECLINED", "Your card was declined", "card_declined"),
             
             // Simulate insufficient funds for amounts ending in .66

@@ -41,6 +41,11 @@ public class CatalogRepository : ICatalogRepository
         return entry.Entity;
     }
 
+    public async Task AddSeatsAsync(IEnumerable<Seat> seats, CancellationToken cancellationToken = default)
+    {
+        await _context.Seats.AddRangeAsync(seats, cancellationToken);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _context.SaveChangesAsync(cancellationToken);

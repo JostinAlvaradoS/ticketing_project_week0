@@ -12,5 +12,7 @@ public interface ICatalogRepository
 
     Task<Event> CreateEventAsync(Event eventEntity, CancellationToken cancellationToken = default);
 
+    Task AddSeatsAsync(IEnumerable<Seat> seats, CancellationToken cancellationToken = default);
+
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

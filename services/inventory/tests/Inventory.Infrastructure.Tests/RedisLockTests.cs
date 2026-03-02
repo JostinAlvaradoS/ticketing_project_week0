@@ -1,10 +1,9 @@
 using StackExchange.Redis;
-using Inventory.Infrastructure.Redis;
+using Inventory.Infrastructure.Locking;
 using Moq;
 using Xunit;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using System;
+using System.Threading.Tasks;
 
 namespace Inventory.Infrastructure.Tests;
 
@@ -14,7 +13,15 @@ public class RedisLockTests
     public async Task AcquireLock_ReturnsToken_When_StringSetSucceeds()
     {
         var mockDb = new Mock<IDatabase>();
-        mockDb.Setup(db => db.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(), false, It.IsAny<When>(), It.IsAny<CommandFlags>()))
+        
+        // Literal everything match - exactly 6 parameters
+        mockDb.Setup(db => db.StringSetAsync(
+            It.IsAny<RedisKey>(), 
+            It.IsAny<RedisValue>(), 
+            It.IsAny<TimeSpan?>(), 
+            It.IsAny<bool>(),
+            It.IsAny<When>(), 
+            It.IsAny<CommandFlags>()))
               .ReturnsAsync(true);
 
         var redisLock = new RedisLock(mockDb.Object);
@@ -28,7 +35,13 @@ public class RedisLockTests
     public async Task AcquireLock_ReturnsNull_When_StringSetFails()
     {
         var mockDb = new Mock<IDatabase>();
-        mockDb.Setup(db => db.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(), false, It.IsAny<When>(), It.IsAny<CommandFlags>()))
+        mockDb.Setup(db => db.StringSetAsync(
+            It.IsAny<RedisKey>(), 
+            It.IsAny<RedisValue>(), 
+            It.IsAny<TimeSpan?>(), 
+            It.IsAny<bool>(),
+            It.IsAny<When>(), 
+            It.IsAny<CommandFlags>()))
               .ReturnsAsync(false);
 
         var redisLock = new RedisLock(mockDb.Object);
@@ -41,9 +54,9 @@ public class RedisLockTests
     public async Task ReleaseLock_ReturnsTrue_When_ValueMatchesAndDeleteSucceeds()
     {
         var mockDb = new Mock<IDatabase>();
-        mockDb.Setup(db => db.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+        mockDb.Setup(db => db.StringGetAsync(It.IsAny<RedisKey>(), CommandFlags.None))
               .ReturnsAsync((RedisValue)"token123");
-        mockDb.Setup(db => db.KeyDeleteAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+        mockDb.Setup(db => db.KeyDeleteAsync(It.IsAny<RedisKey>(), CommandFlags.None))
               .ReturnsAsync(true);
 
         var redisLock = new RedisLock(mockDb.Object);
@@ -56,7 +69,7 @@ public class RedisLockTests
     public async Task ReleaseLock_ReturnsFalse_When_ValueDoesNotMatch()
     {
         var mockDb = new Mock<IDatabase>();
-        mockDb.Setup(db => db.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+        mockDb.Setup(db => db.StringGetAsync(It.IsAny<RedisKey>(), CommandFlags.None))
               .ReturnsAsync((RedisValue)"other-token");
 
         var redisLock = new RedisLock(mockDb.Object);

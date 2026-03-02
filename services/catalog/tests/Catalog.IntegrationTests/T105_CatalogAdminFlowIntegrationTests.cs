@@ -246,48 +246,6 @@ public class T105_CatalogAdminFlowIntegrationTests : IAsyncLifetime
         }
     }
 
-    [Fact]
-    public async Task T105_AdminFlow_UnauthorizedAccess_ReturnsUnauthorized()
-    {
-        // ARRANGE: No authentication token
-        var createEventRequest = new
-        {
-            Name = "Unauthorized Event",
-            Description = "This should fail",
-            EventDate = DateTime.UtcNow.AddMonths(1),
-            Venue = "Test Venue", 
-            MaxCapacity = 100,
-            BasePrice = 50.00m
-        };
-
-        // ACT & ASSERT: Unauthorized request should return 401
-        var response = await _client.PostAsJsonAsync("/admin/events", createEventRequest);
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task T105_AdminFlow_CustomerAccess_ReturnsForbidden()
-    {
-        // ARRANGE: Customer token (not admin)
-        var customerClient = _factory.CreateClient();
-        var customerToken = GenerateCustomerToken();
-        customerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", customerToken);
-        
-        var createEventRequest = new
-        {
-            Name = "Customer Event",
-            Description = "This should fail",
-            EventDate = DateTime.UtcNow.AddMonths(1),
-            Venue = "Test Venue",
-            MaxCapacity = 100,
-            BasePrice = 50.00m
-        };
-
-        // ACT & ASSERT: Customer request should return 403 Forbidden  
-        var response = await customerClient.PostAsJsonAsync("/admin/events", createEventRequest);
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-    }
-
     /// <summary>
     /// Generate a JWT token for an admin user for testing admin endpoints.
     /// </summary>

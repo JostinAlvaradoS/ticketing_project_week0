@@ -53,13 +53,14 @@ jobs:
         run: |
           # Buscar todos los archivos .csproj de tests y ejecutarlos
           # Se agregan filtros de exclusión para mejorar la precisión del reporte senior
+          # Se excluyen migraciones y tests de infraestructura específicos que requieren Docker/Kafka
           find . -name "*Tests.csproj" -exec dotnet test {} \
             --configuration Release \
             --no-build \
             --collect:"XPlat Code Coverage" \
             --results-directory ./TestResults \
             --logger "trx" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Exclude="[*.Infrastructure]*.Migrations.*" \;
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Exclude="[*.Infrastructure]*.Migrations.*,[Fulfillment.Infrastructure]*,[Notification.Infrastructure]*" \;
         env:
           ConnectionStrings__Default: Host=localhost;Database=speckit;Username=postgres;Password=postgres
           Kafka__BootstrapServers: localhost:9092

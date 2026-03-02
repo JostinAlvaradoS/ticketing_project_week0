@@ -311,4 +311,24 @@ public class AddToCartHandlerTests
         result.ErrorMessage.Should().Contain("Failed to add item to cart");
         result.Order.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Handle_WithValidationFailure_ShouldReturnFailure()
+    {
+        // Arrange
+        var command = new AddToCartCommand(Guid.NewGuid(), Guid.NewGuid(), 10.0m, "user-1", null);
+        var validationResult = new ReservationValidationResult(false, "Seat already reserved", null);
+
+        _reservationServiceMock
+            .Setup(x => x.ValidateReservationAsync(command.ReservationId, command.SeatId))
+            .ReturnsAsync(validationResult);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Seat already reserved");
+        _orderRepositoryMock.Verify(x => x.GetDraftOrderAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

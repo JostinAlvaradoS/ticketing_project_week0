@@ -97,6 +97,9 @@ namespace Catalog.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasDefaultValue("available");
 
+                    b.Property<Guid?>("CurrentReservationId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EventId", "SectionCode", "RowNumber", "SeatNumber")

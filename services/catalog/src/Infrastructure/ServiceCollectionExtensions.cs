@@ -49,7 +49,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(producer);
         services.AddSingleton<IKafkaProducer, KafkaProducer>();
 
-        // Configure Kafka consumer for ticket-issued events
+        // Kafka consumers
+        services.AddHostedService<CatalogEventConsumer>();
+
         var consumerConfig = new ConsumerConfig
         {
             BootstrapServers = kafkaBootstrapServers,

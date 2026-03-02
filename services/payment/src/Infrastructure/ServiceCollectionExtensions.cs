@@ -11,6 +11,7 @@ using Payment.Infrastructure.EventConsumers;
 using Payment.Infrastructure.Messaging;
 using Payment.Infrastructure.Persistence;
 using Payment.Infrastructure.Services;
+using System.Text.Json;
 
 namespace Payment.Infrastructure;
 
@@ -18,8 +19,13 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // Add Controllers
-        services.AddControllers();
+        // Add Controllers with JSON support for camelCase
+        services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            });
 
         // Add MediatR
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ProcessPaymentHandler).Assembly));

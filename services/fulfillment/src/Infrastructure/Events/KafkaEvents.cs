@@ -4,7 +4,7 @@ namespace Fulfillment.Infrastructure.Events;
 
 public class PaymentSucceededEvent
 {
-    [JsonPropertyName("order_id")]
+    [JsonPropertyName("orderId")]
     public Guid OrderId { get; set; }
 
     [JsonPropertyName("customer_email")]
@@ -25,7 +25,7 @@ public class PaymentSucceededEvent
     [JsonPropertyName("currency")]
     public string Currency { get; set; } = "USD";
 
-    [JsonPropertyName("payment_id")]
+    [JsonPropertyName("paymentId")]
     public Guid PaymentId { get; set; }
 
     [JsonPropertyName("timestamp")]

@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Ordering.Application.DTOs;
 using Ordering.Application.UseCases.CheckoutOrder;
+using Ordering.Application.UseCases.GetOrder;
 
 namespace Ordering.Api.Controllers;
 
@@ -51,5 +52,32 @@ public class OrdersController : ControllerBase
         }
 
         return Ok(response.Order);
+    }
+
+    /// <summary>
+    /// Gets order details by ID.
+    /// Used by Fulfillment service for ticket enrichment.
+    /// </summary>
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetOrderDetails(Guid id, CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new GetOrderQuery(id), cancellationToken);
+        
+        if (result == null)
+            return NotFound();
+
+        // Map to enrichment DTO format (simplified for now)
+        var firstItem = result.Items.FirstOrDefault();
+        
+        return Ok(new
+        {
+            OrderId = result.Id,
+            CustomerEmail = result.UserId ?? "guest@example.com", // TODO: Real email from Identity
+            EventId = Guid.Empty, // TODO: Need to trace back from SeatId
+            EventName = "Event Details Not Implemented", // TODO: Query Catalog
+            SeatNumber = firstItem != null ? $"Seat-{firstItem.SeatId}" : "N/A",
+            Price = result.TotalAmount,
+            Currency = "USD"
+        });
     }
 }

@@ -23,6 +23,19 @@ var app = builder.Build();
 
 await app.UseInfrastructure();
 
-app.Run();
+Console.WriteLine("🚀 Fulfillment API is starting...");
+Console.WriteLine("📍 Listening on http://0.0.0.0:5004");
+Console.Out.Flush();
+
+try
+{
+    app.Run();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ Application failed: {ex.Message}");
+    Console.WriteLine(ex.StackTrace);
+    throw;
+}
 
 public partial class Program { }

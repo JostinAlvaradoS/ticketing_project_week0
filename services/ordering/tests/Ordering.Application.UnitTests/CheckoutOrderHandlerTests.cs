@@ -338,4 +338,22 @@ public class CheckoutOrderHandlerTests
         result.ErrorMessage.Should().Contain("Failed to checkout order");
         result.Order.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Handle_WithUnauthorizedUser_ShouldReturnFailure()
+    {
+        // Arrange
+        var orderId = Guid.NewGuid();
+        var command = new CheckoutOrderCommand(orderId, "wrong-user");
+        var draftOrder = new Order { Id = orderId, UserId = "correct-user", State = "draft" };
+
+        _orderRepositoryMock.Setup(x => x.GetByIdAsync(orderId, It.IsAny<CancellationToken>())).ReturnsAsync(draftOrder);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Unauthorized");
+    }
 }

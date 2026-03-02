@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Confluent.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -92,13 +93,16 @@ public class ReservationEventConsumer : BackgroundService
 
         try
         {
-            consumer.Subscribe(new[] { "reservation-created", "reservation-expired" });
-            _logger.LogInformation("Started consuming reservation events from Kafka topics: reservation-created, reservation-expired");
+            consumer.Subscribe(new[] { "reservation-created", "reservation-expired", "payment-succeeded" });
+            _logger.LogInformation("Started consuming reservation and payment events from Kafka topics");
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
+                    // HUMAN CHECK: Consumo de eventos con reintento manual.
+                    // Se identificó deuda técnica: se recomienda migrar a Polly para manejar
+                    // reintentos con Exponential Backoff y Circuit Breaker.
                     var consumeResult = consumer.Consume(stoppingToken);
                     
                     if (consumeResult?.Message?.Value != null)
@@ -165,12 +169,34 @@ public class ReservationEventConsumer : BackgroundService
                 }
                 break;
 
+            case "payment-succeeded":
+                var paymentEvent = JsonSerializer.Deserialize<PaymentSucceededEvent>(messageValue, _jsonOptions);
+                if (paymentEvent != null && Guid.TryParse(paymentEvent.OrderId, out var orderId))
+                {
+                    var orderRepo = scope.ServiceProvider.GetRequiredService<Ordering.Application.Ports.IOrderRepository>();
+                    var order = await orderRepo.GetByIdAsync(orderId, cancellationToken);
+                    if (order != null)
+                    {
+                        order.State = "paid";
+                        order.PaidAt = DateTime.UtcNow;
+                        await orderRepo.UpdateAsync(order, cancellationToken);
+                        _logger.LogInformation("Order {OrderId} updated to State: PAID", orderId);
+                    }
+                }
+                break;
+
             default:
                 _logger.LogWarning("Unknown topic: {Topic}", topic);
                 break;
         }
 
         await Task.CompletedTask;
+    }
+
+    private class PaymentSucceededEvent
+    {
+        [JsonPropertyName("orderId")]
+        public string OrderId { get; set; } = string.Empty;
     }
 }
 

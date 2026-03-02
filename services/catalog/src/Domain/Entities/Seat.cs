@@ -15,6 +15,8 @@ public class Seat
     public decimal Price { get; set; }
     public string Status { get; set; } = StatusAvailable;
     
+    public Guid? CurrentReservationId { get; set; }
+    
     public Event? Event { get; set; }
 
     // Business Logic Methods

@@ -42,6 +42,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(producer);
         services.AddSingleton<IKafkaProducer, KafkaProducer>();
 
+        // Register inventory event consumer
+        services.AddHostedService<Inventory.Infrastructure.Messaging.InventoryEventConsumer>();
+
         // Register expiry worker as hosted service (optional in tests)
         services.AddSingleton<IHostedService, Inventory.Infrastructure.Workers.ReservationExpiryWorker>(sp =>
         {

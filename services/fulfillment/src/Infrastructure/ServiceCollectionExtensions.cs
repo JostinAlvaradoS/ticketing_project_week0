@@ -7,6 +7,7 @@ using Fulfillment.Application.Ports;
 using Fulfillment.Infrastructure.Persistence;
 using Fulfillment.Infrastructure.Events;
 using Fulfillment.Infrastructure.PdfGeneration;
+using Fulfillment.Infrastructure.Services;
 
 namespace Fulfillment.Infrastructure;
 
@@ -28,6 +29,13 @@ public static class ServiceCollectionExtensions
         
         services.AddScoped<IDbInitializer, DbInitializer>();
         services.AddScoped<ITicketRepository, TicketRepository>();
+        
+        // External Services
+        services.AddHttpClient<IOrderingServiceClient, OrderingServiceClient>(client =>
+        {
+            var url = configuration["OrderingService:Url"] ?? "http://speckit-ordering:5003";
+            client.BaseAddress = new Uri(url);
+        });
         
         // PDF & QR Services
         services.AddScoped<IQrCodeService, QrCodeService>();

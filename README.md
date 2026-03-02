@@ -1,93 +1,102 @@
-# Ticketing Platform — Quickstart y arquitectura
+# 🎫 SpecKit Ticketing Platform
 
-[AI Workflow](AI_WORKFLOW.MD) | [Readme](README.md) | [Human Checks](humanchcks.md) | [Dept Report](deptReport.md) | [TDD Report](TDD_report.md)
+[![Architecture: Hexagonal](https://img.shields.io/badge/Architecture-Hexagonal-blue.svg)](https://en.wikipedia.org/wiki/Hexagonal_architecture_(software))
+[![Patterns: CQRS + Event--Driven](https://img.shields.io/badge/Patterns-CQRS%20%2B%20Event--Driven-green.svg)]()
+![.NET 9](https://img.shields.io/badge/.NET-9.0-purple.svg)
 
+Plataforma distribuida de venta de boletos para eventos diseñada bajo **Arquitectura Hexagonal**, **CQRS** y un enfoque **Event-Driven**. El sistema garantiza consistencia y alta disponibilidad mediante el uso de locks distribuidos y mensajería asíncrona.
 
-Plataforma de venta de boletos (MVP) compuesta por microservicios .NET (arquitectura hexagonal). Este README explica cómo levantar la pila con Docker Compose, el flujo de comunicación y enlaces útiles.
+---
 
-## Quickstart (Docker Compose)
+## 🏛️ Arquitectura y Comunicación
 
-1. Desde la raíz del repo, inicia la infraestructura (Postgres, Redis, Kafka, Zookeeper):
+El sistema se basa en microservicios independientes que se comunican de forma híbrida: **REST** para operaciones síncronas de lectura/acción inmediata y **Kafka** para la coreografía de procesos de larga duración (Pago, Reserva, Emisión).
 
+```mermaid
+graph TD
+    subgraph "Frontend Layer"
+        Next[Next.js App]
+    end
+
+    subgraph "Sincronous (HTTP/REST)"
+        Next -->|Consultar Eventos| Catalog[Catalog Service]
+        Next -->|Reservar Asiento| Inventory[Inventory Service]
+        Next -->|Gestionar Carrito| Ordering[Ordering Service]
+        Next -->|Autenticación| Identity[Identity Service]
+    end
+
+    subgraph "Storage & Consistency"
+        Inventory <-->|Distributed Lock / TTL| Redis[(Redis)]
+        Catalog & Inventory & Ordering & Payment & Identity & Fulfillment -->|Shared Instance / Separate Schemas| PG[(PostgreSQL)]
+    end
+
+    subgraph "Asincronous (Event-Driven / Kafka)"
+        Inventory -->|reservation-created| Kafka{Kafka}
+        Kafka -->|Consumir Reserva| Ordering
+        Ordering -->|payment-requested| Payment[Payment Service]
+        Payment -->|payment-succeeded/failed| Kafka
+        Kafka -->|Emitir Ticket| Fulfillment[Fulfillment Service]
+        Fulfillment -->|ticket-issued| Kafka
+        Kafka -->|Notificar Cliente| Notification[Notification Service]
+        Kafka -->|Confirmar Inventario| Inventory
+    end
+
+    style Kafka fill:#f9f,stroke:#333,stroke-width:2px
+    style Redis fill:#f66,stroke:#333
+    style PG fill:#33f,stroke:#fff,color:#fff
+```
+
+---
+
+## 🛠️ Stack Tecnológico
+
+| Componente | Tecnología |
+| :--- | :--- |
+| **Backend** | .NET 9, MediatR, EF Core, Minimal APIs |
+| **Frontend** | Next.js 14 (App Router), TailwindCSS, Shadcn/UI |
+| **Mensajería** | Apache Kafka |
+| **Cache & Lock** | Redis |
+| **Base de Datos** | PostgreSQL (Schemas: `bc_catalog`, `bc_inventory`, etc.) |
+| **Observabilidad** | OpenTelemetry, Serilog |
+
+---
+
+## 🚀 Inicio Rápido
+
+### 1. Levantar Infraestructura (Backend)
+Desde la raíz del repositorio, inicia los contenedores esenciales (Postgres, Redis, Kafka, Microservicios):
 ```bash
 cd infra
 docker compose up -d
 ```
 
-2. Verifica servicios:
+> [!IMPORTANT]
+> **Configuración Simplificada (Contexto de Entrenamiento):** Este proyecto **NO utiliza archivos `.env`** ni secretos externos. Todas las configuraciones necesarias están pre-cargadas en `docker-compose.yml` y `appsettings.json` para facilitar las revisiones de pares y permitir un levantamiento inmediato sin intercambio manual de archivos.
 
+### 2. Levantar Frontend
+En una nueva terminal, instala las dependencias e inicia el servidor de desarrollo:
 ```bash
-docker compose ps
+cd frontend
+npm install
+npm run dev
 ```
 
-3. Ejecuta servicios durante desarrollo (ej. Identity):
+El sistema estará disponible en `http://localhost:3000`.
 
-```bash
-cd services/identity
-dotnet run --project src/Api/Identity.Api.csproj --urls "http://localhost:5100"
-```
+---
 
-Notas:
-- Las variables de conexión se exponen como `POSTGRES_URL`, `REDIS_URL`, `KAFKA_BOOTSTRAP_SERVERS` en `infra/docker-compose.yml`.
-- Para pruebas de integración usamos Testcontainers y una sola instancia de Postgres con schemas por bounded context (`bc_*`).
+## 📂 Documentación del Proyecto
 
-## Arquitectura y flujo de comunicación
+| Documento | Descripción |
+| :--- | :--- |
+| [AI Workflow](AI_WORKFLOW.MD) | Registro de prompts y flujo con IA. |
+| [Human Checks](humanchcks.md) | Registro de decisiones técnicas y correcciones a la IA. |
+| [Technical Debt](deptReport.md) | Reporte de puntos de mejora y arquitectura. |
+| [TDD Report](TDD_report.md) | Seguimiento de pruebas bajo enfoque **ATDD**. |
+| [API Guide](FRONTEND_API_GUIDE.md) | Guía de integración para el Frontend. |
 
-- Arquitectura: Hexagonal (Ports & Adapters) por microservicio.
-- Base de datos: UNA instancia PostgreSQL compartida, schemas por bounded context.
-- Comunicación síncrona: HTTP/REST (Minimal APIs) para consultas y acciones inmediatas.
-- Comunicación asíncrona: Kafka para eventos (reservation-created, payment-succeeded, payment-failed, ticket-issued, reservation-expired).
-- Redis: Locks distribuidos y TTL para reservas temporales.
+---
 
-Diagrama (Mermaid):
-
-```mermaid
-graph LR
-	Browser[Cliente (Browser)] -->|HTTP| Frontend[Frontend]
-	Frontend -->|HTTP| ApiGateway[API / Services]
-	ApiGateway -->|HTTP| Catalog[Catalog Service]
-	ApiGateway -->|HTTP| Inventory[Inventory Service]
-	ApiGateway -->|HTTP| Ordering[Ordering Service]
-	ApiGateway -->|HTTP| Payment[Payment Service]
-	ApiGateway -->|HTTP| Identity[Identity Service]
-	Inventory -.->|Redis locks| Redis[Redis]
-	Inventory -->|Postgres (bc_inventory)| Postgres[(Postgres)]
-	Catalog -->|Postgres (bc_catalog)| Postgres
-	Ordering -->|Postgres (bc_ordering)| Postgres
-	Payment -->|Postgres (bc_payment)| Postgres
-	Fulfillment -->|Postgres (bc_fulfillment)| Postgres
-	Inventory -->|Kafka:event reservation-created| Kafka[(Kafka)]
-	Payment -->|Kafka:event payment-succeeded/failed| Kafka
-	Kafka -->|Consumer: ticket issuance| Fulfillment
-```
-
-## Qué debe contener este README (resumen)
-
-- Breve descripción del proyecto
-- Quickstart con Docker Compose y comandos básicos
-- Diagrama de arquitectura / comunicación (Mermaid)
-- Enlaces a artefactos principales y a `AI_WORKFLOW.MD`
-- Cómo ejecutar tests básicos
-
-## Enlaces útiles
-- Especificación y plan: [specs/001-ticketing-mvp/spec.md](specs/001-ticketing-mvp/spec.md)
-- Plan técnico: [specs/001-ticketing-mvp/plan.md](specs/001-ticketing-mvp/plan.md)
-- Tareas: [specs/001-ticketing-mvp/tasks.md](specs/001-ticketing-mvp/tasks.md)
-- Registro del flujo con IA: [AI_WORKFLOW.MD](AI_WORKFLOW.MD)
-- Infra: [infra/README.md](infra/README.md)
-
-## Tests
-
-Ejecutar tests de un servicio:
-
-```bash
-cd services/identity
-dotnet test
-```
-
-Pruebas de integración (cuando estén disponibles) usan Testcontainers y la misma imagen de Postgres levantada por `infra`.
-
-## Estado y próximos pasos
-
-- Ver [specs/001-ticketing-mvp/tasks.md](specs/001-ticketing-mvp/tasks.md) para tareas priorizadas y progreso.
+## ✅ Estados de Tarea y Progreso
+El seguimiento detallado se encuentra en [specs/001-ticketing-mvp/tasks.md](specs/001-ticketing-mvp/tasks.md). El equipo utiliza **ATDD** para las funcionalidades pendientes, asegurando que cada tarea cumpla con los criterios de aceptación antes de su integración.
 

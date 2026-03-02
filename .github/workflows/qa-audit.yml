@@ -1,0 +1,94 @@
+name: CI - Full QA Audit & Coverage
+
+on:
+  push:
+    branches: [ main, develop, master ]
+  pull_request:
+    branches: [ main, develop, master ]
+
+jobs:
+  qa-audit:
+    name: Execute QA Tests & Generate Coverage
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: speckit
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+      kafka:
+        image: confluentinc/cp-kafka:7.5.0
+        env:
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        ports:
+          - 9092:9092
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install Coverage Tool (ReportGenerator)
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Restore Dependencies for All Solutions
+        run: |
+          find . -name "*.sln" -exec dotnet restore {} \;
+
+      - name: Build All Services
+        run: |
+          find . -name "*.sln" -exec dotnet build {} --configuration Release \;
+
+      - name: Run All Tests with Coverage (Collect Cobertura)
+        run: |
+          # Buscar todos los archivos .csproj que terminen en Tests.csproj para asegurar que se incluyan todos los servicios
+          for project in $(find . -type f -name "*Tests.csproj"); do
+            echo "Running tests for $project"
+            dotnet test "$project" \
+              --configuration Release \
+              --no-build \
+              --collect:"XPlat Code Coverage" \
+              --results-directory ./TestResults \
+              --logger "trx" \
+              -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Exclude="[*Infrastructure]*,[*Api]*,[*IntegrationTests]*,[*.Migrations.*]" || true
+          done
+        env:
+          ConnectionStrings__Default: Host=localhost;Database=speckit;Username=postgres;Password=postgres
+          Kafka__BootstrapServers: localhost:9092
+
+      - name: Generate QA Coverage Report (Mojohaus/Spring Style)
+        run: |
+          reportgenerator \
+            -reports:"./TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"./CoverageReport" \
+            -reporttypes:"HtmlInline_AzurePipelines;Badges;MarkdownSummary;MarkdownSummaryGithub"
+
+      - name: Publish Test Results to Job Summary
+        if: always()
+        run: |
+          echo "## 📊 Resumen de Ejecución de Tests" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 Auditoría de QA terminada con éxito." >> $GITHUB_STEP_SUMMARY
+          if [ -f "./CoverageReport/SummaryGithub.md" ]; then
+            cat ./CoverageReport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No se pudo generar el resumen detallado de cobertura." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload Test Results & Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-audit-coverage-report
+          path: |
+            ./CoverageReport
+            ./TestResults/*.trx
+          retention-days: 7

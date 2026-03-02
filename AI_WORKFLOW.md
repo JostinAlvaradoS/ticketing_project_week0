@@ -14,6 +14,20 @@ Artefactos generados
 - `specs/001-ticketing-mvp/plan.md` — Plan técnico accionable.
 - `specs/001-ticketing-mvp/tasks.md` — Lista de tareas con checkboxes.
 
+## 🛠️ Adaptaciones y Decisiones Críticas del Equipo
+
+### Personalización de Speckit
+Durante la fase de implementación, se tomaron decisiones de personalización sobre las herramientas de automatización de Spec Kit (scripts `.sh` de Speckit/GitHub):
+
+- **Modificación de Scripts de Git:** Se editaron los archivos `.sh` (como `phase-1-smoke-test.sh` y otros scripts de automatización interna de speckit) para permitir convenciones de nomenclatura de ramas y estructuras de commits personalizadas.
+- **Filosofía del Desarrollador (Jostin):** Se estableció que, aunque se utilicen frameworks de trabajo guiado por IA o metodologías como *Spec Driven Development*, el equipo debe **priorizar las convenciones internas del equipo de desarrollo** por encima de las restricciones rígidas del framework. 
+- **Resultado:** El flujo de trabajo es ahora "Spec-Driven" pero adaptado al lenguaje y cultura del equipo, permitiendo commits automáticos y nombres de ramas que reflejen mejor el contexto del proyecto real más allá del boilerplate del framework.
+
+### Actualización de Estrategia de Implementación (2026-02-28)
+- **Migración a ATDD (Acceptance Test-Driven Development):** Ante las funcionalidades pendientes listadas en [tasks.md](specs/001-ticketing-mvp/tasks.md), se ha tomado la decisión estratégica de abordar su desarrollo bajo el enfoque **ATDD**.
+- **Redefinición con la IA:** Se ha reconfigurado el flujo de trabajo con la IA para que las tareas de implementación restantes se generen y ejecuten basándose primero en las pruebas de aceptación. Esto garantiza que cada funcionalidad pendiente cumpla con los criterios de éxito definidos antes de dar por terminada la codificación.
+- **Registro de Pruebas:** El progreso y los resultados de este enfoque se documentarán detalladamente en [TDD_report.md](TDD_report.md).
+
 Referencias (archivos en el repo)
 - [spec.md](specs/001-ticketing-mvp/spec.md)
 - [plan.md](specs/001-ticketing-mvp/plan.md)
@@ -38,7 +52,8 @@ Principios obligatorios:
 - Despliegue local: Docker Compose con 1 postgres + redis + kafka + zookeeper + servicios .NET.
 - Calidad: Unit tests con mocks de puertos; integration con Testcontainers (single Postgres).
 - Tech stack base: .NET 9+, EF Core + Npgsql, Confluent.Kafka, MediatR, FluentValidation, Serilog + OTEL.
-- Seguridad: JWT desde Identity Service, rate limiting, secrets via .env/User Secrets.
+- Configuración: Uso de valores por defecto en `appsettings.json` y `docker-compose.yml`, omitiendo `.env` para facilitar el intercambio de código entre pares (Contexto Training).
+- Seguridad: JWT desde Identity Service, rate limiting, secrets via .env/User Secrets (Omitido intencionalmente según decisión de equipo).
 ```
 
 2) Especificación — comando: `/speckit.specify`

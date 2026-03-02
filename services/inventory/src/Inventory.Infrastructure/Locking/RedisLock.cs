@@ -35,7 +35,14 @@ public class RedisLock : IRedisLock
         {
             // Use a 5-second timeout for lock acquisition
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var acquired = await _db.StringSetAsync(key, token, ttl, when: When.NotExists).ConfigureAwait(false);
+            // Explicitly mentioning all parameters to avoid Moq ambiguity
+            bool acquired = await _db.StringSetAsync(
+                (RedisKey)key, 
+                (RedisValue)token, 
+                ttl, 
+                false, 
+                When.NotExists, 
+                CommandFlags.None).ConfigureAwait(false);
             return acquired ? token : null;
         }
         catch (OperationCanceledException)

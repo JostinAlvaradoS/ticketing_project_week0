@@ -19,4 +19,9 @@ public interface ICatalogRepository
     Task AddSeatsAsync(IEnumerable<Seat> seats, CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task UpdateSeatStatusAsync(Guid seatId, string status, CancellationToken cancellationToken = default);
+
+    Task UpdateSeatStatusAsync(Guid seatId, string status, Guid? reservationId, CancellationToken cancellationToken = default);
+
+    Task UpdateSeatStatusByReservationAsync(Guid reservationId, string status, CancellationToken cancellationToken = default);
 }

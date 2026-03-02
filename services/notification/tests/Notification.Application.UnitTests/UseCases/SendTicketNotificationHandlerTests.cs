@@ -24,6 +24,9 @@ public class SendTicketNotificationHandlerTests
     [Fact]
     public async Task Handle_WithValidCommand_ShouldSendEmailAndPersistNotification()
     {
+        // [SEMAFORO: RED] - Definimos el escenario ideal antes de implementar la logica.
+        // [CASO FELIZ] - El flujo normal donde todo funciona segun el requerimiento.
+        
         // Arrange
         var orderId = Guid.NewGuid();
         var ticketId = Guid.NewGuid();
@@ -59,17 +62,22 @@ public class SendTicketNotificationHandlerTests
             .ReturnsAsync(true);
 
         // Act
+        // [SEMAFORO: GREEN] - El Handler debe tener el codigo minimo para pasar este punto.
         var result = await _handler.Handle(command, CancellationToken.None);
 
         // Assert
+        // [VALIDAR: ESTADO/RESULTADO] - ¿El FIN justifica los medios? Chequeamos la respuesta final.
         result.Success.Should().BeTrue();
         result.Message.Should().Contain("successfully");
         result.NotificationId.Should().NotBeEmpty();
 
+        // [VERIFICAR: COMPORTAMIENTO] - ¿Se siguio el PROCESO tecnico correcto (Mocks)?
+        // Verificamos que se llamo al servicio de email REALMENTE.
         _emailServiceMock.Verify(
             e => e.SendAsync(customerEmail, It.IsAny<string>(), It.IsAny<string>(), command.TicketPdfUrl),
             Times.Once);
 
+        // Verificamos que se PERSISTIO en la base de datos.
         _repositoryMock.Verify(r => r.AddAsync(It.IsAny<EmailNotification>()), Times.Once);
         _repositoryMock.Verify(r => r.SaveChangesAsync(), Times.Once);
     }
@@ -77,6 +85,9 @@ public class SendTicketNotificationHandlerTests
     [Fact]
     public async Task Handle_WithExistingNotification_ShouldReturnIdempotentResult()
     {
+        // [SEMAFORO: RED] - Test inicial para forzar a que el sistema "tenga memoria".
+        // [CASO BORDE: IDEMPOTENCIA] - Garantizar que no enviamos correos duplicados.
+        
         // Arrange
         var orderId = Guid.NewGuid();
         var existingNotificationId = Guid.NewGuid();
@@ -84,13 +95,10 @@ public class SendTicketNotificationHandlerTests
         {
             TicketId = Guid.NewGuid(),
             OrderId = orderId,
-            RecipientEmail = "customer@example.com",
-            EventName = "Concert 2026",
-            SeatNumber = "A1",
-            Price = 100.00m,
-            Currency = "USD",
-            TicketIssuedAt = DateTime.UtcNow
+            // ... otros datos
         };
+
+        // ...
 
         var existingNotification = new EmailNotification
         {
@@ -106,15 +114,21 @@ public class SendTicketNotificationHandlerTests
             .ReturnsAsync(existingNotification);
 
         // Act
+        // [SEMAFORO: GREEN] - Codigo minimo: un "if" al inicio del Handler que detiene el proceso.
         var result = await _handler.Handle(command, CancellationToken.None);
 
         // Assert
+        // [VALIDAR] - Respuesta amigable indicando que ya se hizo (Estado).
         result.Success.Should().BeTrue();
         result.NotificationId.Should().Be(existingNotificationId);
         result.Message.Should().Contain("already");
 
+        // [VERIFICAR: SILENCIO] - ¡AQUI USAMOS TIMES.NEVER!
+        // Verificamos que el "Portero" (if) detuvo el envio de email (Comportamiento).
         _emailServiceMock.Verify(e => e.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         _repositoryMock.Verify(r => r.AddAsync(It.IsAny<EmailNotification>()), Times.Never);
+        
+        // [REFÁCTOR]: Una vez en verde, podriamos limpiar la logica de mapeo en el Handler.
     }
 
     [Fact]

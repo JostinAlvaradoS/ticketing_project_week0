@@ -62,7 +62,7 @@ public class PaymentTests
         payment.MarkAsSucceeded();
 
         // Assert
-        payment.Status.Should().Be(Payment.Entities.Payment.StatusSucceeded);
+        payment.Status.Should().Be(Payment.Domain.Entities.Payment.StatusSucceeded);
         payment.ProcessedAt.Should().NotBeNull();
     }
 
@@ -89,7 +89,7 @@ public class PaymentTests
         payment.MarkAsFailed("ERR01", "Invalid card");
 
         // Assert
-        payment.Status.Should().Be(Payment.Entities.Payment.StatusFailed);
+        payment.Status.Should().Be(Payment.Domain.Entities.Payment.StatusFailed);
         payment.ErrorCode.Should().Be("ERR01");
         payment.ErrorMessage.Should().Be("Invalid card");
         payment.ProcessedAt.Should().NotBeNull();
@@ -109,9 +109,9 @@ public class PaymentTests
     }
 
     // Helper method
-    private static Payment.Entities.Payment CreateValidPayment()
+    private static Payment.Domain.Entities.Payment CreateValidPayment()
     {
-        return new Payment.Entities.Payment
+        return new Payment.Domain.Entities.Payment
         {
             Id = Guid.NewGuid(),
             OrderId = Guid.NewGuid(),
@@ -119,7 +119,7 @@ public class PaymentTests
             Amount = 100.00m,
             Currency = "USD",
             PaymentMethod = "CreditCard",
-            Status = Payment.Entities.Payment.StatusPending,
+            Status = Payment.Domain.Entities.Payment.StatusPending,
             CreatedAt = DateTime.UtcNow
         };
     }

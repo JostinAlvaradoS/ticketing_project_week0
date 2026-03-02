@@ -39,6 +39,17 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
 
         try
         {
+            // NEW: Step 0: Check for existing successful payment (Idempotency)
+            var existingPayments = await _paymentRepository.GetByOrderIdAsync(request.OrderId, cancellationToken);
+            var completedPayment = existingPayments.FirstOrDefault(p => p.Status == "succeeded" || p.Status == "completed");
+            
+            if (completedPayment != null)
+            {
+                _logger.LogInformation("Payment already completed for order {OrderId}. Returning existing payment {PaymentId}", 
+                    request.OrderId, completedPayment.Id);
+                return new PaymentResponse(true, null, MapToDto(completedPayment));
+            }
+
             // Step 1: Validate order state
             var orderValidation = await _orderValidationService.ValidateOrderAsync(
                 request.OrderId, request.CustomerId, request.Amount, cancellationToken);
@@ -79,6 +90,12 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
                 IsSimulated = true
             };
 
+            // NEW: Use domain logic for validation
+            if (!payment.IsValidForProcess())
+            {
+                return new PaymentResponse(false, "Invalid payment data", null);
+            }
+
             var createdPayment = await _paymentRepository.CreateAsync(payment, cancellationToken);
             _logger.LogDebug("Payment record created with ID {PaymentId}", createdPayment.Id);
 
@@ -89,8 +106,7 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
             // Step 5: Update payment with results and publish events
             if (simulationResult.Success)
             {
-                createdPayment.Status = "succeeded";
-                createdPayment.ProcessedAt = DateTime.UtcNow;
+                createdPayment.MarkAsSucceeded();
                 createdPayment.SimulatedResponse = $"Success - TransactionId: {simulationResult.TransactionId}";
                 
                 var updatedPayment = await _paymentRepository.UpdateAsync(createdPayment, cancellationToken);
@@ -114,10 +130,7 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
             }
             else
             {
-                createdPayment.Status = "failed";
-                createdPayment.ProcessedAt = DateTime.UtcNow;
-                createdPayment.ErrorCode = simulationResult.ErrorCode;
-                createdPayment.ErrorMessage = simulationResult.ErrorMessage;
+                createdPayment.MarkAsFailed(simulationResult.ErrorCode ?? "UNKNOWN", simulationResult.ErrorMessage ?? "Unknown error");
                 createdPayment.FailureReason = simulationResult.FailureReason;
                 createdPayment.SimulatedResponse = $"Failed - {simulationResult.ErrorCode}: {simulationResult.ErrorMessage}";
                 

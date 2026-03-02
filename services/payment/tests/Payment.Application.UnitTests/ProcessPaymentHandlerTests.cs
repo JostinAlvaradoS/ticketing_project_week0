@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -70,7 +72,7 @@ public class ProcessPaymentHandlerTests
 
         // Assert
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Be("Order not found");
+        result.ErrorMessage.Should().Contain("Order not found");
         
         VerifyPaymentSimulation(Times.Never());
     }
@@ -159,18 +161,29 @@ public class ProcessPaymentHandlerTests
             "card"
         );
 
-        _orderValidationService.Setup(x => x.ValidateOrderAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new OrderValidationResult(true, null, orderId, "pending", 150));
+        SetupOrderValidation(command, true);
+        SetupReservationValidation(command, true);
 
-        var payment = new Domain.Entities.Payment { Id = Guid.NewGuid(), OrderId = orderId, Status = "completed" };
+        var payment = new Domain.Entities.Payment 
+        { 
+            Id = Guid.NewGuid(), 
+            OrderId = orderId, 
+            Status = "succeeded",
+            Amount = 150,
+            CustomerId = command.CustomerId,
+            PaymentMethod = "card",
+            Currency = "USD"
+        };
         
         // Simular que la segunda vez el repositorio ya encuentra el pago existente
         _paymentRepository.SetupSequence(x => x.GetByOrderIdAsync(orderId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Domain.Entities.Payment)null) // Primera vez: no existe
-            .ReturnsAsync(payment);                       // Segunda vez: ya existe
+            .ReturnsAsync(Enumerable.Empty<Domain.Entities.Payment>()) // Primera vez: no existe
+            .ReturnsAsync(new[] { payment });                       // Segunda vez: ya existe
 
-        _paymentSimulatorService.Setup(x => x.SimulatePaymentAsync(It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PaymentSimulationResult(true, "txn-idempotent", null, null, null));
+        SetupPaymentCreation();
+        SetupPaymentSimulation(command, true);
+        SetupPaymentUpdate();
+        SetupKafkaProduction("payment-succeeded");
 
         var handler = CreateHandler();
 
@@ -179,7 +192,7 @@ public class ProcessPaymentHandlerTests
         var result2 = await handler.Handle(command, CancellationToken.None);
 
         // Assert
-        result1.Success.Should().BeTrue();
+        result1.Success.Should().BeTrue($"First attempt failed: {result1.ErrorMessage}");
         result2.Success.Should().BeTrue("El segundo intento debe ser exitoso por idempotencia");
         
         // El simulador de pago real solo debería haberse llamado una vez

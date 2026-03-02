@@ -47,7 +47,7 @@ jobs:
 
       - name: Build All Services
         run: |
-          find . -name "*.sln" -exec dotnet build {} --configuration Release --no-restore \;
+          find . -name "*.sln" -exec dotnet build {} --configuration Release \;
 
       - name: Run All Tests with Coverage (Collect Cobertura)
         run: |

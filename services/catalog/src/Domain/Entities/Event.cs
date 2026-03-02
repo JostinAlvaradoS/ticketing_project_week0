@@ -34,7 +34,7 @@ public class Event
             Id = Guid.NewGuid(),
             Name = name,
             Description = description,
-            EventDate = eventDate,
+            EventDate = eventDate.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(eventDate, DateTimeKind.Utc) : eventDate.ToUniversalTime(),
             Venue = venue,
             MaxCapacity = maxCapacity,
             BasePrice = basePrice,

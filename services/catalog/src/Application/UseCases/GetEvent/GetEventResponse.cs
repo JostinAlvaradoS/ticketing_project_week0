@@ -5,5 +5,8 @@ public record GetEventResponse(
     string Name,
     string Description,
     DateTime EventDate,
-    decimal BasePrice
+    string Venue,
+    int MaxCapacity,
+    decimal BasePrice,
+    bool IsActive
 );

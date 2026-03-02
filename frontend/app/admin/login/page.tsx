@@ -2,7 +2,13 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAdminAuth, decodeAdminToken } from "@/context/admin-auth-context"
+import { useAdminAuth } from "@/context/admin-auth-context"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Shield, Lock, AlertCircle, Info, Eye, EyeOff } from "lucide-react"
 
 export default function AdminLoginPage() {
   const [formData, setFormData] = useState({
@@ -11,6 +17,7 @@ export default function AdminLoginPage() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   
   const { login } = useAdminAuth()
   const router = useRouter()
@@ -70,124 +77,140 @@ export default function AdminLoginPage() {
     }))
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="mx-auto w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-          <span className="text-white text-xl font-bold">🔐</span>
-        </div>
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-          Panel de Administración
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Ingresa tus credenciales para acceder
-        </p>
-      </div>
+  const handleAutoFill = () => {
+    setFormData({ 
+      email: "admin@ticketing.com", 
+      password: "Admin123!" 
+    })
+  }
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+  return (
+    <main className="min-h-screen bg-background flex items-center justify-center px-4">
+      <Card className="w-full max-w-md bg-card border-border">
+        <CardHeader className="flex flex-col items-center gap-4 pb-6">
+          <div className="size-14 rounded-full bg-accent/15 flex items-center justify-center">
+            <Shield className="size-7 text-accent" />
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <CardTitle className="text-xl text-foreground">
+              Panel de Administración
+            </CardTitle>
+            <p className="text-sm text-muted-foreground text-center text-pretty">
+              Ingresa tus credenciales para acceder al dashboard
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-foreground">
                 Email
-              </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                  placeholder="admin@ticketing.com"
-                />
-              </div>
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="admin@ticketing.com"
+                value={formData.email}
+                onChange={handleInputChange}
+                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+                required
+                autoComplete="email"
+              />
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-foreground">
                 Contraseña
-              </label>
-              <div className="mt-1">
-                <input
+              </Label>
+              <div className="relative">
+                <Input
                   id="password"
                   name="password"
-                  type="password"
-                  required
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Ingresa tu contraseña"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-                  placeholder="Ingresa tu contraseña"
+                  className="bg-secondary border-border text-foreground placeholder:text-muted-foreground pr-10"
+                  required
+                  autoComplete="current-password"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
               </div>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <span className="text-red-400">⚠️</span>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-800">{error}</p>
-                  </div>
-                </div>
-              </div>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-400 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Iniciando sesión...
-                  </div>
-                ) : (
-                  "Iniciar Sesión"
-                )}
-              </button>
-            </div>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                  Iniciando sesión...
+                </>
+              ) : (
+                <>
+                  <Lock className="h-4 w-4 mr-2" />
+                  Iniciar Sesión
+                </>
+              )}
+            </Button>
           </form>
 
-          <div className="mt-6 border-t border-gray-200 pt-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <span className="text-blue-400">ℹ️</span>
-                </div>
-                <div className="ml-3 flex-1">
-                  <p className="text-sm text-blue-800 font-medium mb-2">Credenciales por defecto:</p>
-                  <div className="space-y-1 mb-3">
-                    <div className="flex items-center justify-between bg-white rounded px-2 py-1">
-                      <span className="text-xs text-blue-700">Email:</span>
-                      <code className="text-xs font-mono text-blue-900">admin@ticketing.com</code>
-                    </div>
-                    <div className="flex items-center justify-between bg-white rounded px-2 py-1">
-                      <span className="text-xs text-blue-700">Password:</span>
-                      <code className="text-xs font-mono text-blue-900">Admin123!</code>
-                    </div>
+          <div className="pt-6 border-t border-border">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription className="space-y-2">
+                <p className="text-sm font-medium">Credenciales por defecto:</p>
+                <div className="grid grid-cols-1 gap-1 text-xs">
+                  <div className="flex items-center justify-between bg-secondary rounded px-2 py-1">
+                    <span className="text-muted-foreground">Email:</span>
+                    <code className="text-foreground">admin@ticketing.com</code>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ email: "admin@ticketing.com", password: "Admin123!" })}
-                    className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors"
-                  >
-                    Auto-completar formulario
-                  </button>
+                  <div className="flex items-center justify-between bg-secondary rounded px-2 py-1">
+                    <span className="text-muted-foreground">Password:</span>
+                    <code className="text-foreground">Admin123!</code>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 text-center">
-              Solo administradores autorizados pueden acceder a este panel.
-            </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAutoFill}
+                  className="w-full mt-2 text-xs h-8 text-accent hover:text-accent-foreground hover:bg-accent/20"
+                >
+                  Auto-completar formulario
+                </Button>
+              </AlertDescription>
+            </Alert>
           </div>
-        </div>
-      </div>
-    </div>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Solo administradores autorizados pueden acceder a este panel.
+          </p>
+        </CardContent>
+      </Card>
+    </main>
   )
 }

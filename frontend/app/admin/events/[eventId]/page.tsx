@@ -1,69 +1,57 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { AdminButton } from "@/components/admin/AdminButton"
-
-interface Event {
-  id: string
-  name: string  
-  description: string
-  eventDate: string
-  venue: string
-  maxCapacity: number
-  basePrice: number
-  status: "active" | "inactive"
-  createdAt: string
-  imageUrl?: string
-  tags: string[]
-  seatsCount?: number
-  availableSeats?: number
-  soldSeats?: number
-}
+import { getEvent, catalogAdminApi, type Event } from "@/lib/api/catalog"
+import { useToast } from "@/hooks/use-toast"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Calendar, MapPin, Users, DollarSign, Edit, Settings } from "lucide-react"
 
 export default function EventDetailPage({ 
   params 
 }: { 
-  params: { eventId: string } 
+  params: Promise<{ eventId: string }> 
 }) {
+  const { eventId } = use(params)
   const router = useRouter()
+  const { toast } = useToast()
   const [event, setEvent] = useState<Event | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string>("")
 
   useEffect(() => {
     fetchEvent()
-  }, [params.eventId])
+  }, [eventId])
 
   const fetchEvent = async () => {
     setIsLoading(true)
     try {
-      // In a real implementation, this would call your backend API
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const fetchedEvent = await getEvent(eventId)
       
-      // Mock event data
-      const mockEvent: Event = {
-        id: params.eventId,
-        name: "Concierto Rock 2026",
-        description: "Gran concierto de rock en el estadio nacional con artistas internacionales. Un evento que promete ser inolvidable con las mejores bandas del género.",
-        eventDate: "2026-06-15T20:00:00Z",
-        venue: "Estadio Nacional",
-        maxCapacity: 50000,
-        basePrice: 75.00,
-        status: "active",
-        createdAt: "2026-03-01T10:00:00Z",
-        imageUrl: "https://example.com/concert-image.jpg",
-        tags: ["rock", "música", "concierto", "nacional"],
-        seatsCount: 50000,
-        availableSeats: 47500,
-        soldSeats: 2500
+      if (!fetchedEvent) {
+        setError("Evento no encontrado")
+        toast({
+          title: "Error",
+          description: "Evento no encontrado.",
+          variant: "destructive",
+        })
+        router.push("/admin/events")
+        return
       }
 
-      setEvent(mockEvent)
+      setEvent(fetchedEvent)
     } catch (error) {
       console.error("Error fetching event:", error)
       setError("Error al cargar el evento")
+      toast({
+        title: "Error",
+        description: "Error al cargar el evento.",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -73,15 +61,37 @@ export default function EventDetailPage({
     if (!event) return
 
     try {
-      // In a real implementation, this would call your backend API
-      const newStatus = event.status === "active" ? "inactive" : "active"
+      if (event.isActive) {
+        await catalogAdminApi.deactivateEvent(event.id)
+        toast({
+          title: "Éxito",
+          description: "Evento desactivado correctamente.",
+        })
+      } else {
+        await catalogAdminApi.reactivateEvent(event.id)
+        toast({
+          title: "Éxito",
+          description: "Evento reactivado correctamente.",
+        })
+      }
       
-      setEvent(prev => prev ? { ...prev, status: newStatus } : null)
-      
-      console.log(`Event status changed to: ${newStatus}`)
+      // Refresh event data
+      fetchEvent()
     } catch (error) {
       console.error("Error updating event status:", error)
+      toast({
+        title: "Error",
+        description: "Error al cambiar el estado del evento.",
+        variant: "destructive",
+      })
     }
+  }
+
+  const handleFeatureNotImplemented = (feature: string) => {
+    toast({
+      title: "Funcionalidad en desarrollo",
+      description: `La funcionalidad de ${feature} está en desarrollo y estará disponible pronto.`,
+    })
   }
 
   const formatDate = (dateString: string) => {
@@ -102,248 +112,193 @@ export default function EventDetailPage({
     }).format(price)
   }
 
-  const getStatusBadge = (status: Event["status"]) => {
-    const baseClasses = "px-3 py-1 text-sm font-medium rounded-full"
-    
-    switch (status) {
-      case "active":
-        return `${baseClasses} bg-green-100 text-green-800`
-      case "inactive":
-        return `${baseClasses} bg-red-100 text-red-800`
-      default:
-        return `${baseClasses} bg-gray-100 text-gray-800`
-    }
-  }
-
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-2/3 mb-6"></div>
-          <div className="bg-white shadow rounded-lg p-6 space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-full"></div>
-            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="flex space-x-3">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <Card>
+              <CardContent className="p-6">
+                <Skeleton className="h-4 w-full mb-4" />
+                <Skeleton className="h-4 w-3/4 mb-4" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardContent>
+            </Card>
+          </div>
+          <div>
+            <Card>
+              <CardContent className="p-6">
+                <Skeleton className="h-6 w-32 mb-4" />
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-4 w-24" />
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
     )
   }
 
-  if (error) {
+  if (error || !event) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600 mb-4">{error}</p>
-        <Link href="/admin/events">
-          <AdminButton>Volver a Eventos</AdminButton>
-        </Link>
-      </div>
-    )
-  }
-
-  if (!event) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-600 mb-4">Evento no encontrado</p>
-        <Link href="/admin/events">
-          <AdminButton>Volver a Eventos</AdminButton>
-        </Link>
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Error</h1>
+          <p className="text-muted-foreground">{error || "Evento no encontrado"}</p>
+          <Link href="/admin/events" className="mt-4 inline-block">
+            <AdminButton>Volver a Eventos</AdminButton>
+          </Link>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center space-x-3">
-            <h1 className="text-3xl font-bold text-gray-900">{event.name}</h1>
-            <span className={getStatusBadge(event.status)}>
-              {event.status === "active" ? "Activo" : "Inactivo"}
-            </span>
-          </div>
-          <p className="mt-2 text-gray-600">ID: {event.id}</p>
+          <h1 className="text-3xl font-bold">{event.name}</h1>
+          <p className="mt-2 text-muted-foreground">
+            Gestiona la información y configuración del evento
+          </p>
         </div>
         <div className="flex space-x-3">
-          <Link href="/admin/events">
-            <AdminButton variant="ghost">
-              ← Volver
-            </AdminButton>
-          </Link>
-          <Link href={`/admin/events/${event.id}/edit`}>
-            <AdminButton variant="secondary">
+          <AdminButton variant="outline" asChild>
+            <Link href="/admin/events">
+              ← Volver a Eventos
+            </Link>
+          </AdminButton>
+          <AdminButton asChild>
+            <Link href={`/admin/events/${event.id}/edit`}>
+              <Edit className="h-4 w-4 mr-2" />
               Editar
-            </AdminButton>  
-          </Link>
-          <AdminButton onClick={handleStatusToggle}>
-            {event.status === "active" ? "Desactivar" : "Activar"}
+            </Link>
           </AdminButton>
         </div>
       </div>
 
-      {/* Main Info */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Event Details */}
+        {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Información del Evento
-            </h3>
-            <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Event Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Información del Evento
+                <Badge variant={event.isActive ? "default" : "secondary"}>
+                  {event.isActive ? "Activo" : "Inactivo"}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
-                <dt className="text-sm font-medium text-gray-500">Descripción</dt>
-                <dd className="mt-1 text-sm text-gray-900">{event.description}</dd>
+                <h3 className="font-medium mb-2">Descripción</h3>
+                <p className="text-muted-foreground">{event.description}</p>
               </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Venue</dt>
-                <dd className="mt-1 text-sm text-gray-900">{event.venue}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Fecha y Hora</dt>
-                <dd className="mt-1 text-sm text-gray-900">{formatDate(event.eventDate)}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Precio Base</dt>
-                <dd className="mt-1 text-sm text-gray-900 font-medium">
-                  {formatPrice(event.basePrice)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Capacidad Máxima</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  {event.maxCapacity.toLocaleString()} personas
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Creado</dt>
-                <dd className="mt-1 text-sm text-gray-900">
-                  {formatDate(event.createdAt)}
-                </dd>
-              </div>
-            </dl>
-
-            {event.tags.length > 0 && (
-              <div className="mt-4">
-                <dt className="text-sm font-medium text-gray-500 mb-2">Tags</dt>
-                <div className="flex flex-wrap gap-2">
-                  {event.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center">
+                  <Calendar className="h-5 w-5 text-muted-foreground mr-2" />
+                  <div>
+                    <p className="font-medium">Fecha del Evento</p>
+                    <p className="text-sm text-muted-foreground">{formatDate(event.eventDate)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <MapPin className="h-5 w-5 text-muted-foreground mr-2" />
+                  <div>
+                    <p className="font-medium">Venue</p>
+                    <p className="text-sm text-muted-foreground">{event.venue}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 text-muted-foreground mr-2" />
+                  <div>
+                    <p className="font-medium">Capacidad Máxima</p>
+                    <p className="text-sm text-muted-foreground">{event.maxCapacity?.toLocaleString() || 'N/A'} personas</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <DollarSign className="h-5 w-5 text-muted-foreground mr-2" />
+                  <div>
+                    <p className="font-medium">Precio Base</p>
+                    <p className="text-sm text-muted-foreground">{formatPrice(event.basePrice)}</p>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Image */}
-          {event.imageUrl && (
-            <div className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Imagen del Evento
-              </h3>
-              <img
-                src={event.imageUrl}
-                alt={event.name}
-                className="w-full h-64 object-cover rounded-lg"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.src = "/placeholder-event.jpg"
-                }}
-              />
-            </div>
-          )}
+          {/* Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Gestión del Evento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-3">
+                
+                <AdminButton 
+                  variant="outline"
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/admin/events/${event.id}/seats`)
+                    }}   
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Generar Asientos
+                </AdminButton>
+
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Sidebar - Stats & Actions */}
+        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Capacity Stats */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Estadísticas de Asientos
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Total</span>
-                  <span className="text-sm font-medium">
-                    {event.seatsCount?.toLocaleString() || 0}
-                  </span>
-                </div>
-              </div>
+          {/* Quick Stats */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Estadísticas Rápidas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Card>
+                <CardContent className="text-center p-4">
+                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-sm text-muted-foreground">Asientos Generados</p>
+                </CardContent>
+              </Card>
               
-              <div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Disponibles</span>
-                  <span className="text-sm font-medium text-green-600">
-                    {event.availableSeats?.toLocaleString() || 0}
-                  </span>
-                </div>
-                <div className="mt-1 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-green-600 h-2 rounded-full" 
-                    style={{
-                      width: `${event.seatsCount ? (event.availableSeats! / event.seatsCount) * 100 : 0}%`
-                    }}
-                  ></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Vendidos</span>
-                  <span className="text-sm font-medium text-blue-600">
-                    {event.soldSeats?.toLocaleString() || 0}
-                  </span>
-                </div>
-                <div className="mt-1 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full" 
-                    style={{
-                      width: `${event.seatsCount ? (event.soldSeats! / event.seatsCount) * 100 : 0}%`
-                    }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Acciones Rápidas
-            </h3>
-            <div className="space-y-3">
-              <AdminButton 
-                className="w-full justify-center" 
-                onClick={() => router.push(`/admin/events/${event.id}/seats`)}
-              >
-                🪑 Gestionar Asientos
-              </AdminButton>
+              <Card>
+                <CardContent className="text-center p-4">
+                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-sm text-muted-foreground">Tickets Vendidos</p>
+                </CardContent>
+              </Card>
               
-              <AdminButton 
-                variant="ghost" 
-                className="w-full justify-center"
-                onClick={() => router.push(`/admin/events/${event.id}/sales`)}
-              >
-                📊 Ver Ventas
-              </AdminButton>
-              
-              <AdminButton 
-                variant="ghost" 
-                className="w-full justify-center"
-                onClick={() => router.push(`/admin/events/${event.id}/reports`)}
-              >
-                📋 Reportes
-              </AdminButton>
-            </div>
-          </div>
+              <Card>
+                <CardContent className="text-center p-4">
+                  <p className="text-2xl font-bold">{formatPrice(0)}</p>
+                  <p className="text-sm text-muted-foreground">Ingresos</p>
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

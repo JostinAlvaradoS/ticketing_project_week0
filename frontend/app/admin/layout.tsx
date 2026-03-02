@@ -5,17 +5,30 @@ import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { useAdminAuth } from "@/context/admin-auth-context"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Separator } from "@/components/ui/separator"
+import { 
+  Calendar, 
+  BarChart3, 
+  Menu, 
+  X, 
+  LogOut, 
+  Plus,
+  Loader2
+} from "lucide-react"
 
 const adminNavLinks = [
   {
-    href: "/admin/events",
-    label: "Eventos",
-    icon: "📅"
-  },
-  {
     href: "/admin/dashboard", 
     label: "Dashboard",
-    icon: "📊"
+    icon: BarChart3
+  },
+  {
+    href: "/admin/events",
+    label: "Eventos",
+    icon: Calendar
   }
 ]
 
@@ -38,8 +51,11 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
       </div>
     )
   }
@@ -59,113 +75,108 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-background">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 lg:hidden bg-black bg-opacity-50"
+          className="fixed inset-0 z-40 lg:hidden bg-background/80 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform lg:translate-x-0",
+      <Card className={cn(
+        "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform lg:translate-x-0 border-r",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         {/* Sidebar header */}
         <div className="flex items-center justify-between h-16 px-6 border-b">
-          <h2 className="text-lg font-semibold text-gray-800">
+          <h2 className="text-lg font-semibold">
             Admin Panel
           </h2>
-          <button
-            className="lg:hidden p-2 rounded-md hover:bg-gray-100"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="lg:hidden"
             onClick={() => setSidebarOpen(false)}
           >
-            ✕
-          </button>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Navigation */}
-        <nav className="mt-8 px-4">
-          <ul className="space-y-2">
+        <CardContent className="p-4">
+          <nav className="space-y-2">
             {adminNavLinks.map((link) => {
               const isActive = pathname === link.href || pathname.startsWith(link.href + "/")
+              const IconComponent = link.icon
               
               return (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className={cn(
-                      "flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors",
-                      isActive
-                        ? "bg-blue-100 text-blue-700 border-r-2 border-blue-700"
-                        : "text-gray-700 hover:bg-gray-100"
-                    )}
-                  >
-                    <span className="mr-3 text-lg">{link.icon}</span>
+                <Button
+                  key={link.href}
+                  variant={isActive ? "default" : "ghost"}
+                  className="w-full justify-start"
+                  asChild
+                >
+                  <Link href={link.href}>
+                    <IconComponent className="mr-3 h-4 w-4" />
                     {link.label}
                   </Link>
-                </li>
+                </Button>
               )
             })}
-          </ul>
-        </nav>
+          </nav>
+        </CardContent>
 
         {/* User info at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>
                   {user?.name?.charAt(0) || "A"}
-                </span>
-              </div>
+                </AvatarFallback>
+              </Avatar>
               <div>
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium">
                   {user?.name || "Admin"}
                 </p>
-                <p className="text-xs text-gray-500">Administrador</p>
+                <p className="text-xs text-muted-foreground">Administrador</p>
               </div>
             </div>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleLogout}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-md transition-colors"
               title="Cerrar sesión"
             >
-              🚪
-            </button>
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Main content area */}
       <div className="lg:pl-64">
         {/* Top navigation bar */}
-        <div className="sticky top-0 z-30 bg-white border-b h-16 flex items-center px-6">
-          <button
-            className="lg:hidden p-2 rounded-md hover:bg-gray-100 mr-4"
-            onClick={() => setSidebarOpen(true)}
-          >
-            ☰
-          </button>
-          
-          <div className="flex-1">
-            <h1 className="text-xl font-semibold text-gray-800">
-              Panel de Administración
-            </h1>
-          </div>
-
-          {/* Quick actions */}
-          <div className="flex items-center space-x-4">
-            <Link
-              href="/admin/events/create"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+        <Card className="sticky top-0 z-30 border-b border-l-0 border-r-0 border-t-0 rounded-none">
+          <div className="h-16 flex items-center px-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="lg:hidden mr-4"
+              onClick={() => setSidebarOpen(true)}
             >
-              + Nuevo Evento
-            </Link>
+              <Menu className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex-1">
+              <h1 className="text-xl font-semibold">
+                Panel de Administración
+              </h1>
+            </div>
           </div>
-        </div>
+        </Card>
 
         {/* Page content */}
         <main className="p-6">

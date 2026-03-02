@@ -22,7 +22,10 @@ public sealed class GetAllEventsHandler : IRequestHandler<GetAllEventsQuery, IEn
                 e.Name,
                 e.Description,
                 e.EventDate,
-                e.BasePrice
+                e.Venue,
+                e.MaxCapacity,
+                e.BasePrice,
+                e.IsActive
             ))
             .OrderByDescending(e => e.EventDate);
     }

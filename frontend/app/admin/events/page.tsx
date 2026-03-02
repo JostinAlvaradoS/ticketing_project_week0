@@ -13,17 +13,21 @@ import {
   AdminTableLoading,
   AdminTableEmpty
 } from "@/components/admin/AdminTable"
+import { getEvents, catalogAdminApi, type Event } from "@/lib/api/catalog"
+import { useToast } from "@/hooks/use-toast"
+import { Badge } from "@/components/ui/badge"
 
-interface Event {
+interface EventDisplay {
   id: string
   name: string
   description: string
-  eventDate: string
-  venue: string
-  maxCapacity: number
+  date: string
   basePrice: number
+  venue: string
+  imageUrl?: string
+  maxCapacity?: number // Made optional since EventSummary doesn't include it
+  eventDate: string
   status: "active" | "inactive"
-  createdAt: string
   seatsCount?: number
 }
 
@@ -36,7 +40,8 @@ interface EventFilters {
 
 export default function AdminEventsPage() {
   const router = useRouter()
-  const [events, setEvents] = useState<Event[]>([])
+  const { toast } = useToast()
+  const [events, setEvents] = useState<EventDisplay[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filters, setFilters] = useState<EventFilters>({
     search: "",
@@ -54,59 +59,31 @@ export default function AdminEventsPage() {
   const fetchEvents = async () => {
     setIsLoading(true)
     try {
-      // In a real implementation, this would call your backend API
-      // For now, we'll simulate some data
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const mockEvents: Event[] = [
-        {
-          id: "1",
-          name: "Concierto Rock 2026",
-          description: "Gran concierto de rock en el estadio nacional",
-          eventDate: "2026-06-15T20:00:00Z",
-          venue: "Estadio Nacional",
-          maxCapacity: 50000,
-          basePrice: 75.00,
-          status: "active",
-          createdAt: "2026-03-01T10:00:00Z",
-          seatsCount: 50000
-        },
-        {
-          id: "2", 
-          name: "Festival de Jazz",
-          description: "Festival de jazz con artistas internacionales",
-          eventDate: "2026-07-20T19:00:00Z",
-          venue: "Centro de Convenciones",
-          maxCapacity: 5000,
-          basePrice: 120.00,
-          status: "active",
-          createdAt: "2026-02-28T14:30:00Z",
-          seatsCount: 5000
-        },
-        {
-          id: "3",
-          name: "Teatro Clásico",
-          description: "Obra de teatro clásico",
-          eventDate: "2026-05-10T20:30:00Z",
-          venue: "Teatro Municipal",
-          maxCapacity: 800,
-          basePrice: 45.00,
-          status: "inactive",
-          createdAt: "2026-02-25T09:15:00Z",
-          seatsCount: 0
-        }
-      ]
+      const apiEvents = await getEvents()
+
+      // Transform API events to display format
+      let filteredEvents: EventDisplay[] = apiEvents.map(event => ({
+        id: event.id,
+        name: event.name,
+        description: event.description,
+        date: event.eventDate,
+        basePrice: event.basePrice,
+        venue: event.venue,
+        imageUrl: event.imageUrl,
+        maxCapacity: event.maxCapacity,
+        eventDate: event.eventDate,
+        status: event.isActive ? "active" : "inactive",
+        seatsCount: 0 // TODO: Get from seats endpoint if needed
+      }))
 
       // Apply filters
-      let filteredEvents = mockEvents
-      
       if (filters.search) {
         filteredEvents = filteredEvents.filter(event =>
           event.name.toLowerCase().includes(filters.search.toLowerCase()) ||
           event.venue.toLowerCase().includes(filters.search.toLowerCase())
         )
       }
-      
+
       if (filters.status !== "all") {
         filteredEvents = filteredEvents.filter(event => event.status === filters.status)
       }
@@ -114,41 +91,82 @@ export default function AdminEventsPage() {
       setEvents(filteredEvents)
     } catch (error) {
       console.error("Error fetching events:", error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los eventos. Por favor, intenta nuevamente.",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleFilterChange = (key: keyof EventFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
-    setCurrentPage(1) // Reset to first page when filtering
+  const handleToggleEventStatus = async (eventId: string, currentStatus: "active" | "inactive") => {
+    try {
+      if (currentStatus === "active") {
+        await catalogAdminApi.deactivateEvent(eventId)
+        toast({
+          title: "Éxito",
+          description: "Evento desactivado correctamente.",
+        })
+      } else {
+        await catalogAdminApi.reactivateEvent(eventId)
+        toast({
+          title: "Éxito",
+          description: "Evento reactivado correctamente.",
+        })
+      }
+      // Refresh events list
+      fetchEvents()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `No se pudo ${currentStatus === "active" ? "desactivar" : "reactivar"} el evento.`,
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleEventClick = (eventId: string) => {
-    router.push(`/admin/events/${eventId}`)
+  const handleFeatureNotImplemented = (feature: string) => {
+    toast({
+      title: "Funcionalidad en desarrollo",
+      description: `La funcionalidad de ${feature} está en desarrollo y estará disponible pronto.`,
+      variant: "default",
+    })
   }
 
-  const getStatusBadge = (status: Event["status"]) => {
-    const baseClasses = "px-2 py-1 text-xs font-medium rounded-full"
-    
+  const getStatusBadge = (status: EventDisplay["status"]) => {
     switch (status) {
       case "active":
-        return `${baseClasses} bg-green-100 text-green-800`
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Activo</Badge>
       case "inactive":
-        return `${baseClasses} bg-red-100 text-red-800`
+        return <Badge variant="secondary" className="bg-red-100 text-red-800 hover:bg-red-100">Inactivo</Badge>
       default:
-        return `${baseClasses} bg-gray-100 text-gray-800`
+        return <Badge variant="secondary">Desconocido</Badge>
     }
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "short", 
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    })
+    try {
+      // Handle various date formats
+      const date = new Date(dateString)
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return "Fecha inválida"
+      }
+      
+      return date.toLocaleDateString("es-ES", {
+        year: "numeric",
+        month: "short", 
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+    } catch (error) {
+      console.error('Error formatting date:', dateString, error)
+      return "Fecha inválida"
+    }
   }
 
   const formatPrice = (price: number) => {
@@ -158,12 +176,23 @@ export default function AdminEventsPage() {
     }).format(price)
   }
 
+  const handleFilterChange = (field: keyof EventFilters, value: string) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [field]: value
+    }))
+  }
+
+  const handleEventClick = (eventId: string) => {
+    router.push(`/admin/events/${eventId}`)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Eventos</h1>
+          <h1 className="text-3xl font-bold text-gray-300">Eventos</h1>
           <p className="mt-2 text-gray-600">
             Gestiona el catálogo de eventos del sistema
           </p>
@@ -173,65 +202,6 @@ export default function AdminEventsPage() {
             + Crear Evento
           </AdminButton>
         </Link>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow space-y-4">
-        <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Buscar
-            </label>
-            <input
-              type="text"
-              placeholder="Nombre del evento o venue..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange("search", e.target.value)}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Estado
-            </label>
-            <select
-              value={filters.status}
-              onChange={(e) => handleFilterChange("status", e.target.value)}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            >
-              <option value="all">Todos</option>
-              <option value="active">Activos</option>
-              <option value="inactive">Inactivos</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fecha desde
-            </label>
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fecha hasta
-            </label>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => handleFilterChange("dateTo", e.target.value)}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            />
-          </div>
-        </div>
       </div>
 
       {/* Events Table */}
@@ -264,7 +234,7 @@ export default function AdminEventsPage() {
               >
                 <AdminTableCell>
                   <div>
-                    <p className="font-medium text-gray-900">{event.name}</p>
+                    <p className="font-medium text-gray-300">{event.name}</p>
                     <p className="text-sm text-gray-500">{event.description}</p>
                   </div>
                 </AdminTableCell>
@@ -272,7 +242,7 @@ export default function AdminEventsPage() {
                 <AdminTableCell>{formatDate(event.eventDate)}</AdminTableCell>
                 <AdminTableCell>
                   <div className="text-center">
-                    <p className="font-medium">{event.maxCapacity.toLocaleString()}</p>
+                    <p className="font-medium">{event.maxCapacity?.toLocaleString() || 'N/A'}</p>
                     {event.seatsCount !== undefined && (
                       <p className="text-xs text-gray-500">
                         {event.seatsCount.toLocaleString()} asientos
@@ -284,9 +254,7 @@ export default function AdminEventsPage() {
                   {formatPrice(event.basePrice)}
                 </AdminTableCell>
                 <AdminTableCell>
-                  <span className={getStatusBadge(event.status)}>
-                    {event.status === "active" ? "Activo" : "Inactivo"}
-                  </span>
+                  {getStatusBadge(event.status)}
                 </AdminTableCell>
                 <AdminTableCell>
                   <div className="flex space-x-2">
@@ -298,7 +266,7 @@ export default function AdminEventsPage() {
                         router.push(`/admin/events/${event.id}/edit`)
                       }}
                     >
-                      ✏️
+                      Editar
                     </AdminButton>
                     <AdminButton
                       size="sm"
@@ -308,7 +276,7 @@ export default function AdminEventsPage() {
                         router.push(`/admin/events/${event.id}/seats`)
                       }}
                     >
-                      🪑
+                      Generar Asientos
                     </AdminButton>
                   </div>
                 </AdminTableCell>

@@ -26,7 +26,10 @@ public sealed class GetEventHandler : IRequestHandler<GetEventQuery, GetEventRes
             eventEntity.Name,
             eventEntity.Description,
             eventEntity.EventDate,
-            eventEntity.BasePrice
+            eventEntity.Venue,
+            eventEntity.MaxCapacity,
+            eventEntity.BasePrice,
+            eventEntity.Status == "active"
         );
     }
 }

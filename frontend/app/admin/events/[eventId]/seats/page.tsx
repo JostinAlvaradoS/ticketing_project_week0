@@ -1,467 +1,402 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { AdminButton } from "@/components/admin/AdminButton"
-import { AdminForm, AdminFormSection } from "@/components/admin/AdminForm"
+import { getEvent, catalogAdminApi, type Event, type SeatSectionConfiguration } from "@/lib/api/catalog"
+import { useToast } from "@/hooks/use-toast"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Info, Settings, Plus, Trash2 } from "lucide-react"
 
-interface Seat {
-  id: string
+interface SeatSection {
   section: string
-  row: string
-  number: string
-  price: number
-  status: "available" | "reserved" | "sold"
-}
-
-interface SeatStats {
-  total: number
-  available: number
-  reserved: number
-  sold: number
-}
-
-interface Event {
-  id: string
-  name: string
-  venue: string
-  maxCapacity: number
-  basePrice: number
+  rows: number
+  seatsPerRow: number
+  priceMultiplier: number
 }
 
 export default function EventSeatsPage({ 
   params 
 }: { 
-  params: { eventId: string } 
+  params: Promise<{ eventId: string }> 
 }) {
+  const { eventId } = use(params)
   const router = useRouter()
+  const { toast } = useToast()
   const [event, setEvent] = useState<Event | null>(null)
-  const [seats, setSeats] = useState<Seat[]>([])
-  const [stats, setStats] = useState<SeatStats>({ total: 0, available: 0, reserved: 0, sold: 0 })
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [selectedSeats, setSelectedSeats] = useState<Set<string>>(new Set())
-  
-  // Seat generation form
-  const [generateForm, setGenerateForm] = useState({
-    sections: [
-      { name: "VIP", rows: 5, seatsPerRow: 10, basePrice: 150 },
-      { name: "Platea", rows: 20, seatsPerRow: 25, basePrice: 100 },
-      { name: "General", rows: 30, seatsPerRow: 30, basePrice: 75 }
-    ]
-  })
+  const [sections, setSections] = useState<SeatSection[]>([
+    { section: "General", rows: 10, seatsPerRow: 20, priceMultiplier: 1.0 }
+  ])
 
   useEffect(() => {
     fetchEvent()
-    fetchSeats()
-  }, [params.eventId])
+  }, [eventId])
 
   const fetchEvent = async () => {
-    try {
-      // Mock event data
-      const mockEvent: Event = {
-        id: params.eventId,
-        name: "Concierto Rock 2026",
-        venue: "Estadio Nacional",
-        maxCapacity: 50000,
-        basePrice: 75.00
-      }
-      setEvent(mockEvent)
-    } catch (error) {
-      console.error("Error fetching event:", error)
-    }
-  }
-
-  const fetchSeats = async () => {
     setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const fetchedEvent = await getEvent(eventId)
       
-      // Mock seats data - empty to start with
-      const mockSeats: Seat[] = []
-      
-      setSeats(mockSeats)
-      
-      // Calculate stats
-      const statsData: SeatStats = {
-        total: mockSeats.length,
-        available: mockSeats.filter(s => s.status === "available").length,
-        reserved: mockSeats.filter(s => s.status === "reserved").length,
-        sold: mockSeats.filter(s => s.status === "sold").length
+      if (!fetchedEvent) {
+        toast({
+          title: "Error",
+          description: "Evento no encontrado.",
+          variant: "destructive",
+        })
+        router.push("/admin/events")
+        return
       }
-      setStats(statsData)
-      
+
+      setEvent(fetchedEvent)
     } catch (error) {
-      console.error("Error fetching seats:", error)
+      console.error("Error fetching event:", error)
+      toast({
+        title: "Error",
+        description: "Error al cargar el evento.",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const generateSeats = async () => {
+  const addSection = () => {
+    setSections([...sections, { 
+      section: `Sección ${sections.length + 1}`, 
+      rows: 5, 
+      seatsPerRow: 10, 
+      priceMultiplier: 1.0 
+    }])
+  }
+
+  const removeSection = (index: number) => {
+    if (sections.length > 1) {
+      setSections(sections.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateSection = (index: number, field: keyof SeatSection, value: string | number) => {
+    const newSections = [...sections]
+    newSections[index] = { ...newSections[index], [field]: value }
+    setSections(newSections)
+  }
+
+  const getTotalSeats = () => {
+    return sections.reduce((total, section) => total + (section.rows * section.seatsPerRow), 0)
+  }
+
+  const handleGenerateSeats = async () => {
+    if (!event) return
+
+    // Validate sections
+    const hasErrors = sections.some(section => 
+      section.rows <= 0 || 
+      section.seatsPerRow <= 0 || 
+      section.priceMultiplier <= 0 ||
+      !section.section.trim()
+    )
+
+    if (hasErrors) {
+      toast({
+        title: "Error de validación",
+        description: "Todos los campos deben tener valores válidos mayores a 0.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const totalSeats = getTotalSeats()
+    if (totalSeats > event.maxCapacity) {
+      toast({
+        title: "Capacidad excedida",
+        description: `El total de asientos (${totalSeats}) excede la capacidad máxima del evento (${event.maxCapacity}).`,
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsGenerating(true)
     try {
-      // Simulate seat generation
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      const newSeats: Seat[] = []
-      let seatId = 1
-      
-      generateForm.sections.forEach(section => {
-        for (let row = 1; row <= section.rows; row++) {
-          for (let seatNum = 1; seatNum <= section.seatsPerRow; seatNum++) {
-            newSeats.push({
-              id: seatId.toString(),
-              section: section.name,
-              row: row.toString().padStart(2, "0"),
-              number: seatNum.toString().padStart(2, "0"),
-              price: section.basePrice,
-              status: "available"
-            })
-            seatId++
-          }
-        }
+      const sectionConfigurations: SeatSectionConfiguration[] = sections.map(section => ({
+        sectionCode: section.section,
+        rows: section.rows,
+        seatsPerRow: section.seatsPerRow,
+        priceMultiplier: section.priceMultiplier
+      }))
+
+      await catalogAdminApi.generateSeats(eventId, {
+        sectionConfigurations
       })
-      
-      setSeats(newSeats)
-      
-      // Update stats
-      setStats({
-        total: newSeats.length,
-        available: newSeats.length,
-        reserved: 0,
-        sold: 0
+
+      toast({
+        title: "Éxito",
+        description: `Se generaron ${totalSeats} asientos correctamente.`,
       })
+
+      // Redirect to event detail
+      router.push(`/admin/events/${eventId}`)
       
     } catch (error) {
       console.error("Error generating seats:", error)
+      toast({
+        title: "Error",
+        description: "Error al generar los asientos. Por favor, intenta nuevamente.",
+        variant: "destructive",
+      })
     } finally {
       setIsGenerating(false)
     }
   }
 
-  const handleSeatClick = (seatId: string) => {
-    setSelectedSeats(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(seatId)) {
-        newSet.delete(seatId)
-      } else {
-        newSet.add(seatId)
-      }
-      return newSet
+  const handlePreviewSeats = () => {
+    toast({
+      title: "Funcionalidad en desarrollo",
+      description: "La vista previa de asientos está en desarrollo y estará disponible pronto.",
     })
   }
 
-  const updateSeatPrices = async (newPrice: number) => {
-    try {
-      const updatedSeats = seats.map(seat => 
-        selectedSeats.has(seat.id) ? { ...seat, price: newPrice } : seat
-      )
-      setSeats(updatedSeats)
-      setSelectedSeats(new Set())
-      
-      console.log(`Updated ${selectedSeats.size} seats to price: ${newPrice}`)
-    } catch (error) {
-      console.error("Error updating seat prices:", error)
-    }
-  }
-
-  const getSeatStatusColor = (status: Seat["status"]) => {
-    switch (status) {
-      case "available": return "bg-green-500 hover:bg-green-600"
-      case "reserved": return "bg-yellow-500"
-      case "sold": return "bg-red-500"
-      default: return "bg-gray-500"
-    }
-  }
-
-  const groupSeatsBySection = () => {
-    const grouped = seats.reduce((acc, seat) => {
-      if (!acc[seat.section]) {
-        acc[seat.section] = {}
-      }
-      if (!acc[seat.section][seat.row]) {
-        acc[seat.section][seat.row] = []
-      }
-      acc[seat.section][seat.row].push(seat)
-      return acc
-    }, {} as Record<string, Record<string, Seat[]>>)
-
-    // Sort seats by number within each row
-    Object.keys(grouped).forEach(section => {
-      Object.keys(grouped[section]).forEach(row => {
-        grouped[section][row].sort((a, b) => parseInt(a.number) - parseInt(b.number))
-      })
-    })
-
-    return grouped
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-4 w-full mb-4" />
+            <Skeleton className="h-4 w-3/4 mb-4" />
+            <Skeleton className="h-4 w-1/2" />
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (!event) {
-    return <div className="text-center py-12">Cargando evento...</div>
-  }
-
-  const groupedSeats = groupSeatsBySection()
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Asientos</h1>
-          <p className="mt-2 text-gray-600">{event.name} - {event.venue}</p>
-        </div>
-        <div className="flex space-x-3">
-          <Link href={`/admin/events/${params.eventId}`}>
-            <AdminButton variant="ghost">
-              ← Volver al Evento
-            </AdminButton>
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Error</h1>
+          <p className="text-muted-foreground">Evento no encontrado</p>
+          <Link href="/admin/events" className="mt-4 inline-block">
+            <AdminButton>Volver a Eventos</AdminButton>
           </Link>
         </div>
       </div>
+    )
+  }
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <span className="text-2xl">🎟️</span>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total.toLocaleString()}</p>
-            </div>
-          </div>
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Gestión de Asientos</h1>
+          <p className="mt-2 text-muted-foreground">
+            Configura y genera los asientos para <span className="font-medium">{event.name}</span>
+          </p>
         </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <span className="text-2xl">✅</span>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Disponibles</p>
-              <p className="text-2xl font-bold text-green-600">{stats.available.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <span className="text-2xl">⏳</span>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Reservados</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.reserved.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <span className="text-2xl">🎫</span>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Vendidos</p>
-              <p className="text-2xl font-bold text-red-600">{stats.sold.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
+        <AdminButton variant="outline" asChild>
+          <Link href={`/admin/events/${event.id}`}>
+            ← Volver al Evento
+          </Link>
+        </AdminButton>
       </div>
 
-      {/* Seat Management */}
-      {seats.length === 0 ? (
-        /* Seat Generation Form */
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-6">Generar Asientos</h3>
-          
-          <AdminForm onSubmit={(e) => { e.preventDefault(); generateSeats(); }}>
-            <AdminFormSection 
-              title="Configuración de Secciones" 
-              description="Define las secciones y precios para el venue"
-            >
-              <div className="space-y-6">
-                {generateForm.sections.map((section, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Sección
-                      </label>
-                      <input
-                        type="text"
-                        value={section.name}
-                        onChange={(e) => {
-                          const newSections = [...generateForm.sections]
-                          newSections[index].name = e.target.value
-                          setGenerateForm({ ...generateForm, sections: newSections })
-                        }}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Filas
-                      </label>
-                      <input
-                        type="number"
-                        value={section.rows}
-                        onChange={(e) => {
-                          const newSections = [...generateForm.sections]
-                          newSections[index].rows = parseInt(e.target.value) || 0
-                          setGenerateForm({ ...generateForm, sections: newSections })
-                        }}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Asientos por Fila
-                      </label>
-                      <input
-                        type="number"
-                        value={section.seatsPerRow}
-                        onChange={(e) => {
-                          const newSections = [...generateForm.sections]
-                          newSections[index].seatsPerRow = parseInt(e.target.value) || 0
-                          setGenerateForm({ ...generateForm, sections: newSections })
-                        }}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Precio Base (PEN)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={section.basePrice}
-                        onChange={(e) => {
-                          const newSections = [...generateForm.sections]
-                          newSections[index].basePrice = parseFloat(e.target.value) || 0
-                          setGenerateForm({ ...generateForm, sections: newSections })
-                        }}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+      {/* Event Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Settings className="h-5 w-5 mr-2" />
+            Resumen del Evento
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="font-medium">Capacidad Máxima</p>
+              <p className="text-2xl font-bold text-primary">{event.maxCapacity?.toLocaleString() || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="font-medium">Precio Base</p>
+              <p className="text-2xl font-bold text-green-600">
+                {new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" }).format(event.basePrice)}
+              </p>
+            </div>
+            <div>
+              <p className="font-medium">Asientos Configurados</p>
+              <p className="text-2xl font-bold text-blue-600">{getTotalSeats().toLocaleString()}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-              <div className="flex justify-between items-center pt-4">
-                <p className="text-sm text-gray-600">
-                  Total de asientos a generar: {generateForm.sections.reduce((sum, s) => sum + s.rows * s.seatsPerRow, 0).toLocaleString()}
-                </p>
-                <AdminButton type="submit" disabled={isGenerating}>
-                  {isGenerating ? "Generando..." : "Generar Asientos"}
-                </AdminButton>
-              </div>
-            </AdminFormSection>
-          </AdminForm>
-        </div>
-      ) : (
-        /* Seat Layout Display */
-        <div className="space-y-6">
-          {/* Selected Seats Actions */}
-          {selectedSeats.size > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      {/* Configuration Alert */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          Configura las secciones de asientos para tu evento. El precio final se calculará multiplicando el precio base por el multiplicador de cada sección.
+        </AlertDescription>
+      </Alert>
+
+      {/* Sections Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Configuración de Secciones
+            <Button onClick={addSection} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar Sección
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {sections.map((section, index) => (
+            <div key={index} className="p-4 border rounded-lg space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-blue-800">
-                  {selectedSeats.size} asientos seleccionados
-                </p>
-                <div className="flex space-x-3">
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Nuevo precio"
-                    className="px-3 py-1 border border-blue-300 rounded text-sm"
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        const newPrice = parseFloat((e.target as HTMLInputElement).value)
-                        if (newPrice > 0) {
-                          updateSeatPrices(newPrice)
-                          ;(e.target as HTMLInputElement).value = ""
-                        }
-                      }
-                    }}
-                  />
-                  <AdminButton 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => setSelectedSeats(new Set())}
+                <h3 className="font-medium">Sección {index + 1}</h3>
+                {sections.length > 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeSection(index)}
                   >
-                    Limpiar Selección
-                  </AdminButton>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor={`section-${index}`}>Nombre de la Sección</Label>
+                  <Input
+                    id={`section-${index}`}
+                    value={section.section}
+                    onChange={(e) => updateSection(index, 'section', e.target.value)}
+                    placeholder="Ej: VIP, General"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor={`rows-${index}`}>Filas</Label>
+                  <Input
+                    id={`rows-${index}`}
+                    type="number"
+                    min="1"
+                    value={section.rows}
+                    onChange={(e) => updateSection(index, 'rows', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor={`seats-${index}`}>Asientos por Fila</Label>
+                  <Input
+                    id={`seats-${index}`}
+                    type="number"
+                    min="1"
+                    value={section.seatsPerRow}
+                    onChange={(e) => updateSection(index, 'seatsPerRow', parseInt(e.target.value) || 0)}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor={`multiplier-${index}`}>Multiplicador de Precio</Label>
+                  <Input
+                    id={`multiplier-${index}`}
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={section.priceMultiplier}
+                    onChange={(e) => updateSection(index, 'priceMultiplier', parseFloat(e.target.value) || 1.0)}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
+                <div>
+                  <span className="font-medium">Total Asientos:</span> {section.rows * section.seatsPerRow}
+                </div>
+                <div>
+                  <span className="font-medium">Precio por Asiento:</span> {new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" }).format(event.basePrice * section.priceMultiplier)}
+                </div>
+                <div>
+                  <span className="font-medium">Ingresos Potenciales:</span> {new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" }).format(event.basePrice * section.priceMultiplier * section.rows * section.seatsPerRow)}
                 </div>
               </div>
             </div>
-          )}
+          ))}
+        </CardContent>
+      </Card>
 
-          {/* Legend */}
-          <div className="bg-white shadow rounded-lg p-4">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-green-500 rounded"></div>
-                <span className="text-sm text-gray-600">Disponible</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-                <span className="text-sm text-gray-600">Reservado</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-red-500 rounded"></div>
-                <span className="text-sm text-gray-600">Vendido</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-blue-500 rounded border-2 border-blue-700"></div>
-                <span className="text-sm text-gray-600">Seleccionado</span>
-              </div>
+      {/* Summary and Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumen y Acciones</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-primary">{getTotalSeats().toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Total de Asientos</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-green-600">
+                {new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" }).format(
+                  sections.reduce((total, section) => 
+                    total + (event.basePrice * section.priceMultiplier * section.rows * section.seatsPerRow), 0
+                  )
+                )}
+              </p>
+              <p className="text-sm text-muted-foreground">Ingresos Potenciales</p>
+            </div>
+            <div className="text-center">
+              <Badge variant={getTotalSeats() <= event.maxCapacity ? "default" : "destructive"}>
+                {getTotalSeats() <= event.maxCapacity ? "En Capacidad" : "Excede Capacidad"}
+              </Badge>
+              <p className="text-sm text-muted-foreground mt-1">
+                {event.maxCapacity - getTotalSeats()} asientos restantes
+              </p>
             </div>
           </div>
-
-          {/* Seat Layout per Section */}
-          {Object.entries(groupedSeats).map(([sectionName, rows]) => (
-            <div key={sectionName} className="bg-white shadow rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {sectionName}
-              </h3>
-              
-              <div className="space-y-2">
-                {Object.entries(rows)
-                  .sort(([a], [b]) => parseInt(a) - parseInt(b))
-                  .map(([rowName, rowSeats]) => (
-                  <div key={rowName} className="flex items-center space-x-2">
-                    <div className="w-8 text-sm text-gray-500 text-right">
-                      {rowName}
-                    </div>
-                    <div className="flex space-x-1">
-                      {rowSeats.map(seat => (
-                        <button
-                          key={seat.id}
-                          onClick={() => handleSeatClick(seat.id)}
-                          className={`w-6 h-6 text-xs rounded text-white font-medium transition-all
-                            ${getSeatStatusColor(seat.status)}
-                            ${selectedSeats.has(seat.id) ? "ring-2 ring-blue-700 ring-offset-1" : ""}
-                            ${seat.status === "available" ? "cursor-pointer" : "cursor-not-allowed"}
-                          `}
-                          disabled={seat.status !== "available"}
-                          title={`${seat.section}-${seat.row}-${seat.number} - PEN ${seat.price}`}
-                        >
-                          {seat.number}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+          
+          <div className="flex flex-wrap gap-3">
+            <AdminButton 
+              onClick={handleGenerateSeats}
+              isLoading={isGenerating}
+              disabled={getTotalSeats() > event.maxCapacity || getTotalSeats() === 0}
+            >
+              Generar Asientos
+            </AdminButton>
+            
+            <AdminButton 
+              variant="outline"
+              onClick={handlePreviewSeats}
+            >
+              Vista Previa
+            </AdminButton>
+            
+            <AdminButton variant="outline" asChild>
+              <Link href={`/admin/events/${event.id}`}>
+                Cancelar
+              </Link>
+            </AdminButton>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

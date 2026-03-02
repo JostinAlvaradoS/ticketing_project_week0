@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Identity.Domain.Ports;
+using Identity.Domain.Entities;
+using Identity.Domain.ValueObjects;
 using Npgsql;
 
 namespace Identity.Infrastructure.Persistence;
@@ -11,10 +13,12 @@ namespace Identity.Infrastructure.Persistence;
 public class DbInitializer : IDbInitializer
 {
     private readonly IdentityDbContext _dbContext;
+    private readonly IPasswordHasher _passwordHasher;
 
-    public DbInitializer(IdentityDbContext dbContext)
+    public DbInitializer(IdentityDbContext dbContext, IPasswordHasher passwordHasher)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
     }
 
     /// <summary>
@@ -82,11 +86,54 @@ public class DbInitializer : IDbInitializer
             }
             
             Console.WriteLine("✓ Migraciones aplicadas correctamente en schema bc_identity");
+            
+            // Seed admin user automáticamente
+            await SeedDefaultAdminUserAsync();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"✗ Error fatal en inicialización de BD: {ex.Message}");
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Crea un usuario administrador predeterminado si no existe ningún admin en el sistema.
+    /// Email: admin@ticketing.com, Password: Admin123!
+    /// </summary>
+    private async Task SeedDefaultAdminUserAsync()
+    {
+        try
+        {
+            // Verificar si ya existe algún usuario admin
+            var hasAdmin = await _dbContext.Users
+                .AnyAsync(u => u.Role == Role.Admin);
+
+            if (!hasAdmin)
+            {
+                // Crear usuario admin predeterminado
+                var passwordHash = _passwordHasher.HashPassword("Admin123!");
+                var adminUser = new User(
+                    email: "admin@ticketing.com", 
+                    passwordHash: passwordHash, 
+                    role: Role.Admin);
+
+                _dbContext.Users.Add(adminUser);
+                await _dbContext.SaveChangesAsync();
+                
+                Console.WriteLine("✓ Usuario administrador predeterminado creado:");
+                Console.WriteLine("   Email: admin@ticketing.com");
+                Console.WriteLine("   Password: Admin123!");
+            }
+            else
+            {
+                Console.WriteLine("✓ Usuario administrador ya existe en el sistema");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠ Warning al crear usuario admin: {ex.Message}");
+            // No lanzar excepción aquí para no detener el inicio del servicio
         }
     }
 }

@@ -1,4 +1,5 @@
 using Identity.Domain.Ports;
+using Identity.Domain.ValueObjects;
 using Identity.Application.UseCases.IssueToken;
 using Identity.Application.UseCases.CreateUser;
 using Identity.Infrastructure;
@@ -33,11 +34,30 @@ app.MapPost("/token", async (
     IssueTokenRequest request,
     IssueTokenHandler handler) =>
 {
-    var result = await handler.Handle(
-        new IssueTokenCommand(request.Email, request.Password));
+    try
+    {
+        var result = await handler.Handle(
+            new IssueTokenCommand(request.Email, request.Password));
 
-    return Results.Ok(result);
+        // Mapear a la respuesta esperada por el contrato OpenAPI y frontend
+        var response = new IssueTokenResponse(
+            token: result.AccessToken,
+            expiresAt: result.ExpiresAt,
+            userRole: result.UserRole.ToString(),
+            userEmail: result.UserEmail
+        );
+
+        return Results.Ok(response);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Token generation error: {ex.Message}");
+        return Results.Unauthorized();
+    }
 });
+
+// Health check endpoint
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "identity" }));
 
 // Aplicar migraciones automáticamente al iniciar la aplicación
 using (var scope = app.Services.CreateScope())
@@ -57,12 +77,14 @@ using (var scope = app.Services.CreateScope())
         throw;
     }
     
-    // Seed: crear usuario de prueba si no existe (solo si BD está ok)
+    // Seed: crear usuarios de prueba si no existen (solo si BD está ok)
     try
     {
         var createUserHandler = scope.ServiceProvider.GetRequiredService<CreateUserHandler>();
+        
+        // Usuario normal para testing
         await createUserHandler.Handle(new CreateUserCommand("test@example.com", "Password123!"));
-        Console.WriteLine("✓ Usuario de prueba creado: test@example.com");
+        Console.WriteLine("✓ Usuario de prueba creado: test@example.com (Role: User)");
     }
     catch (Exception ex)
     {
@@ -80,3 +102,10 @@ using (var scope = app.Services.CreateScope())
 app.Run();
 
 public record IssueTokenRequest(string Email, string Password);
+
+public record IssueTokenResponse(
+    string token,
+    DateTime expiresAt,
+    string userRole,
+    string userEmail
+);

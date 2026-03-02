@@ -81,4 +81,52 @@ public class CreateReservationCommandHandlerTests
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() => _handler.Handle(command, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task Handle_WithLockAcquisitionFailure_ShouldThrowException()
+    {
+        // Arrange
+        var seatId = Guid.NewGuid();
+        var command = new CreateReservationCommand(seatId, "customer-123");
+        
+        _redisLockMock.Setup(l => l.AcquireLockAsync(It.IsAny<string>(), It.IsAny<TimeSpan>()))
+            .ReturnsAsync((string?)null); // Failure to acquire lock
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _handler.Handle(command, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Handle_WithNonExistentSeat_ShouldThrowException()
+    {
+        // Arrange
+        var seatId = Guid.NewGuid();
+        var command = new CreateReservationCommand(seatId, "customer-123");
+        
+        _redisLockMock.Setup(l => l.AcquireLockAsync(It.IsAny<string>(), It.IsAny<TimeSpan>()))
+            .ReturnsAsync("valid-lock-token");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => _handler.Handle(command, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Handle_WithEmptySeatId_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var command = new CreateReservationCommand(Guid.Empty, "customer-123");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => _handler.Handle(command, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Handle_WithEmptyCustomerId_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var command = new CreateReservationCommand(Guid.NewGuid(), "");
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => _handler.Handle(command, CancellationToken.None));
+    }
 }

@@ -1,3 +1,4 @@
+using Fulfillment.Application.Ports;
 using Fulfillment.Application.UseCases.ProcessPaymentSucceeded;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -12,12 +13,19 @@ namespace Fulfillment.Application.UnitTests.UseCases;
 public class ProcessPaymentSucceededHandlerTests
 {
     private readonly Mock<ILogger<ProcessPaymentSucceededHandler>> _loggerMock;
+    private readonly Mock<IOrderingServiceClient> _orderingServiceMock;
+    private readonly Mock<ITicketRepository> _ticketRepositoryMock;
     private readonly ProcessPaymentSucceededHandler _handler;
 
     public ProcessPaymentSucceededHandlerTests()
     {
         _loggerMock = new Mock<ILogger<ProcessPaymentSucceededHandler>>();
-        _handler = new ProcessPaymentSucceededHandler(_loggerMock.Object);
+        _orderingServiceMock = new Mock<IOrderingServiceClient>();
+        _ticketRepositoryMock = new Mock<ITicketRepository>();
+        _handler = new ProcessPaymentSucceededHandler(
+            _loggerMock.Object,
+            _orderingServiceMock.Object,
+            _ticketRepositoryMock.Object);
     }
 
     [Fact]
@@ -41,7 +49,7 @@ public class ProcessPaymentSucceededHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.Success.Should().BeTrue();
-        result.Message.Should().Be("Ticket generation in progress");
+        result.Message.Should().Be("Ticket generated successfully");
         
         _loggerMock.Verify(
             x => x.Log(

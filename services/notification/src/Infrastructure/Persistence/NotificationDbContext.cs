@@ -15,7 +15,10 @@ public class NotificationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.HasDefaultSchema("bc_notification");
+        if (Database.IsRelational())
+        {
+            modelBuilder.HasDefaultSchema("bc_notification");
+        }
 
         modelBuilder.Entity<EmailNotification>(entity =>
         {
@@ -44,14 +47,17 @@ public class NotificationDbContext : DbContext
             entity.Property(e => e.Status)
                 .HasConversion<int>();
 
-            entity.Property(e => e.CreatedAt)
-                .HasColumnType("timestamp with time zone");
+            if (Database.IsRelational())
+            {
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnType("timestamp with time zone");
 
-            entity.Property(e => e.SentAt)
-                .HasColumnType("timestamp with time zone");
+                entity.Property(e => e.SentAt)
+                    .HasColumnType("timestamp with time zone");
 
-            entity.Property(e => e.UpdatedAt)
-                .HasColumnType("timestamp with time zone");
+                entity.Property(e => e.UpdatedAt)
+                    .HasColumnType("timestamp with time zone");
+            }
 
             // Index for quick lookups
             entity.HasIndex(e => e.OrderId).IsUnique();

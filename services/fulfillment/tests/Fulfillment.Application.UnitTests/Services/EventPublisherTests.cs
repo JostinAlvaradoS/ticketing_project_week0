@@ -35,10 +35,10 @@ public class EventPublisherTests
 
         // Assert
         json.Should().NotBeNullOrEmpty();
-        // Check for camelCase properties
-        json.Should().Contain("orderId");
-        json.Should().Contain("ticketId");
-        json.Should().Contain("customerEmail");
+        // Check for snake_case properties (as defined in TicketIssuedEvent attributes)
+        json.Should().Contain("order_id");
+        json.Should().Contain("ticket_id");
+        json.Should().Contain("customer_email");
     }
 
     [Fact]

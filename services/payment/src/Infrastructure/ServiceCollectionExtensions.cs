@@ -37,7 +37,7 @@ public static class ServiceCollectionExtensions
                 npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "bc_payment"));
         });
         
-        services.AddScoped<IDbInitializer, DbInitializer>();
+        // IDbInitializer removed - migrations handled externally
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         
         // Configure Kafka options
@@ -71,25 +71,10 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static async Task<WebApplication> UseInfrastructure(this WebApplication app)
+    public static WebApplication UseInfrastructure(this WebApplication app)
     {
-        // Apply migrations automatically on startup
-        using (var scope = app.Services.CreateScope())
-        {
-            try
-            {
-                var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-                await dbInitializer.InitializeAsync();
-                Console.WriteLine("✓ Payment DB initialized");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"⚠ Warning: Could not initialize database");
-                Console.WriteLine($"  Reason: {ex.Message}");
-                Console.WriteLine($"  Service will continue to run. DB will be initialized on next startup.");
-            }
-        }
-
+        // DB initialization and migrations are now handled externally (pipeline)
+        
         // Configure the HTTP request pipeline
         if (app.Environment.IsDevelopment())
         {

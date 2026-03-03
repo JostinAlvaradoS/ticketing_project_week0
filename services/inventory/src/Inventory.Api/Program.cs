@@ -40,21 +40,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 // Map endpoints
 app.MapReservationEndpoints();
 
-// Aplicar migraciones / inicialización de BD al iniciar
-using (var scope = app.Services.CreateScope())
-{
-    try
-    {
-        var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-        await dbInitializer.InitializeAsync();
-        Console.WriteLine("✓ Inventory DB initialized");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"✗ Inventory DB initialization failed: {ex.Message}");
-        throw;
-    }
-}
+// DB initialization and migrations are now handled externally (pipeline)
 
 app.Run();
 

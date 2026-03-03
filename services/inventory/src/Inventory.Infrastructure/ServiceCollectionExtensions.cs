@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
                 npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "bc_inventory"));
         });
 
-        services.AddScoped<IDbInitializer, DbInitializer>();
+        // IDbInitializer removed - migrations handled externally
 
         // Configure Redis connection multiplexer and Redis lock adapter
         var redisConn = configuration.GetConnectionString("Redis") ?? configuration["Redis:Connection"] ?? "localhost:6379";

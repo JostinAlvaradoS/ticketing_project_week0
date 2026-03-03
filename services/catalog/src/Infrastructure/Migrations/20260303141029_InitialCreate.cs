@@ -1,8 +1,9 @@
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Catalog.Infrastructure.Persistence.Migrations
+namespace Catalog.Infrastructure.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -22,7 +23,12 @@ namespace Catalog.Infrastructure.Persistence.Migrations
                     Name = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
                     EventDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    BasePrice = table.Column<decimal>(type: "numeric(18,2)", nullable: false)
+                    Venue = table.Column<string>(type: "text", nullable: false),
+                    MaxCapacity = table.Column<int>(type: "integer", nullable: false),
+                    BasePrice = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false, defaultValue: "active"),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -39,8 +45,9 @@ namespace Catalog.Infrastructure.Persistence.Migrations
                     SectionCode = table.Column<string>(type: "text", nullable: false),
                     RowNumber = table.Column<int>(type: "integer", nullable: false),
                     SeatNumber = table.Column<int>(type: "integer", nullable: false),
-                    Price = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
-                    Status = table.Column<string>(type: "text", nullable: false, defaultValue: "available")
+                    Price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false, defaultValue: "available"),
+                    CurrentReservationId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -53,12 +60,6 @@ namespace Catalog.Infrastructure.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Seats_EventId",
-                schema: "bc_catalog",
-                table: "Seats",
-                column: "EventId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Seats_EventId_SectionCode_RowNumber_SeatNumber",

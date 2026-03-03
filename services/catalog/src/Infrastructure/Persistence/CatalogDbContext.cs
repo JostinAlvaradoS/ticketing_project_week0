@@ -42,6 +42,7 @@ public class CatalogDbContext : DbContext
             entity.Property(x => x.SeatNumber).IsRequired();
             entity.Property(x => x.Price).IsRequired().HasPrecision(18, 2);
             entity.Property(x => x.Status).IsRequired().HasDefaultValue("available");
+            entity.Property(x => x.CurrentReservationId);
             entity.HasIndex(x => new { x.EventId, x.SectionCode, x.RowNumber, x.SeatNumber })
                 .IsUnique();
         });

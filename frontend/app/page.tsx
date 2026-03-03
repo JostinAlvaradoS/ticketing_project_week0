@@ -9,6 +9,8 @@ export default async function EventsPage() {
 
   try {
     events = await getEvents()
+    console.log("Events:", events);
+    
   } catch (err) {
     error = err instanceof Error ? err.message : "Failed to load events"
     console.error("Error loading events:", error)

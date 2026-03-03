@@ -29,7 +29,9 @@ public class JwtTokenGenerator : ITokenGenerator
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email)
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            // Agregar claim de rol para autenticación frontend
+            new Claim("role", user.Role.ToString())
         };
 
         var descriptor = new SecurityTokenDescriptor

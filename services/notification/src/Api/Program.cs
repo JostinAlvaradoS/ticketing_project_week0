@@ -21,7 +21,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
-await app.UseInfrastructure();
+app.UseInfrastructure();
 
 Console.WriteLine("🚀 Notification API is starting...");
 Console.WriteLine("📍 Listening on http://0.0.0.0:5005");

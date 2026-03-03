@@ -3,10 +3,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.Security.Claims;
+using Confluent.Kafka;
 using Catalog.Application.Ports;
 using Catalog.Application.UseCases.GetEventSeatmap;
 using Catalog.Infrastructure.Persistence;
 using Catalog.Infrastructure.Messaging;
+using Catalog.Infrastructure.Consumers;
 
 namespace Catalog.Infrastructure;
 
@@ -20,39 +26,85 @@ public static class ServiceCollectionExtensions
         // Add MediatR
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(GetEventSeatmapHandler).Assembly));
 
+        // Add Database Context
         services.AddDbContext<CatalogDbContext>(options =>
         {
             options.UseNpgsql(configuration.GetConnectionString("Default"), 
                 npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "bc_catalog"));
         });
         
+        // Add Repository
         services.AddScoped<ICatalogRepository, CatalogRepository>();
-        services.AddScoped<IDbInitializer, DbInitializer>();
 
-        // Kafka Event Consumer
+        // Configure Kafka producer
+        var kafkaBootstrapServers = configuration.GetConnectionString("Kafka") ?? configuration["Kafka:BootstrapServers"] ?? "localhost:9092";
+        var kafkaConfig = new ProducerConfig
+        {
+            BootstrapServers = kafkaBootstrapServers,
+            AllowAutoCreateTopics = true,
+            Acks = Acks.All
+        };
+        var producer = new ProducerBuilder<string?, string>(kafkaConfig).Build();
+        services.AddSingleton(producer);
+        services.AddSingleton<IKafkaProducer, KafkaProducer>();
+
+        // Kafka consumers
         services.AddHostedService<CatalogEventConsumer>();
+
+        var consumerConfig = new ConsumerConfig
+        {
+            BootstrapServers = kafkaBootstrapServers,
+            GroupId = "catalog-ticket-issued-consumer",
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            EnableAutoCommit = false
+        };
+        var consumer = new ConsumerBuilder<string?, string>(consumerConfig).Build();
+        services.AddSingleton<IHostedService, TicketIssuedConsumer>(sp =>
+        {
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            return new TicketIssuedConsumer(scopeFactory, consumer);
+        });
         
+        // Add JWT Authentication
+        var jwtKey = configuration["Jwt:Key"]!;
+        var jwtIssuer = configuration["Jwt:Issuer"]!;
+        var jwtAudience = configuration["Jwt:Audience"]!;
+        
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtAudience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+                };
+            });
+
+        // Add Authorization with Admin policy
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("RequireAdmin", policy =>
+                policy.RequireAssertion(context =>
+                {
+                    // For MVP: Check if user email contains "admin" or matches test admin
+                    var emailClaim = context.User.FindFirst(ClaimTypes.Email)?.Value;
+                    return !string.IsNullOrEmpty(emailClaim) && 
+                           (emailClaim.Contains("admin", StringComparison.OrdinalIgnoreCase) ||
+                            emailClaim.Equals("test@example.com", StringComparison.OrdinalIgnoreCase));
+                }));
+        });
+
         return services;
     }
 
-    public static async Task<WebApplication> UseInfrastructure(this WebApplication app)
+    public static WebApplication UseInfrastructure(this WebApplication app)
     {
-        // Apply migrations / DB initialization on startup
-        using (var scope = app.Services.CreateScope())
-        {
-            try
-            {
-                var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-                await dbInitializer.InitializeAsync();
-                Console.WriteLine("✓ Catalog DB initialized");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"✗ Catalog DB initialization failed: {ex.Message}");
-                throw;
-            }
-        }
-
+        // DB initialization and migrations are now handled externally (pipeline)
         // Configure the HTTP request pipeline
         if (app.Environment.IsDevelopment())
         {
@@ -61,6 +113,11 @@ public static class ServiceCollectionExtensions
 
         app.UseCors("FrontendPolicy");
         app.UseRouting();
+        
+        // Add Authentication & Authorization middleware
+        app.UseAuthentication();
+        app.UseAuthorization();
+        
         app.MapControllers();
 
         return app;

@@ -233,14 +233,16 @@ public class GetEventSeatmapHandlerTests
     // Test Helper Methods
     private static Event CreateEventWithSeats(Guid eventId)
     {
-        var eventEntity = new Event
-        {
-            Id = eventId,
-            Name = "Test Concert with Seats",
-            Description = "A concert with seats",
-            EventDate = DateTime.UtcNow.AddDays(15),
-            BasePrice = 100.00m
-        };
+        var eventEntity = Event.Create(
+            "Test Concert with Seats",
+            "A concert with seats",
+            DateTime.UtcNow.AddDays(15),
+            "Test Venue",
+            1000,
+            100.00m);
+
+        // Use reflection to set ID for testing
+        typeof(Event).GetProperty("Id")?.SetValue(eventEntity, eventId);
 
         eventEntity.Seats.Add(CreateSeat(eventId, "VIP", 1, 1, 200m, Seat.StatusAvailable));
         eventEntity.Seats.Add(CreateSeat(eventId, "General", 1, 1, 100m, Seat.StatusAvailable));
@@ -251,14 +253,16 @@ public class GetEventSeatmapHandlerTests
 
     private static Event CreateEventWithMixedSeats(Guid eventId)
     {
-        var eventEntity = new Event
-        {
-            Id = eventId,
-            Name = "Mixed Seating Event",
-            Description = "Event with various seat sections",
-            EventDate = DateTime.UtcNow.AddDays(20),
-            BasePrice = 75.00m
-        };
+        var eventEntity = Event.Create(
+            "Mixed Seating Event",
+            "Event with various seat sections",
+            DateTime.UtcNow.AddDays(20),
+            "Test Venue",
+            1000,
+            75.00m);
+
+        // Use reflection to set ID for testing
+        typeof(Event).GetProperty("Id")?.SetValue(eventEntity, eventId);
 
         // Adding in random order to test sorting
         eventEntity.Seats.Add(CreateSeat(eventId, "VIP", 2, 1, 250m, Seat.StatusAvailable));
@@ -271,26 +275,32 @@ public class GetEventSeatmapHandlerTests
 
     private static Event CreateEventWithoutSeats(Guid eventId)
     {
-        return new Event
-        {
-            Id = eventId,
-            Name = "Event Without Seats",
-            Description = "No seats available",
-            EventDate = DateTime.UtcNow.AddDays(10),
-            BasePrice = 50.00m
-        };
+        var eventEntity = Event.Create(
+            "Event Without Seats",
+            "No seats available",
+            DateTime.UtcNow.AddDays(10),
+            "Test Venue",
+            1000,
+            50.00m);
+
+        // Use reflection to set ID for testing
+        typeof(Event).GetProperty("Id")?.SetValue(eventEntity, eventId);
+        
+        return eventEntity;
     }
 
     private static Event CreateEventWithSpecificSeat(Guid eventId)
     {
-        var eventEntity = new Event
-        {
-            Id = eventId,
-            Name = "Single Seat Event",
-            Description = "Event with one specific seat",
-            EventDate = DateTime.UtcNow.AddDays(25),
-            BasePrice = 150.00m
-        };
+        var eventEntity = Event.Create(
+            "Single Seat Event",
+            "Event with one specific seat",
+            DateTime.UtcNow.AddDays(25),
+            "Test Venue",
+            1000,
+            150.00m);
+
+        // Use reflection to set ID for testing
+        typeof(Event).GetProperty("Id")?.SetValue(eventEntity, eventId);
 
         eventEntity.Seats.Add(CreateSeat(eventId, "Premium", 5, 12, 175.50m, Seat.StatusReserved));
 
@@ -299,14 +309,16 @@ public class GetEventSeatmapHandlerTests
 
     private static Event CreateEventWithSeatsInDifferentStatuses(Guid eventId)
     {
-        var eventEntity = new Event
-        {
-            Id = eventId,
-            Name = "Status Mix Event",
-            Description = "Event with seats in different statuses",
-            EventDate = DateTime.UtcNow.AddDays(12),
-            BasePrice = 80.00m
-        };
+        var eventEntity = Event.Create(
+            "Status Mix Event",
+            "Event with seats in different statuses",
+            DateTime.UtcNow.AddDays(12),
+            "Test Venue",
+            1000,
+            80.00m);
+
+        // Use reflection to set ID for testing
+        typeof(Event).GetProperty("Id")?.SetValue(eventEntity, eventId);
 
         eventEntity.Seats.Add(CreateSeat(eventId, "A", 1, 1, 80m, Seat.StatusAvailable));
         eventEntity.Seats.Add(CreateSeat(eventId, "A", 1, 2, 80m, Seat.StatusReserved));

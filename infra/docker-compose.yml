@@ -233,10 +233,10 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_CATALOG_URL=http://localhost:50001
-        - NEXT_PUBLIC_INVENTORY_URL=http://localhost:50002
-        - NEXT_PUBLIC_ORDERING_URL=http://localhost:5003
-        - NEXT_PUBLIC_PAYMENT_URL=http://localhost:5004
+        - NEXT_PUBLIC_CATALOG_URL=http://catalog:50001
+        - NEXT_PUBLIC_INVENTORY_URL=http://inventory:50002
+        - NEXT_PUBLIC_ORDERING_URL=http://ordering:5003
+        - NEXT_PUBLIC_PAYMENT_URL=http://payment:5004
     container_name: speckit-frontend
     ports:
       - "3000:3000"

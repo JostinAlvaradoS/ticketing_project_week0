@@ -27,7 +27,7 @@ public class CreateUserHandler
         var passwordHash = _passwordHasher.HashPassword(command.Password);
 
         // Crear usuario
-        var user = new User(command.Email, passwordHash);
+        var user = new User(command.Email, passwordHash, command.Role);
 
         // Guardar
         await _userRepository.SaveAsync(user);

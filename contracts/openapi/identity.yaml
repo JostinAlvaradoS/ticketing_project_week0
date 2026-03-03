@@ -7,7 +7,7 @@ info:
     name: SpecKit Team
 
 servers:
-  - url: http://localhost:5000
+  - url: http://localhost:50000
     description: Development environment
   - url: https://api.speckit.local
     description: Production environment
@@ -53,6 +53,14 @@ paths:
                     type: string
                     format: date-time
                     description: Token expiration timestamp
+                  userRole:
+                    type: string
+                    enum: [User, Admin]
+                    description: User role for authorization
+                  userEmail:
+                    type: string
+                    format: email
+                    description: Authenticated user email
         '400':
           description: Invalid credentials
         '500':

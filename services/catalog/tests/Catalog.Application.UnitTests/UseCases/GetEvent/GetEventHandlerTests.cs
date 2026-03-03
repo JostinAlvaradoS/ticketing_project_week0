@@ -28,7 +28,7 @@ public class GetEventHandlerTests
         var eventEntity = CreateEvent(eventId, "Test Concert", "Great concert", DateTime.UtcNow.AddDays(15), 125.50m);
 
         _mockRepository
-            .Setup(r => r.GetEventAsync(eventId, cancellationToken))
+            .Setup(r => r.GetEventWithSeatsAsync(eventId, cancellationToken))
             .ReturnsAsync(eventEntity);
 
         // Act
@@ -42,7 +42,7 @@ public class GetEventHandlerTests
         result.EventDate.Should().Be(eventEntity.EventDate);
         result.BasePrice.Should().Be(eventEntity.BasePrice);
 
-        _mockRepository.Verify(r => r.GetEventAsync(eventId, cancellationToken), Times.Once);
+        _mockRepository.Verify(r => r.GetEventWithSeatsAsync(eventId, cancellationToken), Times.Once);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class GetEventHandlerTests
         var query = new GetEventQuery(eventId);
 
         _mockRepository
-            .Setup(r => r.GetEventAsync(eventId, cancellationToken))
+            .Setup(r => r.GetEventWithSeatsAsync(eventId, cancellationToken))
             .ReturnsAsync((Event?)null);
 
         // Act
@@ -62,7 +62,7 @@ public class GetEventHandlerTests
 
         // Assert
         result.Should().BeNull();
-        _mockRepository.Verify(r => r.GetEventAsync(eventId, cancellationToken), Times.Once);
+        _mockRepository.Verify(r => r.GetEventWithSeatsAsync(eventId, cancellationToken), Times.Once);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class GetEventHandlerTests
 
         var expectedException = new InvalidOperationException("Database connection failed");
         _mockRepository
-            .Setup(r => r.GetEventAsync(eventId, cancellationToken))
+            .Setup(r => r.GetEventWithSeatsAsync(eventId, cancellationToken))
             .ThrowsAsync(expectedException);
 
         // Act & Assert
@@ -83,7 +83,7 @@ public class GetEventHandlerTests
         await action.Should().ThrowAsync<InvalidOperationException>()
                    .WithMessage("Database connection failed");
 
-        _mockRepository.Verify(r => r.GetEventAsync(eventId, cancellationToken), Times.Once);
+        _mockRepository.Verify(r => r.GetEventWithSeatsAsync(eventId, cancellationToken), Times.Once);
     }
 
     [Fact]
@@ -96,14 +96,14 @@ public class GetEventHandlerTests
         var query = new GetEventQuery(eventId);
 
         _mockRepository
-            .Setup(r => r.GetEventAsync(eventId, cancellationToken))
+            .Setup(r => r.GetEventWithSeatsAsync(eventId, cancellationToken))
             .ReturnsAsync((Event?)null);
 
         // Act
         await _handler.Handle(query, cancellationToken);
 
         // Assert
-        _mockRepository.Verify(r => r.GetEventAsync(eventId, cancellationToken), Times.Once);
+        _mockRepository.Verify(r => r.GetEventWithSeatsAsync(eventId, cancellationToken), Times.Once);
     }
 
     [Fact]
@@ -115,15 +115,15 @@ public class GetEventHandlerTests
         var query = new GetEventQuery(eventId);
 
         _mockRepository
-            .Setup(r => r.GetEventAsync(eventId, cancellationToken))
+            .Setup(r => r.GetEventWithSeatsAsync(eventId, cancellationToken))
             .ReturnsAsync((Event?)null);
 
         // Act
         await _handler.Handle(query, cancellationToken);
 
         // Assert
-        _mockRepository.Verify(r => r.GetEventAsync(eventId, cancellationToken), Times.Once);
-        _mockRepository.Verify(r => r.GetEventAsync(It.Is<Guid>(id => id == eventId), cancellationToken), Times.Once);
+        _mockRepository.Verify(r => r.GetEventWithSeatsAsync(eventId, cancellationToken), Times.Once);
+        _mockRepository.Verify(r => r.GetEventWithSeatsAsync(It.Is<Guid>(id => id == eventId), cancellationToken), Times.Once);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class GetEventHandlerTests
         );
 
         _mockRepository
-            .Setup(r => r.GetEventAsync(eventId, cancellationToken))
+            .Setup(r => r.GetEventWithSeatsAsync(eventId, cancellationToken))
             .ReturnsAsync(eventEntity);
 
         // Act
@@ -163,10 +163,10 @@ public class GetEventHandlerTests
         var cancellationToken = CancellationToken.None;
         var query = new GetEventQuery(eventId);
 
-        var eventEntity = CreateEvent(eventId, "E", "", DateTime.UtcNow.AddSeconds(1), 0.01m);
+        var eventEntity = CreateEvent(eventId, "E", "Valid description", DateTime.UtcNow.AddSeconds(1), 0.01m);
 
         _mockRepository
-            .Setup(r => r.GetEventAsync(eventId, cancellationToken))
+            .Setup(r => r.GetEventWithSeatsAsync(eventId, cancellationToken))
             .ReturnsAsync(eventEntity);
 
         // Act
@@ -175,20 +175,24 @@ public class GetEventHandlerTests
         // Assert
         result.Should().NotBeNull();
         result!.Name.Should().Be("E");
-        result.Description.Should().Be("");
+        result.Description.Should().Be("Valid description");
         result.BasePrice.Should().Be(0.01m);
     }
 
     // Test Helper Methods
     private static Event CreateEvent(Guid id, string name, string description, DateTime eventDate, decimal basePrice)
     {
-        return new Event
-        {
-            Id = id,
-            Name = name,
-            Description = description,
-            EventDate = eventDate,
-            BasePrice = basePrice
-        };
+        var eventEntity = Event.Create(
+            name,
+            description,
+            eventDate,
+            "Test Venue",
+            1000,
+            basePrice);
+        
+        // Use reflection to set the ID for testing purposes
+        typeof(Event).GetProperty("Id")?.SetValue(eventEntity, id);
+        
+        return eventEntity;
     }
 }

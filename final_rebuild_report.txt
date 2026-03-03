@@ -1,0 +1,85 @@
+Versión de MSBuild 17.8.49+7806cbf7b para .NET
+  Determining projects to restore...
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Catalog.Domain/Catalog.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Catalog.Application/Catalog.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Catalog.Infrastructure/Catalog.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Domain/Notification.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Application/Notification.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Infrastructure/Notification.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Catalog.Domain/Catalog.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Catalog.Application/Catalog.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Catalog.Infrastructure/Catalog.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Ordering.Domain/Ordering.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Ordering.Application/Ordering.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Ordering.Infrastructure/Ordering.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Domain/Notification.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Application/Notification.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Infrastructure/Notification.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Identity.Domain/Identity.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Identity.Application/Identity.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Identity.Infrastructure/Identity.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Fulfillment.Domain/Fulfillment.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Payment.Domain/Payment.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Fulfillment.Application/Fulfillment.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Payment.Application/Payment.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Fulfillment.Infrastructure/Fulfillment.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Payment.Infrastructure/Payment.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Identity.Domain/Identity.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Identity.Application/Identity.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Identity.Infrastructure/Identity.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Domain/Notification.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Application/Notification.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Infrastructure/Notification.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Domain/Notification.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Application/Notification.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Infrastructure/Notification.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Fulfillment.Domain/Fulfillment.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Fulfillment.Application/Fulfillment.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Fulfillment.Infrastructure/Fulfillment.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Domain/Inventory.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Application/Inventory.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Payment.Domain/Payment.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Infrastructure/Inventory.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Payment.Application/Payment.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Payment.Infrastructure/Payment.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Ordering.Domain/Ordering.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Ordering.Application/Ordering.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Ordering.Infrastructure/Ordering.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Domain/Inventory.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Application/Inventory.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Infrastructure/Inventory.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Domain/Inventory.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Application/Inventory.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Infrastructure/Inventory.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Catalog.Domain/Catalog.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Catalog.Application/Catalog.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Catalog.Infrastructure/Catalog.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Payment.Domain/Payment.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Payment.Application/Payment.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Payment.Infrastructure/Payment.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Identity.Domain/Identity.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Identity.Application/Identity.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Identity.Infrastructure/Identity.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Ordering.Domain/Ordering.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Ordering.Application/Ordering.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Ordering.Infrastructure/Ordering.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Domain/Notification.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Application/Notification.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Notification.Infrastructure/Notification.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Fulfillment.Domain/Fulfillment.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Fulfillment.Application/Fulfillment.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Fulfillment.Infrastructure/Fulfillment.Infrastructure.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Domain/Inventory.Domain.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Application/Inventory.Application.csproj" porque no se encuentra.
+  Se omitirá el proyecto "/home/jostin-alvarado/dev/ticketing_project_week0/services/src/Inventory.Infrastructure/Inventory.Infrastructure.csproj" porque no se encuentra.
+/home/jostin-alvarado/dev/ticketing_project_week0/services/notification/tests/unit/Notification.Infrastructure.UnitTests/Notification.Infrastructure.UnitTests.csproj : error NU1202: Package Microsoft.EntityFrameworkCore.InMemory 10.0.3 is not compatible with net8.0 (.NETCoreApp,Version=v8.0). Package Microsoft.EntityFrameworkCore.InMemory 10.0.3 supports: net10.0 (.NETCoreApp,Version=v10.0) [/home/jostin-alvarado/dev/ticketing_project_week0/speckit-ticketing.sln]
+  Failed to restore /home/jostin-alvarado/dev/ticketing_project_week0/services/notification/tests/unit/Notification.Infrastructure.UnitTests/Notification.Infrastructure.UnitTests.csproj (in 1,52 sec).
+  44 of 45 projects are up-to-date for restore.
+
+ERROR al compilar.
+
+/home/jostin-alvarado/dev/ticketing_project_week0/services/notification/tests/unit/Notification.Infrastructure.UnitTests/Notification.Infrastructure.UnitTests.csproj : error NU1202: Package Microsoft.EntityFrameworkCore.InMemory 10.0.3 is not compatible with net8.0 (.NETCoreApp,Version=v8.0). Package Microsoft.EntityFrameworkCore.InMemory 10.0.3 supports: net10.0 (.NETCoreApp,Version=v10.0) [/home/jostin-alvarado/dev/ticketing_project_week0/speckit-ticketing.sln]
+    0 Advertencia(s)
+    1 Errores
+
+Tiempo transcurrido 00:00:03.30

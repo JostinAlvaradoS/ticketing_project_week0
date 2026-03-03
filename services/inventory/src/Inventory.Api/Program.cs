@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // Register MediatR for application handlers
-builder.Services.AddMediatR(typeof(Inventory.Application.UseCases.CreateReservation.CreateReservationCommand).Assembly);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Inventory.Application.UseCases.CreateReservation.CreateReservationCommand).Assembly));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

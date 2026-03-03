@@ -54,8 +54,8 @@ public class IntegrationTestFixture : IAsyncLifetime
         // Initialize database
         using (var scope = _serviceProvider.CreateScope())
         {
-            var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-            await dbInitializer.InitializeAsync();
+            var dbContext = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+            await dbContext.Database.EnsureCreatedAsync();
         }
 
         // Get DbContext for tests

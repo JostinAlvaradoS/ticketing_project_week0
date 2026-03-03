@@ -59,45 +59,7 @@ app.MapPost("/token", async (
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "identity" }));
 
-// Aplicar migraciones automáticamente al iniciar la aplicación
-using (var scope = app.Services.CreateScope())
-{
-    try
-    {
-        var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-        await dbInitializer.InitializeAsync();
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"✗ FATAL: No se pudo inicializar la base de datos");
-        Console.WriteLine($"  Razón: {ex.Message}");
-        Console.WriteLine($"  Asegúrate de:");
-        Console.WriteLine($"    1. Levantar infra: docker-compose up -d");
-        Console.WriteLine($"    2. Usar database 'ticketing' en appsettings.json");
-        throw;
-    }
-    
-    // Seed: crear usuarios de prueba si no existen (solo si BD está ok)
-    try
-    {
-        var createUserHandler = scope.ServiceProvider.GetRequiredService<CreateUserHandler>();
-        
-        // Usuario normal para testing
-        await createUserHandler.Handle(new CreateUserCommand("test@example.com", "Password123!"));
-        Console.WriteLine("✓ Usuario de prueba creado: test@example.com (Role: User)");
-    }
-    catch (Exception ex)
-    {
-        if (!ex.Message.Contains("already exists"))
-        {
-            Console.WriteLine($"⚠ Warning al crear usuario de prueba: {ex.Message}");
-        }
-        else
-        {
-            Console.WriteLine("✓ Usuario de prueba ya existe");
-        }
-    }
-}
+// DB initialization and migrations are now handled externally (pipeline)
 
 app.Run();
 

@@ -33,23 +33,29 @@ jobs:
           
           if [ -d "$TEST_DIR" ]; then
             echo "Searching for test projects in $TEST_DIR"
-            # Buscamos archivos .csproj o .sln dentro de la carpeta de tests específica
-            PROJECTFILES=$(find "$TEST_DIR" -maxdepth 2 -name "*.csproj" -o -name "*.sln")
+            # Buscamos archivos .csproj de forma recursiva
+            mapfile -t PROJECTS < <(find "$TEST_DIR" -name "*.csproj")
             
-            if [ -z "$PROJECTFILES" ]; then
-              echo "No .csproj or .sln found in $TEST_DIR. Skipping."
+            if [ ${#PROJECTS[@]} -eq 0 ]; then
+              echo "No .csproj found in $TEST_DIR. Skipping."
               exit 0
             fi
 
-            echo "Running tests for: $PROJECTFILES"
-            
-            if [[ "${{ inputs.test_type }}" != "architecture" ]]; then
-              mkdir -p test-results-output
-              # Ejecutamos dotnet test pasando explícitamente el archivo encontrado
-              dotnet test $PROJECTFILES --configuration Release                 --collect:"XPlat Code Coverage"                 --results-directory ./test-results-output                 -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-            else
-              dotnet test $PROJECTFILES --configuration Release
-            fi
+            mkdir -p test-results-output
+
+            for PROJECT in "${PROJECTS[@]}"; do
+              echo "--------------------------------------------------------"
+              echo "Running tests for: $PROJECT"
+              echo "--------------------------------------------------------"
+              
+              if [[ "${{ inputs.test_type }}" != "architecture" ]]; then
+                # Usamos un nombre de archivo de salida único por proyecto para evitar sobrescritura
+                PROJECT_NAME=$(basename "$PROJECT" .csproj)
+                dotnet test "$PROJECT" --configuration Release                   --collect:"XPlat Code Coverage"                   --results-directory "./test-results-output/$PROJECT_NAME"                   -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+              else
+                dotnet test "$PROJECT" --configuration Release
+              fi
+            done
           else
             echo "Skipping: No ${{ inputs.test_type }} tests directory found at $TEST_DIR"
           fi

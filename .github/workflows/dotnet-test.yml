@@ -33,9 +33,13 @@ jobs:
           
           if [ -d "$TEST_DIR" ]; then
             echo "Running ${{ inputs.test_type }} tests in $TEST_DIR with Coverage"
-            # Solo aplicamos cobertura a Unit e Integration. Architecture no suele requerirla.
             if [[ "${{ inputs.test_type }}" != "architecture" ]]; then
-              dotnet test $TEST_DIR --configuration Release                 --collect:"XPlat Code Coverage"                 --results-directory ./coverage-results/${{ inputs.test_type }}                 -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+              # Forzamos directorio de resultados absoluto
+              mkdir -p ${{ github.workspace }}/test-results
+              dotnet test $TEST_DIR --configuration Release                 --collect:"XPlat Code Coverage"                 --results-directory ${{ github.workspace }}/test-results                 -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+              
+              echo "Contenido de ${{ github.workspace }}/test-results:"
+              ls -R ${{ github.workspace }}/test-results
             else
               dotnet test $TEST_DIR --configuration Release
             fi
@@ -48,5 +52,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ inputs.service_name }}-${{ inputs.test_type }}
-          path: ./coverage-results/
+          path: ${{ github.workspace }}/test-results/
           retention-days: 1

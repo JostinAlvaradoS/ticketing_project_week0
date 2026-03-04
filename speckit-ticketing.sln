@@ -7,9 +7,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "services", "services", "{4D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "catalog", "catalog", "{A80CC845-A6E4-4121-87AC-279B0D484C7A}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{18EEC3CB-0BF9-4844-A08A-767739B7BA9B}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "catalog-tests", "catalog-tests", "{18EEC3CB-0BF9-4844-A08A-767739B7BA9B}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "unit", "unit", "{F9BB6955-79FE-4050-A8C5-214EC486A9E3}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "catalog-unit", "catalog-unit", "{F9BB6955-79FE-4050-A8C5-214EC486A9E3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Catalog.Application.UnitTests", "services\catalog\tests\unit\Catalog.Application.UnitTests\Catalog.Application.UnitTests.csproj", "{500CCE0F-8957-4223-9BCB-1C4C33049F1C}"
 EndProject
@@ -27,9 +27,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Catalog.Api", "services\cat
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "payment", "payment", "{85EB76FC-C04B-42A2-B078-3FC216C7C820}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D48EBBD0-01CA-462B-8709-99233A6ABD36}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "payment-tests", "payment-tests", "{D48EBBD0-01CA-462B-8709-99233A6ABD36}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "unit", "unit", "{C513B0B2-739C-425F-B082-1CA3FE2442FB}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "payment-unit", "payment-unit", "{C513B0B2-739C-425F-B082-1CA3FE2442FB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payment.Application.UnitTests", "services\payment\tests\unit\Payment.Application.UnitTests\Payment.Application.UnitTests.csproj", "{F2135668-C995-4728-A665-51FC87E2B189}"
 EndProject
@@ -47,9 +47,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Payment.Domain", "services\
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "identity", "identity", "{ABC1047E-6F01-4C48-8743-52E47DC845D2}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{CA4A70F9-1598-4549-BCC1-B90729FC8BE5}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "identity-tests", "identity-tests", "{CA4A70F9-1598-4549-BCC1-B90729FC8BE5}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "unit", "unit", "{0959ECBF-0CA3-441F-835C-F8CD76EBBDDE}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "identity-unit", "identity-unit", "{0959ECBF-0CA3-441F-835C-F8CD76EBBDDE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.UnitTests", "services\identity\tests\unit\Identity.UnitTests\Identity.UnitTests.csproj", "{9A60B8CC-13CC-4DB5-BEA9-3ED4277854FA}"
 EndProject
@@ -67,9 +67,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Application", "ser
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ordering", "ordering", "{CE01B425-AA71-4B8B-9786-E758013D3D20}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{1C5F2F11-1C85-421A-982E-37368179EB5A}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ordering-tests", "ordering-tests", "{1C5F2F11-1C85-421A-982E-37368179EB5A}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "unit", "unit", "{20F33D22-E704-47E2-B648-2D1CB2C21029}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ordering-unit", "ordering-unit", "{20F33D22-E704-47E2-B648-2D1CB2C21029}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ordering.Application.UnitTests", "services\ordering\tests\unit\Ordering.Application.UnitTests\Ordering.Application.UnitTests.csproj", "{C8486F14-8B2F-43AD-9135-4AD255B262F7}"
 EndProject
@@ -87,9 +87,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ordering.Application", "ser
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "notification", "notification", "{D7FCF230-3534-4590-A3D0-2404ED82A246}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{AFE101D7-3118-45D6-9CBF-E6FAB2264441}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "notification-tests", "notification-tests", "{AFE101D7-3118-45D6-9CBF-E6FAB2264441}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "unit", "unit", "{3BCBBF8F-1CA9-42EF-A833-8D726B2305F8}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "notification-unit", "notification-unit", "{3BCBBF8F-1CA9-42EF-A833-8D726B2305F8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Notification.Application.UnitTests", "services\notification\tests\unit\Notification.Application.UnitTests\Notification.Application.UnitTests.csproj", "{A2455D9D-8072-475E-868A-BF501B5AC0F2}"
 EndProject
@@ -111,9 +111,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Notification.Application", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fulfillment", "fulfillment", "{60618668-8992-4E80-8FBC-4714AF334038}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{415F191A-1D74-46B3-B623-8A4E1757CDE0}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fulfillment-tests", "fulfillment-tests", "{415F191A-1D74-46B3-B623-8A4E1757CDE0}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "unit", "unit", "{29B74CF4-5A35-4ADA-A55B-15A71C5A9049}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "fulfillment-unit", "fulfillment-unit", "{29B74CF4-5A35-4ADA-A55B-15A71C5A9049}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fulfillment.Domain.UnitTests", "services\fulfillment\tests\unit\Fulfillment.Domain.UnitTests\Fulfillment.Domain.UnitTests.csproj", "{13FA3FA6-5BE9-46A8-88AD-0499BE2CE796}"
 EndProject
@@ -131,9 +131,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fulfillment.Application", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "inventory", "inventory", "{73D2BD19-DD86-4F37-A150-83297ABAD49D}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{402F5E7F-3C21-4ED4-B458-6CEB997215D2}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "inventory-tests", "inventory-tests", "{402F5E7F-3C21-4ED4-B458-6CEB997215D2}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "unit", "unit", "{00387165-1B7E-4AB6-A184-CF56ED515C7C}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "inventory-unit", "inventory-unit", "{00387165-1B7E-4AB6-A184-CF56ED515C7C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventory.UnitTests", "services\inventory\tests\unit\Inventory.UnitTests\Inventory.UnitTests.csproj", "{45992DF4-D080-4C9B-8F0E-D37DFB14E6F1}"
 EndProject

@@ -23,9 +23,6 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
   </ItemGroup>
 
-  
-
-
   <ItemGroup>
     <ProjectReference Include="../Payment.Domain/Payment.Domain.csproj" />
     <ProjectReference Include="../Payment.Application/Payment.Application.csproj" />

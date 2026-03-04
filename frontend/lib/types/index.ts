@@ -86,8 +86,13 @@ export interface EventSummary {
   id: string
   name: string
   description: string
-  date: string
-  basePrice: number
+  eventDate: string
   venue: string
+  maxCapacity: number
+  basePrice: number
+  isActive: boolean
+  totalSeats: number
+  soldSeats: number
+  revenue: number
   imageUrl?: string
 }

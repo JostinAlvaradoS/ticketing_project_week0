@@ -4,12 +4,10 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Xunit;
 using Identity.Infrastructure.Persistence;
-using Identity.Domain.Ports;
 
 namespace Identity.IntegrationTests;
 
@@ -57,15 +55,14 @@ public class MigrationSmokeTests : IAsyncLifetime
         {
             options.UseNpgsql(_connectionString);
         });
-        services.AddScoped<IDbInitializer, DbInitializer>();
 
         var serviceProvider = services.BuildServiceProvider();
 
         // Act
         using (var scope = serviceProvider.CreateScope())
         {
-            var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-            await dbInitializer.InitializeAsync();
+            var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            await dbContext.Database.MigrateAsync();
         }
 
         // Assert
@@ -118,15 +115,14 @@ public class MigrationSmokeTests : IAsyncLifetime
         {
             options.UseNpgsql(_connectionString);
         });
-        services.AddScoped<IDbInitializer, DbInitializer>();
 
         var serviceProvider = services.BuildServiceProvider();
 
         // Act
         using (var scope = serviceProvider.CreateScope())
         {
-            var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-            await dbInitializer.InitializeAsync();
+            var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+            await dbContext.Database.MigrateAsync();
         }
 
         // Assert - Can query without errors

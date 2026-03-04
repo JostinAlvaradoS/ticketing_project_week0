@@ -5,5 +5,11 @@ public record EventDto(
     string Name,
     string Description,
     DateTime EventDate,
-    decimal BasePrice
+    string Venue,
+    int MaxCapacity,
+    decimal BasePrice,
+    bool IsActive,
+    int TotalSeats,
+    int SoldSeats,
+    decimal Revenue
 );

@@ -18,7 +18,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-await app.UseInfrastructure();
+app.UseInfrastructure();
 
 try
 {

@@ -1,7 +1,9 @@
 "use client"
 
 import { SWRConfig } from "swr"
+import { usePathname } from "next/navigation" 
 import { AuthProvider, useAuth } from "@/context/auth-context"
+import { AdminAuthProvider } from "@/context/admin-auth-context"
 import { CartProvider } from "@/context/cart-context"
 import { Navbar } from "@/components/navbar"
 import { LoginScreen } from "@/components/login-screen"
@@ -9,6 +11,12 @@ import type { ReactNode } from "react"
 
 function AuthenticatedApp({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
+  const pathname = usePathname()
+
+  // Don't apply regular auth to admin routes
+  if (pathname?.startsWith('/admin')) {
+    return <>{children}</>
+  }
 
   if (!isAuthenticated) {
     return <LoginScreen />
@@ -22,6 +30,26 @@ function AuthenticatedApp({ children }: { children: ReactNode }) {
   )
 }
 
+function ConditionalAuthProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname()
+
+  // Use AdminAuthProvider for admin routes
+  if (pathname?.startsWith('/admin')) {
+    return (
+      <AdminAuthProvider>
+        {children}
+      </AdminAuthProvider>
+    )
+  }
+
+  // Use regular AuthProvider for user routes
+  return (
+    <AuthProvider>
+      <AuthenticatedApp>{children}</AuthenticatedApp>
+    </AuthProvider>
+  )
+}
+
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <SWRConfig
@@ -30,9 +58,9 @@ export function Providers({ children }: { children: ReactNode }) {
         errorRetryCount: 2,
       }}
     >
-      <AuthProvider>
-        <AuthenticatedApp>{children}</AuthenticatedApp>
-      </AuthProvider>
+      <ConditionalAuthProvider>
+        {children}
+      </ConditionalAuthProvider>
     </SWRConfig>
   )
 }

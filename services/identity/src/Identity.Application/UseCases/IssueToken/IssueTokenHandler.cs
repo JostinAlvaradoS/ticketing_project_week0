@@ -35,6 +35,6 @@ public class IssueTokenHandler
         var expiresAt = DateTime.UtcNow.AddHours(2);
         var token = _tokenGenerator.Generate(user);
 
-        return new TokenResult(token, expiresAt);
+        return new TokenResult(token, expiresAt, user.Role, user.Email);
     }
 }

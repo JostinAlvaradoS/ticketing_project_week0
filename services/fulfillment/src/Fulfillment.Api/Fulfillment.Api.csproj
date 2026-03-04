@@ -10,9 +10,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0" />
   </ItemGroup>
 
-  
-
-
   <ItemGroup>
     <ProjectReference Include="../Fulfillment.Domain/Fulfillment.Domain.csproj" />
     <ProjectReference Include="../Fulfillment.Application/Fulfillment.Application.csproj" />

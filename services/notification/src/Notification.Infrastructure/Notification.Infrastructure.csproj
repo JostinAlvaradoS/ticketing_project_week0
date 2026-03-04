@@ -22,9 +22,6 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
-  
-
-
   <ItemGroup>
     <ProjectReference Include="../Notification.Domain/Notification.Domain.csproj" />
     <ProjectReference Include="../Notification.Application/Notification.Application.csproj" />

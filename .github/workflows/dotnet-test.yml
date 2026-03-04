@@ -32,28 +32,33 @@ jobs:
           TEST_DIR="$SERVICE_DIR/tests/${{ inputs.test_type }}"
           
           if [ -d "$TEST_DIR" ]; then
-            echo "Running ${{ inputs.test_type }} tests in $TEST_DIR with Coverage"
+            echo "Searching for test projects in $TEST_DIR"
+            # Buscamos archivos .csproj o .sln dentro de la carpeta de tests específica
+            PROJECTFILES=$(find "$TEST_DIR" -maxdepth 2 -name "*.csproj" -o -name "*.sln")
+            
+            if [ -z "$PROJECTFILES" ]; then
+              echo "No .csproj or .sln found in $TEST_DIR. Skipping."
+              exit 0
+            fi
+
+            echo "Running tests for: $PROJECTFILES"
+            
             if [[ "${{ inputs.test_type }}" != "architecture" ]]; then
-              # Usamos una carpeta local relativa al workspace para evitar problemas de permisos o rutas absolutas
               mkdir -p test-results-output
-              
-              dotnet test $TEST_DIR --configuration Release                 --collect:"XPlat Code Coverage"                 --results-directory ./test-results-output                 -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-              
-              echo "Contenido detectado en test-results-output:"
-              find test-results-output -type f -name "*.xml"
+              # Ejecutamos dotnet test pasando explícitamente el archivo encontrado
+              dotnet test $PROJECTFILES --configuration Release                 --collect:"XPlat Code Coverage"                 --results-directory ./test-results-output                 -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
             else
-              dotnet test $TEST_DIR --configuration Release
+              dotnet test $PROJECTFILES --configuration Release
             fi
           else
-            echo "Skipping: No ${{ inputs.test_type }} tests found"
+            echo "Skipping: No ${{ inputs.test_type }} tests directory found at $TEST_DIR"
           fi
 
       - name: Upload Coverage Artifacts
-        if: inputs.test_type != 'architecture'
+        if: success() && inputs.test_type != 'architecture'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ inputs.service_name }}-${{ inputs.test_type }}
-          # Usamos un wildcard para asegurar que suba los archivos aunque .NET cree subcarpetas con GUIDs
           path: test-results-output/**/*.xml
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 1

@@ -18,6 +18,10 @@ jobs:
   trivy-scan:
     name: "trivy scan: ${{ inputs.service_name }}"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,6 +60,11 @@ jobs:
             sudo mv /tmp/trivy /usr/local/bin/
           fi
           
+          # Install jq for JSON processing
+          if ! which jq >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -qq jq
+          fi
+          
           echo "=== Running Security Scan ==="
           
           # First run: Generate SARIF report (no exit-code to continue on vulnerabilities)
@@ -68,25 +77,47 @@ jobs:
           
           echo "✅ SARIF report generated successfully"
           
-          # Second run: Show detailed vulnerability summary
+          # Second run: Show detailed vulnerability summary and capture for PR comment
           echo "=== Vulnerability Summary ==="
           trivy image \
             --format table \
             --severity CRITICAL,HIGH \
-            ${SERVICE_NAME_LOWER}-scan
-            
-          # Third run: Check for vulnerabilities and fail if found
+            ${SERVICE_NAME_LOWER}-scan > trivy-${{ inputs.service_name }}-summary.txt 2>&1 || true
+          
+          # Display the summary in logs
+          cat trivy-${{ inputs.service_name }}-summary.txt
+          
+          # Generate markdown format for PR comments
+          echo "## 🔒 Security Scan Results for ${{ inputs.service_name }}" > trivy-${{ inputs.service_name }}-pr-comment.md
+          echo "" >> trivy-${{ inputs.service_name }}-pr-comment.md
+          
+          # Third run: Check for vulnerabilities and capture detailed info
           echo "=== Security Gate Check ==="
-          if trivy image \
+          VULN_COUNT=$(trivy image \
             --format json \
             --severity CRITICAL,HIGH \
-            --exit-code 1 \
-            ${SERVICE_NAME_LOWER}-scan >/dev/null 2>&1; then
+            ${SERVICE_NAME_LOWER}-scan | jq '.Results[]?.Vulnerabilities // [] | length' | awk '{sum += $1} END {print sum+0}')
+          
+          if [ "$VULN_COUNT" -eq 0 ]; then
             echo "✅ No critical or high vulnerabilities found - Security gate passed"
+            echo "### ✅ Security Gate: PASSED" >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo "No critical or high severity vulnerabilities found in ${{ inputs.service_name }}." >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo "SECURITY_STATUS=PASSED" >> $GITHUB_ENV
           else
-            echo "❌ CRITICAL or HIGH vulnerabilities found!"
+            echo "❌ CRITICAL or HIGH vulnerabilities found! ($VULN_COUNT vulnerabilities)"
             echo "Pipeline failed for security reasons."
             echo "Check the vulnerability summary above for details."
+            echo "### ❌ Security Gate: FAILED" >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo "" >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo "**$VULN_COUNT critical/high severity vulnerabilities found in ${{ inputs.service_name }}:**" >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo "" >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo '```' >> trivy-${{ inputs.service_name }}-pr-comment.md
+            cat trivy-${{ inputs.service_name }}-summary.txt >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo '```' >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo "" >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo "**Action Required:** Please review and address these vulnerabilities before merging." >> trivy-${{ inputs.service_name }}-pr-comment.md
+            echo "SECURITY_STATUS=FAILED" >> $GITHUB_ENV
+            # Still exit with error to fail the pipeline
             exit 1
           fi
 
@@ -108,12 +139,77 @@ jobs:
           sarif_file: trivy-${{ inputs.service_name }}.sarif
           token: ${{ github.token }}
 
+      - name: Comment Security Scan Results on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = './trivy-${{ inputs.service_name }}-pr-comment.md';
+            
+            try {
+              const reportContent = fs.readFileSync(path, 'utf8');
+              
+              // Look for existing comments by this action
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              
+              const botCommentPrefix = '🔒 Security Scan Results for ${{ inputs.service_name }}';
+              const existingComment = comments.find(comment => 
+                comment.user.type === 'Bot' && comment.body.includes(botCommentPrefix)
+              );
+              
+              if (existingComment) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id,
+                  body: reportContent
+                });
+                console.log('Updated existing security scan comment');
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: reportContent
+                });
+                console.log('Created new security scan comment');
+              }
+            } catch (error) {
+              console.log('Could not read security report file or create comment:', error.message);
+              
+              // Create a fallback comment if the report file doesn't exist
+              const fallbackComment = `## 🔒 Security Scan Results for ${{ inputs.service_name }}
+              
+              ⚠️ **Security scan completed but report file not found.**
+              
+              Please check the [workflow run logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed security scan results.
+              
+              Status: ${{ env.SECURITY_STATUS || 'UNKNOWN' }}`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: fallbackComment
+              });
+            }
+
       - name: Upload Security Scan Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: security-scan-${{ inputs.service_name }}
-          path: trivy-${{ inputs.service_name }}.sarif
+          path: |
+            trivy-${{ inputs.service_name }}.sarif
+            trivy-${{ inputs.service_name }}-summary.txt
+            trivy-${{ inputs.service_name }}-pr-comment.md
           retention-days: 1
 
       - name: Run npm audit (Frontend only)

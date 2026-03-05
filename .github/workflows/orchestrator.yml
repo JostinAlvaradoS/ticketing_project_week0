@@ -24,6 +24,7 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.event.repository.default_branch || 'main' }}
           filters: |
             catalog:
               - 'services/catalog/**'
@@ -315,6 +316,72 @@ jobs:
       - name: Build
         run: cd frontend && pnpm build
 
+  # --- SECURITY SCANS ---
+  security-scan-catalog:
+    needs: [filter, dotnet-test-integration-catalog]
+    if: needs.filter.outputs.catalog == 'true'
+    uses: ./.github/workflows/docker-security-scan.yml
+    with:
+      service_name: "Catalog"
+      dockerfile_path: "services/catalog/src/Catalog.Api/Dockerfile"
+
+  security-scan-identity:
+    needs: [filter, dotnet-test-integration-identity]
+    if: needs.filter.outputs.identity == 'true'
+    uses: ./.github/workflows/docker-security-scan.yml
+    with:
+      service_name: "Identity"
+      dockerfile_path: "services/identity/src/Identity.Api/Dockerfile"
+
+  security-scan-fulfillment:
+    needs: [filter, dotnet-test-integration-fulfillment]
+    if: needs.filter.outputs.fulfillment == 'true'
+    uses: ./.github/workflows/docker-security-scan.yml
+    with:
+      service_name: "Fulfillment"
+      dockerfile_path: "services/fulfillment/src/Fulfillment.Api/Dockerfile"
+
+  security-scan-inventory:
+    needs: [filter, dotnet-test-integration-inventory]
+    if: needs.filter.outputs.inventory == 'true'
+    uses: ./.github/workflows/docker-security-scan.yml
+    with:
+      service_name: "Inventory"
+      dockerfile_path: "services/inventory/src/Inventory.Api/Dockerfile"
+
+  security-scan-notification:
+    needs: [filter, dotnet-test-integration-notification]
+    if: needs.filter.outputs.notification == 'true'
+    uses: ./.github/workflows/docker-security-scan.yml
+    with:
+      service_name: "Notification"
+      dockerfile_path: "services/notification/src/Notification.Api/Dockerfile"
+
+  security-scan-ordering:
+    needs: [filter, dotnet-test-integration-ordering]
+    if: needs.filter.outputs.ordering == 'true'
+    uses: ./.github/workflows/docker-security-scan.yml
+    with:
+      service_name: "Ordering"
+      dockerfile_path: "services/ordering/src/Ordering.Api/Dockerfile"
+
+  security-scan-payment:
+    needs: [filter, dotnet-test-integration-payment]
+    if: needs.filter.outputs.payment == 'true'
+    uses: ./.github/workflows/docker-security-scan.yml
+    with:
+      service_name: "Payment"
+      dockerfile_path: "services/payment/src/Payment.Api/Dockerfile"
+
+  security-scan-frontend:
+    needs: [filter, npm-build-frontend]
+    if: needs.filter.outputs.frontend == 'true'
+    uses: ./.github/workflows/docker-security-scan.yml
+    with:
+      service_name: "Frontend"
+      dockerfile_path: "frontend/Dockerfile"
+      build_context: "frontend"
+
   generate-coverage-report:
     needs: 
       - dotnet-test-unit-catalog
@@ -331,7 +398,15 @@ jobs:
       - dotnet-test-integration-ordering
       - dotnet-test-unit-payment
       - dotnet-test-integration-payment
-    if: always() # Queremos el reporte incluso si algunos tests fallan
+      - security-scan-catalog
+      - security-scan-identity
+      - security-scan-fulfillment
+      - security-scan-inventory
+      - security-scan-notification
+      - security-scan-ordering
+      - security-scan-payment
+      - security-scan-frontend
+    if: always() && (success() || failure()) && !cancelled() # Queremos el reporte incluso si algunos tests fallan, pero no si se cancela
     runs-on: ubuntu-latest
     steps:
       - name: Download all coverage artifacts

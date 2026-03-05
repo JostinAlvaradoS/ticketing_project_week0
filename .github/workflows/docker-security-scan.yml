@@ -1,0 +1,132 @@
+name: Docker Security Scan
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      dockerfile_path:
+        required: true
+        type: string
+      build_context:
+        required: false
+        type: string
+        default: "."
+
+jobs:
+  trivy-scan:
+    name: "trivy scan: ${{ inputs.service_name }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          echo "Building Docker image for ${{ inputs.service_name }}"
+          SERVICE_NAME_LOWER=$(echo "${{ inputs.service_name }}" | tr '[:upper:]' '[:lower:]')
+          if [ "${{ inputs.service_name }}" == "Frontend" ]; then
+            # Frontend uses relative path within its context
+            docker build -t ${SERVICE_NAME_LOWER}-scan \
+              -f Dockerfile \
+              ${{ inputs.build_context }}
+          else
+            # Backend services use full path from project root
+            docker build -t ${SERVICE_NAME_LOWER}-scan \
+              -f ${{ inputs.dockerfile_path }} \
+              ${{ inputs.build_context }}
+          fi
+
+      - name: Run Trivy vulnerability scanner
+        run: |
+          SERVICE_NAME_LOWER=$(echo "${{ inputs.service_name }}" | tr '[:upper:]' '[:lower:]')
+          echo "Running Trivy scan on ${SERVICE_NAME_LOWER}-scan image"
+          
+          # Verify image exists
+          docker images | grep "${SERVICE_NAME_LOWER}-scan" || {
+            echo "❌ Error: Image ${SERVICE_NAME_LOWER}-scan not found"
+            exit 1
+          }
+          
+          # Install Trivy - simplified approach for act compatibility
+          if ! which trivy >/dev/null 2>&1; then
+            echo "Installing Trivy..."
+            wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /tmp
+            sudo mv /tmp/trivy /usr/local/bin/
+          fi
+          
+          echo "=== Running Security Scan ==="
+          
+          # First run: Generate SARIF report (no exit-code to continue on vulnerabilities)
+          echo "Generating SARIF report..."
+          trivy image \
+            --format sarif \
+            --output trivy-${{ inputs.service_name }}.sarif \
+            --severity CRITICAL,HIGH \
+            ${SERVICE_NAME_LOWER}-scan
+          
+          echo "✅ SARIF report generated successfully"
+          
+          # Second run: Show detailed vulnerability summary
+          echo "=== Vulnerability Summary ==="
+          trivy image \
+            --format table \
+            --severity CRITICAL,HIGH \
+            ${SERVICE_NAME_LOWER}-scan
+            
+          # Third run: Check for vulnerabilities and fail if found
+          echo "=== Security Gate Check ==="
+          if trivy image \
+            --format json \
+            --severity CRITICAL,HIGH \
+            --exit-code 1 \
+            ${SERVICE_NAME_LOWER}-scan >/dev/null 2>&1; then
+            echo "✅ No critical or high vulnerabilities found - Security gate passed"
+          else
+            echo "❌ CRITICAL or HIGH vulnerabilities found!"
+            echo "Pipeline failed for security reasons."
+            echo "Check the vulnerability summary above for details."
+            exit 1
+          fi
+
+      - name: Scan Dockerfile configuration
+        run: |
+          echo "=== Dockerfile Security Scan ==="
+          if [ "${{ inputs.service_name }}" == "Frontend" ]; then
+            # Frontend dockerfile is in frontend directory
+            trivy config frontend/Dockerfile || echo "⚠️ Dockerfile config scan completed with warnings"
+          else
+            # Backend services use full path
+            trivy config ${{ inputs.dockerfile_path }} || echo "⚠️ Dockerfile config scan completed with warnings"  
+          fi
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: false # Disabled for local testing with act
+        with:
+          sarif_file: trivy-${{ inputs.service_name }}.sarif
+          token: ${{ github.token }}
+
+      - name: Upload Security Scan Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-${{ inputs.service_name }}
+          path: trivy-${{ inputs.service_name }}.sarif
+          retention-days: 1
+
+      - name: Run npm audit (Frontend only)
+        if: inputs.service_name == 'Frontend'
+        run: |
+          cd frontend
+          echo "Running npm audit for frontend dependencies"
+          pnpm audit --audit-level=high --json > npm-audit.json || true
+          
+      - name: Upload npm audit report
+        if: inputs.service_name == 'Frontend'
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: frontend/npm-audit.json
+          retention-days: 1

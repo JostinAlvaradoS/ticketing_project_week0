@@ -8,7 +8,10 @@ public record OrderDto(
     string State,
     DateTime CreatedAt,
     DateTime? PaidAt,
-    IEnumerable<OrderItemDto> Items
+    IEnumerable<OrderItemDto> Items,
+    string EventName = "Event Details Pending",
+    string SeatNumber = "N/A",
+    Guid EventId = default
 );
 
 public record OrderItemDto(

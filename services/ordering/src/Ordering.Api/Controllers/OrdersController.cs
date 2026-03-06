@@ -66,16 +66,14 @@ public class OrdersController : ControllerBase
         if (result == null)
             return NotFound();
 
-        // Map to enrichment DTO format (simplified for now)
-        var firstItem = result.Items.FirstOrDefault();
-        
+        // Map to enrichment DTO format expected by Fulfillment
         return Ok(new
         {
             OrderId = result.Id,
-            CustomerEmail = result.UserId ?? "guest@example.com", // TODO: Real email from Identity
-            EventId = Guid.Empty, // TODO: Need to trace back from SeatId
-            EventName = "Event Details Not Implemented", // TODO: Query Catalog
-            SeatNumber = firstItem != null ? $"Seat-{firstItem.SeatId}" : "N/A",
+            CustomerEmail = result.UserId ?? "guest@example.com",
+            EventId = result.EventId,
+            EventName = result.EventName,
+            SeatNumber = result.SeatNumber,
             Price = result.TotalAmount,
             Currency = "USD"
         });

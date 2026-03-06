@@ -54,9 +54,9 @@ En este proyecto se aplican tanto pruebas de **Caja Blanca** (White Box) como de
 | Nivel de Prueba | Técnica Específica | Tipo (B/N) | Implementación (El Cómo) | Historia de Usuario Relacionada |
 |:---:|---|:---:|---|:---:|
 | **Unit Tests** | **Análisis de Valores Límite:** Prueba de fronteras en TTL (ej. 0s, 1s, 899s, 900s, 901s). <br>**Partición de Equivalencia:** Entradas válidas/inválidas para montos y stocks. | **Blanca** | Uso de **xUnit** y **Moq** para validar la lógica de los *Domain Services* y *Handlers*. | [P1 - Compra de boleto](specs/001-ticketing-mvp/spec.md#p1--compra-de-boleto-end-to-end) |
-| **Integration Tests** | **Pruebas de Estado/Transición:** Validar que el asiento pase de `available` -> `reserved` -> `sold`. <br>**Pruebas de Error Case:** Fallo controlado de BD para reintentos. | **Gris** | **Testcontainers** con PostgreSQL y Redis. Se ejecutan comandos de MediatR y se verifica el cambio de estado en la base de datos real. | [P1 - Escenario 1 y 4](specs/001-ticketing-mvp/spec.md#p1--compra-de-boleto-critical) |
+| **Integration Tests** | **Pruebas de Estado/Transición:** Validar que el asiento pase de `available` -> `reserved` -> `sold`. <br>**Pruebas de Consumo de Eventos:** Verificar que Fulfillment reaccione a `order-paid`. | **Gris** | **Testcontainers** con PostgreSQL y Redis. Se ejecutan comandos de MediatR y se verifica el cambio de estado en la base de datos real. | [P1 - Escenario 1, 3 y 4](specs/001-ticketing-mvp/spec.md#p1--compra-de-boleto-critical) |
 | **Contract Tests** | **Verificación de Esquema:** Asegurar campos requeridos y tipos de datos. <br>**Snapshot Testing:** Comparar JSON de respuesta contra el esquema esperado. | **Negra** | **Approval Tests** comparando las salidas de los controladores contra archivos `.json` maestros definidos en `contracts/openapi/`. | [P2 - Browse Events](specs/001-ticketing-mvp/spec.md#p2--browse-events) |
-| **E2E Tests** | **Pruebas de Escenario (Story-based):** Flujo completo de navegación, reserva, pago y emisión de ticket. | **Negra** | **Playwright** interactuando con la API y/o UI simulando un usuario real para completar la compra. | [P1 - Compra de boleto](specs/001-ticketing-mvp/spec.md#p1--compra-de-boleto-end-to-end) |
+| **E2E Tests** | **Pruebas de Escenario (Story-based):** Flujo completo: navegación -> reserva -> pago -> generación ticket -> notificación email. | **Negra** | **Playwright** interactuando con las APIs. Se valida que al final del flujo exista un registro en `NotificationLog` (FR-012). | [P1 - Compra de boleto](specs/001-ticketing-mvp/spec.md#p1--compra-de-boleto-end-to-end) |
 | **Performance Tests** | **Pruebas de Carga (Load):** Simular 100 usuarios concurrentes reservando el mismo evento. | **Negra** | **k6** enviando peticiones constantes a `/api/reservations` para medir el comportamiento bajo estrés. | [SC-001, SC-002](specs/001-ticketing-mvp/spec.md#success-criteria-measurable) |
 
 #### 2.2.2 Definición de Técnicas Aplicadas
@@ -72,8 +72,12 @@ En este proyecto se aplican tanto pruebas de **Caja Blanca** (White Box) como de
     *   *Ejemplo en el Proyecto:* Estados de pago: `{Success, Failed, Pending}`. Probamos un solo caso de cada grupo en lugar de miles de transacciones similares.
 3.  **Pruebas de Transición de Estados:**
     *   *Definición:* Valida que el sistema se mueva correctamente entre estados legales y bloquee los ilegales.
-    *   *Ejemplo en el Proyecto:* Un asiento en estado `Sold` NO puede pasar a `Reserved` ni a `Available` sin una cancelación previa.
-
+    *   *Ejemplo en el Proyecto:* Un asiento en estado `Sold` NO puede pasar a `Reserved` ni a `Available` sin una cancelación previa.4. **Pruebas de Integración Basadas en Eventos (Event-driven Testing):**
+    *   *Definición:* Verifica que la suscripción a mensajes en el bus de datos (Kafka) resulte en la acción esperada en otro microservicio.
+    *   *Ejemplo en el Proyecto:* Validar que al publicar `order-paid`, el servicio de **Fulfillment** crea un registro en `bc_fulfillment.tickets`.
+5. **Pruebas de Notificación Asíncrona:**
+    *   *Definición:* Asegura que el flujo termina con una comunicación exitosa al usuario final.
+    *   *Ejemplo en el Proyecto:* Verificar que la creación de un `Ticket` dispara un registro en `bc_notification.NotificationLog` marcando el estado como `sent`.
 ### 2.3 Niveles de Prueba
 
 | Nivel | Descripción | Foco |

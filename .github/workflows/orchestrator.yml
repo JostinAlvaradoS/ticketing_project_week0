@@ -82,27 +82,6 @@ jobs:
       service_path: "services/catalog/Catalog.sln"
       test_type: "integration"
 
-  sonar-scan-catalog:
-    needs: [filter, generate-coverage-report]
-    if: needs.filter.outputs.catalog == 'true'
-    name: "Sonar Analysis: Catalog"
-    uses: ./.github/workflows/sonar-analysis.yml
-    with:
-      project_key: "JostinAlvaradoS_ticketing_project_week0"
-      organization: "jostinalvarados"
-      solution_path: "services/catalog/Catalog.sln"
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  trivy-scan-catalog:
-    needs: [filter, sonar-scan-catalog]
-    if: needs.filter.outputs.catalog == 'true'
-    name: "Security Scan: Catalog"
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      service_name: "catalog"
-      dockerfile_path: "services/catalog/src/Catalog.Api/Dockerfile"
-
   # --- IDENTITY SERVICE ---
   dotnet-build-identity:
     needs: filter
@@ -142,27 +121,6 @@ jobs:
       service_name: "Identity"
       service_path: "services/identity/Identity.sln"
       test_type: "integration"
-
-  sonar-scan-identity:
-    needs: [filter, generate-coverage-report]
-    if: needs.filter.outputs.identity == 'true'
-    name: "Sonar Analysis: Identity"
-    uses: ./.github/workflows/sonar-analysis.yml
-    with:
-      project_key: "JostinAlvaradoS_ticketing_project_week0"
-      organization: "jostinalvarados"
-      solution_path: "services/identity/Identity.sln"
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  trivy-scan-identity:
-    needs: [filter, sonar-scan-identity]
-    if: needs.filter.outputs.identity == 'true'
-    name: "Security Scan: Identity"
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      service_name: "identity"
-      dockerfile_path: "services/identity/src/Identity.Api/Dockerfile"
 
   # --- FULFILLMENT SERVICE ---
   dotnet-build-fulfillment:
@@ -204,27 +162,6 @@ jobs:
       service_path: "services/fulfillment/Fulfillment.sln"
       test_type: "integration"
 
-  sonar-scan-fulfillment:
-    needs: [filter, generate-coverage-report]
-    if: needs.filter.outputs.fulfillment == 'true'
-    name: "Sonar Analysis: Fulfillment"
-    uses: ./.github/workflows/sonar-analysis.yml
-    with:
-      project_key: "JostinAlvaradoS_ticketing_project_week0"
-      organization: "jostinalvarados"
-      solution_path: "services/fulfillment/Fulfillment.sln"
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  trivy-scan-fulfillment:
-    needs: [filter, sonar-scan-fulfillment]
-    if: needs.filter.outputs.fulfillment == 'true'
-    name: "Security Scan: Fulfillment"
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      service_name: "fulfillment"
-      dockerfile_path: "services/fulfillment/src/Fulfillment.Api/Dockerfile"
-
   # --- INVENTORY SERVICE ---
   dotnet-build-inventory:
     needs: filter
@@ -264,27 +201,6 @@ jobs:
       service_name: "Inventory"
       service_path: "services/inventory/Inventory.sln"
       test_type: "integration"
-
-  sonar-scan-inventory:
-    needs: [filter, generate-coverage-report]
-    if: needs.filter.outputs.inventory == 'true'
-    name: "Sonar Analysis: Inventory"
-    uses: ./.github/workflows/sonar-analysis.yml
-    with:
-      project_key: "JostinAlvaradoS_ticketing_project_week0"
-      organization: "jostinalvarados"
-      solution_path: "services/inventory/Inventory.sln"
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  trivy-scan-inventory:
-    needs: [filter, sonar-scan-inventory]
-    if: needs.filter.outputs.inventory == 'true'
-    name: "Security Scan: Inventory"
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      service_name: "inventory"
-      dockerfile_path: "services/inventory/src/Inventory.Api/Dockerfile"
 
   # --- NOTIFICATION SERVICE ---
   dotnet-build-notification:
@@ -326,27 +242,6 @@ jobs:
       service_path: "services/notification/Notification.sln"
       test_type: "integration"
 
-  sonar-scan-notification:
-    needs: [filter, generate-coverage-report]
-    if: needs.filter.outputs.notification == 'true'
-    name: "Sonar Analysis: Notification"
-    uses: ./.github/workflows/sonar-analysis.yml
-    with:
-      project_key: "JostinAlvaradoS_ticketing_project_week0"
-      organization: "jostinalvarados"
-      solution_path: "services/notification/Notification.sln"
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  trivy-scan-notification:
-    needs: [filter, sonar-scan-notification]
-    if: needs.filter.outputs.notification == 'true'
-    name: "Security Scan: Notification"
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      service_name: "notification"
-      dockerfile_path: "services/notification/src/Notification.Api/Dockerfile"
-
   # --- ORDERING SERVICE ---
   dotnet-build-ordering:
     needs: filter
@@ -386,27 +281,6 @@ jobs:
       service_name: "Ordering"
       service_path: "services/ordering/Ordering.sln"
       test_type: "integration"
-
-  sonar-scan-ordering:
-    needs: [filter, generate-coverage-report]
-    if: needs.filter.outputs.ordering == 'true'
-    name: "Sonar Analysis: Ordering"
-    uses: ./.github/workflows/sonar-analysis.yml
-    with:
-      project_key: "JostinAlvaradoS_ticketing_project_week0"
-      organization: "jostinalvarados"
-      solution_path: "services/ordering/Ordering.sln"
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  trivy-scan-ordering:
-    needs: [filter, sonar-scan-ordering]
-    if: needs.filter.outputs.ordering == 'true'
-    name: "Security Scan: Ordering"
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      service_name: "ordering"
-      dockerfile_path: "services/ordering/src/Ordering.Api/Dockerfile"
 
   # --- PAYMENT SERVICE ---
   dotnet-build-payment:
@@ -448,47 +322,7 @@ jobs:
       service_path: "services/payment/Payment.sln"
       test_type: "integration"
 
-  sonar-scan-payment:
-    needs: [filter, generate-coverage-report]
-    if: needs.filter.outputs.payment == 'true'
-    name: "Sonar Analysis: Payment"
-    uses: ./.github/workflows/sonar-analysis.yml
-    with:
-      project_key: "JostinAlvaradoS_ticketing_project_week0"
-      organization: "jostinalvarados"
-      solution_path: "services/payment/Payment.sln"
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  trivy-scan-payment:
-    needs: [filter, sonar-scan-payment]
-    if: needs.filter.outputs.payment == 'true'
-    name: "Security Scan: Payment"
-    uses: ./.github/workflows/trivy-scan.yml
-    with:
-      service_name: "payment"
-      dockerfile_path: "services/payment/src/Payment.Api/Dockerfile"
-
-  # --- FRONTEND ---
-  npm-build-frontend:
-    needs: filter
-    if: needs.filter.outputs.frontend == 'true'
-    name: "npm build: Frontend"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 8
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: 'frontend/pnpm-lock.yaml'
-      - name: Install dependencies
-        run: cd frontend && pnpm install
-      - name: Build
-        run: cd frontend && pnpm build
+  # --- SHARED QUALITY & SECURITY ---
 
   generate-coverage-report:
     needs: 
@@ -522,3 +356,98 @@ jobs:
         with:
           name: merged-coverage-report
           path: merged-coverage
+
+  sonar-scan-unified:
+    needs: [filter, generate-coverage-report]
+    if: always() && !cancelled()
+    name: "SonarCloud Unified Scan"
+    uses: ./.github/workflows/sonar-analysis.yml
+    with:
+      project_key: "JostinAlvaradoS_ticketing_project_week0"
+      organization: "jostinalvarados"
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  trivy-scan-catalog:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.catalog == 'true'
+    name: "Security Scan: Catalog"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "catalog"
+      dockerfile_path: "services/catalog/src/Catalog.Api/Dockerfile"
+
+  trivy-scan-identity:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.identity == 'true'
+    name: "Security Scan: Identity"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "identity"
+      dockerfile_path: "services/identity/src/Identity.Api/Dockerfile"
+
+  trivy-scan-fulfillment:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.fulfillment == 'true'
+    name: "Security Scan: Fulfillment"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "fulfillment"
+      dockerfile_path: "services/fulfillment/src/Fulfillment.Api/Dockerfile"
+
+  trivy-scan-inventory:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.inventory == 'true'
+    name: "Security Scan: Inventory"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "inventory"
+      dockerfile_path: "services/inventory/src/Inventory.Api/Dockerfile"
+
+  trivy-scan-notification:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.notification == 'true'
+    name: "Security Scan: Notification"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "notification"
+      dockerfile_path: "services/notification/src/Notification.Api/Dockerfile"
+
+  trivy-scan-ordering:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.ordering == 'true'
+    name: "Security Scan: Ordering"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "ordering"
+      dockerfile_path: "services/ordering/src/Ordering.Api/Dockerfile"
+
+  trivy-scan-payment:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.payment == 'true'
+    name: "Security Scan: Payment"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "payment"
+      dockerfile_path: "services/payment/src/Payment.Api/Dockerfile"
+
+  # --- FRONTEND ---
+  npm-build-frontend:
+    needs: filter
+    if: needs.filter.outputs.frontend == 'true'
+    name: "npm build: Frontend"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: 'frontend/pnpm-lock.yaml'
+      - name: Install dependencies
+        run: cd frontend && pnpm install
+      - name: Build
+        run: cd frontend && pnpm build

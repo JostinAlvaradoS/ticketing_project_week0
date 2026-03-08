@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+          <ExcludeByFile>**/Migrations/*.cs,**/Program.cs,**/Startup.cs</ExcludeByFile>
+          <!-- 
+            Excluimos assemblies de Infraestructura y API del reporte consolidado de pruebas unitarias 
+            ya que su cobertura real se valida en las pruebas de integración. 
+          -->
+          <Exclude>[*.Infrastructure]*;[*.Api]*;[*.Infrastructure.UnitTests]*;[*.Application.UnitTests]*;[*.Domain.UnitTests]*;[*.IntegrationTests]*</Exclude>
+          <!-- 
+            Incluir explícitamente solo el core de la lógica de negocio para la calidad de código unitaria
+          -->
+          <Include>[*.Domain]*,[*.Application]*</Include>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

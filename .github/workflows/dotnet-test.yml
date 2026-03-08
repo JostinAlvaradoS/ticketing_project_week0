@@ -49,9 +49,11 @@ jobs:
               echo "--------------------------------------------------------"
               
               if [[ "${{ inputs.test_type }}" != "architecture" ]]; then
-                # Usamos un nombre de archivo de salida único por proyecto para evitar sobrescritura
                 PROJECT_NAME=$(basename "$PROJECT" .csproj)
-                dotnet test "$PROJECT" --configuration Release                   --collect:"XPlat Code Coverage"                   --results-directory "./test-results-output/$PROJECT_NAME"                   -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+                dotnet test "$PROJECT" --configuration Release \
+                  --settings coverlet.runsettings \
+                  --collect:"XPlat Code Coverage" \
+                  --results-directory "./test-results-output/$PROJECT_NAME"
               else
                 dotnet test "$PROJECT" --configuration Release
               fi

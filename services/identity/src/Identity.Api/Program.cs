@@ -71,3 +71,5 @@ public record IssueTokenResponse(
     string userRole,
     string userEmail
 );
+
+public partial class Program { }

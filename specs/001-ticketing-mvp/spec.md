@@ -65,6 +65,8 @@ MVP Scope: Flujo principal de compra (P1). Funcionalidades administrativas y pag
 - **FR-008**: System MUST implement optimistic locking in Postgres for seat rows and use Redis locks for cross-process reservation coordination.
 - **FR-009**: Each microservice MUST own its schema `bc_<name>` and apply migrations only to it.
 - **FR-010**: All external integrations MUST be accessed via ports/adapters; domain layer MUST have zero infra dependencies.
+- **FR-011**: Fulfillment MUST consume `order-paid` events to trigger ticket generation and QR code creation.
+- **FR-012**: Notification MUST consume `ticket-issued` events to send an email confirmation to the customer.
 
 ## Key Entities
 
@@ -88,6 +90,9 @@ MVP Scope: Flujo principal de compra (P1). Funcionalidades administrativas y pag
 
 - `Ticket` (Fulfillment - `bc_fulfillment`)
   - id, order_id, ticket_pdf_path (or blob ref), qr_code_payload, issued_at
+
+- `NotificationLog` (Notification - `bc_notification`)
+  - id, ticket_id, user_email, status (sent/failed), sent_at, notification_type (email)
 
 ## Success Criteria (measurable)
 

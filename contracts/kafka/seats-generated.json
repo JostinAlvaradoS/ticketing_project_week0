@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Seats Generated Event",
+  "description": "Event published when seats are generated for an event via the admin API. Consumed by the inventory service to register seats for reservation.",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The event these seats belong to"
+    },
+    "seats": {
+      "type": "array",
+      "description": "List of generated seats",
+      "items": {
+        "type": "object",
+        "properties": {
+          "seatId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique seat identifier (same PK used in both catalog and inventory)"
+          },
+          "section": {
+            "type": "string",
+            "description": "Section code (e.g., VIP, FRONT, BACK)"
+          },
+          "row": {
+            "type": "string",
+            "description": "Row number as string"
+          },
+          "number": {
+            "type": "integer",
+            "description": "Seat number within the row"
+          }
+        },
+        "required": ["seatId", "section", "row", "number"],
+        "additionalProperties": false
+      }
+    },
+    "totalSeats": {
+      "type": "integer",
+      "description": "Total number of seats generated"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the seats were generated"
+    }
+  },
+  "required": ["eventId", "seats", "totalSeats", "generatedAt"],
+  "additionalProperties": false
+}

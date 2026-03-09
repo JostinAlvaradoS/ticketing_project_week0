@@ -34,4 +34,10 @@ public class Reservation
     /// Status: active, expired, or confirmed.
     /// </summary>
     public string Status { get; set; } = "active";
+
+    /// <summary>
+    /// Checks if the reservation has exceeded its TTL (15 minutes).
+    /// </summary>
+    public bool IsExpired(DateTime currentTime) => 
+        Status == "expired" || currentTime > CreatedAt.AddMinutes(15);
 }

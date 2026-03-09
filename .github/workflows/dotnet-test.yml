@@ -1,0 +1,74 @@
+name: Dotnet Test
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      service_path:
+        required: true
+        type: string
+      test_type:
+        required: true
+        type: string # unit, integration, architecture
+
+jobs:
+  test:
+    name: "dotnet test (${{ inputs.test_type }}): ${{ inputs.service_name }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run Specific Tests with Coverage
+        run: |
+          SERVICE_DIR=$(dirname "${{ inputs.service_path }}")
+          TEST_DIR="$SERVICE_DIR/tests/${{ inputs.test_type }}"
+          
+          # Skip architecture tests entirely
+          if [[ "${{ inputs.test_type }}" == "architecture" ]]; then
+            echo "Architecture tests are currently skipped (under development)."
+            exit 0
+          fi
+          
+          if [ -d "$TEST_DIR" ]; then
+            echo "Searching for test projects in $TEST_DIR"
+            # Buscamos archivos .csproj de forma recursiva
+            mapfile -t PROJECTS < <(find "$TEST_DIR" -name "*.csproj")
+            
+            if [ ${#PROJECTS[@]} -eq 0 ]; then
+              echo "No .csproj found in $TEST_DIR. Skipping."
+              exit 0
+            fi
+
+            mkdir -p test-results-output
+
+            for PROJECT in "${PROJECTS[@]}"; do
+              echo "--------------------------------------------------------"
+              echo "Running tests for: $PROJECT"
+              echo "--------------------------------------------------------"
+              
+              PROJECT_NAME=$(basename "$PROJECT" .csproj)
+              dotnet test "$PROJECT" --configuration Release \
+                --settings coverlet.runsettings \
+                --collect:"XPlat Code Coverage" \
+                --results-directory "./test-results-output/$PROJECT_NAME"
+            done
+          else
+            echo "Skipping: No ${{ inputs.test_type }} tests directory found at $TEST_DIR"
+          fi
+
+      - name: Upload Coverage Artifacts
+        if: success() && inputs.test_type != 'architecture'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ inputs.service_name }}-${{ inputs.test_type }}
+          path: test-results-output/**/*.xml
+          if-no-files-found: warn
+          retention-days: 1

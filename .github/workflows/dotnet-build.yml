@@ -1,0 +1,30 @@
+name: Dotnet Build
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      service_path:
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: "dotnet build: ${{ inputs.service_name }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ inputs.service_path }}
+
+      - name: Build
+        run: dotnet build ${{ inputs.service_path }} --no-restore --configuration Release

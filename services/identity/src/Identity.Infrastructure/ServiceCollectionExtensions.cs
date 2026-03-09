@@ -19,7 +19,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ITokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
-        services.AddScoped<IDbInitializer, DbInitializer>();
+        // IDbInitializer removed - migrations handled externally
         return services;
     }
 }

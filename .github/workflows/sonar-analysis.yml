@@ -1,0 +1,61 @@
+name: SonarCloud Template
+
+on:
+  workflow_call:
+    inputs:
+      project_key:
+        required: true
+        type: string
+      organization:
+        required: true
+        type: string
+      # solution_path removed as we analyze workspace
+    secrets:
+      SONAR_TOKEN:
+        required: true
+
+jobs:
+  analyze:
+    name: "Unified Monorepo analysis"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: coverage-artifacts
+          pattern: coverage-*
+
+      - name: Install Sonar Scanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Run Unified Analysis
+        run: |
+          dotnet-sonarscanner begin /k:"${{ inputs.project_key }}" /o:"${{ inputs.organization }}" \
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.cs.opencover.reportsPaths="coverage-artifacts/**/coverage.opencover.xml" \
+            /d:sonar.scanner.skipJreProvisioning=true \
+            /d:sonar.scm.provider=git
+          
+          # Solo compilamos el código fuente (no tests) para alimentar a Sonar
+          # sin reconstruir todo desde cero si no es necesario.
+          # Usamos la solución principal por defecto.
+          dotnet build speckit-ticketing.sln -c Release /p:AnalyzeBySonar=true
+          
+          dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"

@@ -1,0 +1,477 @@
+name: CI - Monorepo Orchestrator
+
+on:
+  push:
+    branches: [ main, develop, master ]
+  pull_request:
+    branches: [ main, develop, master ]
+
+jobs:
+  filter:
+    name: Change Detection
+    runs-on: ubuntu-latest
+    outputs:
+      catalog: ${{ steps.filter.outputs.catalog }}
+      fulfillment: ${{ steps.filter.outputs.fulfillment }}
+      identity: ${{ steps.filter.outputs.identity }}
+      inventory: ${{ steps.filter.outputs.inventory }}
+      notification: ${{ steps.filter.outputs.notification }}
+      ordering: ${{ steps.filter.outputs.ordering }}
+      payment: ${{ steps.filter.outputs.payment }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            catalog:
+              - 'services/catalog/**'
+            fulfillment:
+              - 'services/fulfillment/**'
+            identity:
+              - 'services/identity/**'
+            inventory:
+              - 'services/inventory/**'
+            notification:
+              - 'services/notification/**'
+            ordering:
+              - 'services/ordering/**'
+            payment:
+              - 'services/payment/**'
+            frontend:
+              - 'frontend/**'
+
+  # --- CATALOG SERVICE ---
+  dotnet-build-catalog:
+    needs: filter
+    if: needs.filter.outputs.catalog == 'true'
+    name: "Build: Catalog"
+    uses: ./.github/workflows/dotnet-build.yml
+    with:
+      service_name: "Catalog"
+      service_path: "services/catalog/Catalog.sln"
+
+  dotnet-test-unit-catalog:
+    needs: [filter, dotnet-build-catalog]
+    if: needs.filter.outputs.catalog == 'true'
+    name: "Unit Test: Catalog"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Catalog"
+      service_path: "services/catalog/Catalog.sln"
+      test_type: "unit"
+
+  dotnet-test-arch-catalog:
+    needs: [filter, dotnet-build-catalog]
+    if: needs.filter.outputs.catalog == 'true'
+    name: "Arch Test: Catalog"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Catalog"
+      service_path: "services/catalog/Catalog.sln"
+      test_type: "architecture"
+
+  dotnet-test-integration-catalog:
+    needs: [filter, dotnet-build-catalog]
+    if: needs.filter.outputs.catalog == 'true'
+    name: "Integration Test: Catalog"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Catalog"
+      service_path: "services/catalog/Catalog.sln"
+      test_type: "integration"
+
+  # --- IDENTITY SERVICE ---
+  dotnet-build-identity:
+    needs: filter
+    if: needs.filter.outputs.identity == 'true'
+    name: "Build: Identity"
+    uses: ./.github/workflows/dotnet-build.yml
+    with:
+      service_name: "Identity"
+      service_path: "services/identity/Identity.sln"
+
+  dotnet-test-unit-identity:
+    needs: [filter, dotnet-build-identity]
+    if: needs.filter.outputs.identity == 'true'
+    name: "Unit Test: Identity"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Identity"
+      service_path: "services/identity/Identity.sln"
+      test_type: "unit"
+
+  dotnet-test-arch-identity:
+    needs: [filter, dotnet-build-identity]
+    if: needs.filter.outputs.identity == 'true'
+    name: "Arch Test: Identity"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Identity"
+      service_path: "services/identity/Identity.sln"
+      test_type: "architecture"
+
+  dotnet-test-integration-identity:
+    needs: [filter, dotnet-build-identity]
+    if: needs.filter.outputs.identity == 'true'
+    name: "Integration Test: Identity"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Identity"
+      service_path: "services/identity/Identity.sln"
+      test_type: "integration"
+
+  # --- FULFILLMENT SERVICE ---
+  dotnet-build-fulfillment:
+    needs: filter
+    if: needs.filter.outputs.fulfillment == 'true'
+    name: "Build: Fulfillment"
+    uses: ./.github/workflows/dotnet-build.yml
+    with:
+      service_name: "Fulfillment"
+      service_path: "services/fulfillment/Fulfillment.sln"
+
+  dotnet-test-unit-fulfillment:
+    needs: [filter, dotnet-build-fulfillment]
+    if: needs.filter.outputs.fulfillment == 'true'
+    name: "Unit Test: Fulfillment"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Fulfillment"
+      service_path: "services/fulfillment/Fulfillment.sln"
+      test_type: "unit"
+
+  dotnet-test-arch-fulfillment:
+    needs: [filter, dotnet-build-fulfillment]
+    if: needs.filter.outputs.fulfillment == 'true'
+    name: "Arch Test: Fulfillment"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Fulfillment"
+      service_path: "services/fulfillment/Fulfillment.sln"
+      test_type: "architecture"
+
+  dotnet-test-integration-fulfillment:
+    needs: [filter, dotnet-build-fulfillment]
+    if: needs.filter.outputs.fulfillment == 'true'
+    name: "Integration Test: Fulfillment"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Fulfillment"
+      service_path: "services/fulfillment/Fulfillment.sln"
+      test_type: "integration"
+
+  # --- INVENTORY SERVICE ---
+  dotnet-build-inventory:
+    needs: filter
+    if: needs.filter.outputs.inventory == 'true'
+    name: "Build: Inventory"
+    uses: ./.github/workflows/dotnet-build.yml
+    with:
+      service_name: "Inventory"
+      service_path: "services/inventory/Inventory.sln"
+
+  dotnet-test-unit-inventory:
+    needs: [filter, dotnet-build-inventory]
+    if: needs.filter.outputs.inventory == 'true'
+    name: "Unit Test: Inventory"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Inventory"
+      service_path: "services/inventory/Inventory.sln"
+      test_type: "unit"
+
+  dotnet-test-arch-inventory:
+    needs: [filter, dotnet-build-inventory]
+    if: needs.filter.outputs.inventory == 'true'
+    name: "Arch Test: Inventory"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Inventory"
+      service_path: "services/inventory/Inventory.sln"
+      test_type: "architecture"
+
+  dotnet-test-integration-inventory:
+    needs: [filter, dotnet-build-inventory]
+    if: needs.filter.outputs.inventory == 'true'
+    name: "Integration Test: Inventory"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Inventory"
+      service_path: "services/inventory/Inventory.sln"
+      test_type: "integration"
+
+  # --- NOTIFICATION SERVICE ---
+  dotnet-build-notification:
+    needs: filter
+    if: needs.filter.outputs.notification == 'true'
+    name: "Build: Notification"
+    uses: ./.github/workflows/dotnet-build.yml
+    with:
+      service_name: "Notification"
+      service_path: "services/notification/Notification.sln"
+
+  dotnet-test-unit-notification:
+    needs: [filter, dotnet-build-notification]
+    if: needs.filter.outputs.notification == 'true'
+    name: "Unit Test: Notification"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Notification"
+      service_path: "services/notification/Notification.sln"
+      test_type: "unit"
+
+  dotnet-test-arch-notification:
+    needs: [filter, dotnet-build-notification]
+    if: needs.filter.outputs.notification == 'true'
+    name: "Arch Test: Notification"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Notification"
+      service_path: "services/notification/Notification.sln"
+      test_type: "architecture"
+
+  dotnet-test-integration-notification:
+    needs: [filter, dotnet-build-notification]
+    if: needs.filter.outputs.notification == 'true'
+    name: "Integration Test: Notification"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Notification"
+      service_path: "services/notification/Notification.sln"
+      test_type: "integration"
+
+  # --- ORDERING SERVICE ---
+  dotnet-build-ordering:
+    needs: filter
+    if: needs.filter.outputs.ordering == 'true'
+    name: "Build: Ordering"
+    uses: ./.github/workflows/dotnet-build.yml
+    with:
+      service_name: "Ordering"
+      service_path: "services/ordering/Ordering.sln"
+
+  dotnet-test-unit-ordering:
+    needs: [filter, dotnet-build-ordering]
+    if: needs.filter.outputs.ordering == 'true'
+    name: "Unit Test: Ordering"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Ordering"
+      service_path: "services/ordering/Ordering.sln"
+      test_type: "unit"
+
+  dotnet-test-arch-ordering:
+    needs: [filter, dotnet-build-ordering]
+    if: needs.filter.outputs.ordering == 'true'
+    name: "Arch Test: Ordering"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Ordering"
+      service_path: "services/ordering/Ordering.sln"
+      test_type: "architecture"
+
+  dotnet-test-integration-ordering:
+    needs: [filter, dotnet-build-ordering]
+    if: needs.filter.outputs.ordering == 'true'
+    name: "Integration Test: Ordering"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Ordering"
+      service_path: "services/ordering/Ordering.sln"
+      test_type: "integration"
+
+  # --- PAYMENT SERVICE ---
+  dotnet-build-payment:
+    needs: filter
+    if: needs.filter.outputs.payment == 'true'
+    name: "Build: Payment"
+    uses: ./.github/workflows/dotnet-build.yml
+    with:
+      service_name: "Payment"
+      service_path: "services/payment/Payment.sln"
+
+  dotnet-test-unit-payment:
+    needs: [filter, dotnet-build-payment]
+    if: needs.filter.outputs.payment == 'true'
+    name: "Unit Test: Payment"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Payment"
+      service_path: "services/payment/Payment.sln"
+      test_type: "unit"
+
+  dotnet-test-arch-payment:
+    needs: [filter, dotnet-build-payment]
+    if: needs.filter.outputs.payment == 'true'
+    name: "Arch Test: Payment"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Payment"
+      service_path: "services/payment/Payment.sln"
+      test_type: "architecture"
+
+  dotnet-test-integration-payment:
+    needs: [filter, dotnet-build-payment]
+    if: needs.filter.outputs.payment == 'true'
+    name: "Integration Test: Payment"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Payment"
+      service_path: "services/payment/Payment.sln"
+      test_type: "integration"
+
+  # --- SHARED QUALITY & SECURITY ---
+
+  generate-coverage-report:
+    needs: 
+      - filter
+      - dotnet-test-integration-catalog
+      - dotnet-test-integration-identity
+      - dotnet-test-integration-fulfillment
+      - dotnet-test-integration-inventory
+      - dotnet-test-integration-notification
+      - dotnet-test-integration-ordering
+      - dotnet-test-integration-payment
+    if: always() && !cancelled()
+    name: "Final Quality Report"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: coverage-artifacts
+          pattern: coverage-*
+
+      - name: ReportGenerator
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.2.4
+        with:
+          reports: 'coverage-artifacts/**/*.xml'
+          targetdir: 'merged-coverage'
+          reporttypes: 'HtmlSummary;MarkdownSummaryGitHub'
+
+      - name: Upload Merged Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-coverage-report
+          path: merged-coverage
+
+  sonar-scan-unified:
+    needs: [filter, generate-coverage-report]
+    if: always() && !cancelled()
+    name: "SonarCloud Unified Scan"
+    uses: ./.github/workflows/sonar-analysis.yml
+    with:
+      project_key: "JostinAlvaradoS_ticketing_project_week0"
+      organization: "jostinalvarados"
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  trivy-scan-catalog:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.catalog == 'true'
+    name: "Security Scan: Catalog"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "catalog"
+      dockerfile_path: "services/catalog/src/Catalog.Api/Dockerfile"
+
+  trivy-scan-identity:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.identity == 'true'
+    name: "Security Scan: Identity"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "identity"
+      dockerfile_path: "services/identity/src/Identity.Api/Dockerfile"
+
+  trivy-scan-fulfillment:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.fulfillment == 'true'
+    name: "Security Scan: Fulfillment"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "fulfillment"
+      dockerfile_path: "services/fulfillment/src/Fulfillment.Api/Dockerfile"
+
+  trivy-scan-inventory:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.inventory == 'true'
+    name: "Security Scan: Inventory"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "inventory"
+      dockerfile_path: "services/inventory/src/Inventory.Api/Dockerfile"
+
+  trivy-scan-notification:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.notification == 'true'
+    name: "Security Scan: Notification"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "notification"
+      dockerfile_path: "services/notification/src/Notification.Api/Dockerfile"
+
+  trivy-scan-ordering:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.ordering == 'true'
+    name: "Security Scan: Ordering"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "ordering"
+      dockerfile_path: "services/ordering/src/Ordering.Api/Dockerfile"
+
+  trivy-scan-payment:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.payment == 'true'
+    name: "Security Scan: Payment"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "payment"
+      dockerfile_path: "services/payment/src/Payment.Api/Dockerfile"
+
+  # --- FRONTEND ---
+  npm-build-frontend:
+    needs: filter
+    if: needs.filter.outputs.frontend == 'true'
+    name: "npm build: Frontend"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: 'frontend/pnpm-lock.yaml'
+      - name: Install dependencies
+        run: cd frontend && pnpm install
+      - name: Build
+        run: cd frontend && pnpm build
+
+  # --- SYSTEM AND E2E TESTING ---
+  system-verification:
+    name: "System: Quality & E2E Validation"
+    needs: [trivy-scan-catalog, trivy-scan-identity, trivy-scan-inventory, trivy-scan-notification, trivy-scan-ordering, trivy-scan-payment]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build and Start Services
+        run: |
+          docker compose -f infra/docker-compose.yml up -d
+          echo "Waiting for services to be ready..."
+          sleep 45
+          
+      - name: Run System Quality Check
+        run: bash system-quality-check.sh
+        
+      - name: Run E2E Test Flow
+        run: bash system-e2e-test.sh
+        
+      - name: Cleanup
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down

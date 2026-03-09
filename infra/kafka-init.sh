@@ -38,5 +38,11 @@ kafka-topics --create --if-not-exists \
     --partitions 1 \
     --topic ticket-issued
 
+kafka-topics --create --if-not-exists \
+    --bootstrap-server localhost:9092 \
+    --replication-factor 1 \
+    --partitions 1 \
+    --topic seats-generated
+
 echo "Topics created successfully!"
 kafka-topics --list --bootstrap-server localhost:9092

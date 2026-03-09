@@ -1,4 +1,6 @@
 using Inventory.Infrastructure;
+using Inventory.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Inventory.Domain.Ports;
 using Inventory.Api.Endpoints;
 using MediatR;
@@ -9,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // Register MediatR for application handlers
-builder.Services.AddMediatR(typeof(Inventory.Application.UseCases.CreateReservation.CreateReservationCommand).Assembly);
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Inventory.Application.UseCases.CreateReservation.CreateReservationCommand).Assembly));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -40,19 +42,18 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 // Map endpoints
 app.MapReservationEndpoints();
 
-// Aplicar migraciones / inicialización de BD al iniciar
+// Apply migrations automatically on startup
 using (var scope = app.Services.CreateScope())
 {
     try
     {
-        var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-        await dbInitializer.InitializeAsync();
-        Console.WriteLine("✓ Inventory DB initialized");
+        var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+        dbContext.Database.Migrate();
+        Console.WriteLine("✅ Inventory migrations applied successfully");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"✗ Inventory DB initialization failed: {ex.Message}");
-        throw;
+        Console.WriteLine($"⚠️ Warning: Could not apply migrations: {ex.Message}");
     }
 }
 

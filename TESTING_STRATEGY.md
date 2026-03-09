@@ -72,12 +72,17 @@ Para que una prueba sea considerada de **Integración Real** en nuestra estrateg
 - **Conectividad:** Probar que el microservicio puede comunicarse con el broker de mensajes real.
 
 ### 4.3 Diferencia Técnica por Capas
-| Aspecto | Unitarias (Domain) | Integración de Componente (API) | Integración de Sistema |
+| Aspecto | Unitarias (Domain) | Integración Lógica (API/Events) | Integración de Sistema (Real Infra) |
 | :--- | :--- | :--- | :--- |
-| **Sujeto** | Lógica pura (.cs) | Pipeline ASP.NET Core | Coreografía Microservicios |
-| **Persistencia** | Mocks (Moq) | SQL In-Memory | Postgres (Docker/Testcontainers) |
+| **Sujeto** | Lógica pura (.cs) | Pipeline ASP.NET + **Event Publisher** | Coreografía Microservicios |
+| **Persistencia** | Mocks (Moq) | SQL In-Memory + **Kafka Mocks** | Postgres + **Kafka (Docker)** |
 | **Velocidad** | Instantánea | Rápida (Segundos) | Lenta (Minutos) |
 | **Enfoque** | Caja Blanca | Caja Gris | Caja Negra |
+
+### 4.4 Mecanismo de Prueba para Kafka
+- **Validación Actual:** Al estar en una etapa de **Integración Lógica**, el mecanismo principal es a través de **Mocks (Moq)** sobre la interfaz `IKafkaProducer`. Se verifica que el método `ProduceAsync` sea invocado con los parámetros correctos.
+- **Validante de Calidad:** Esto asegura que la lógica de negocio *integra* correctamente la emisión de eventos en su flujo principal.
+- **Evolución:** Las pruebas de sistema futuras utilizarán un **Producer/Consumer Test Harness** real sobre un broker de Kafka en Docker para validar compatibilidad de esquemas (Avro/JSON).
 
 ---
 

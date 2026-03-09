@@ -55,7 +55,33 @@ graph TD
 
 ---
 
-## 3. Pruebas Funcionales y No Funcionales
+## 4. Clasificación Real de Nuestras Pruebas: ¿Integración o Unitarias?
+
+Como **QA Senior**, es vital distinguir entre lo que *parece* una prueba de integración y lo que *realmente* valida la infraestructura. Tras auditar los factories (`InventoryApiFactory`, `OrderingApiFactory`), hemos identificado la siguiente categorización:
+
+### 4.1 Pruebas de Integración "Shallow" (Componente / API)
+Muchos de nuestros tests marcados como "Integration" se clasifican técnicamente como **Component Tests** o **API Functional Tests**. 
+- **¿Por qué NO son integración pura?** Porque utilizan `UseInMemoryDatabase`. Esto ignora las restricciones de base de datos reales (Postgres), los drivers y las migraciones.
+- **¿Qué validan?** El pipeline de ASP.NET Core (Request -> Middleware -> Routing -> Controller).
+- **Contextualización:** Son pruebas de **Caja Gris**, ya que conocen la infraestructura mínima pero no la ejercitan de forma real.
+
+### 4.2 Pruebas de Integración "Deep" (Infraestructura Real)
+Para que una prueba sea considerada de **Integración Real** en nuestra estrategia, debe cumplir:
+- **Testcontainers:** Levantar una instancia efímera de Postgres/Redis/Kafka en Docker.
+- **Persistencia de Esquema:** Validar que los esquemas `bc_*` y sus `constraints` (Unique, Foreign Key) funcionen correctamente.
+- **Conectividad:** Probar que el microservicio puede comunicarse con el broker de mensajes real.
+
+### 4.3 Diferencia Técnica por Capas
+| Aspecto | Unitarias (Domain) | Integración de Componente (API) | Integración de Sistema |
+| :--- | :--- | :--- | :--- |
+| **Sujeto** | Lógica pura (.cs) | Pipeline ASP.NET Core | Coreografía Microservicios |
+| **Persistencia** | Mocks (Moq) | SQL In-Memory | Postgres (Docker/Testcontainers) |
+| **Velocidad** | Instantánea | Rápida (Segundos) | Lenta (Minutos) |
+| **Enfoque** | Caja Blanca | Caja Gris | Caja Negra |
+
+---
+
+## 5. Pruebas Funcionales y No Funcionales
 
 Como parte del rigor de QA Senior, dividimos las pruebas en dos grandes dimensiones:
 

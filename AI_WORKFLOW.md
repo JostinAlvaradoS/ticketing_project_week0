@@ -172,6 +172,49 @@ Tareas a generar:
 - Implementación de API Endpoints con validación de roles (Admin).
 ```
 
+7) Estrategia DevOps de Pruebas con Enfoque Shift Left — comando: `/qa-devops-shift-left`
+
+**Contexto:**
+Basándose en la experiencia de pruebas unitarias, de integración, smoke e2e ya implementadas en el proyecto (archivos de configuración y scripts: `docker-smoke-test.sh`, `system-e2e-test.sh`, `migrate-all-test.sh`, `TEST_PLAN.md`, `TESTING_STRATEGY.md`), se define ahora un flujo DevOps completo que integre análisis estático (SonarQube), análisis de vulnerabilidades (Trivy) y pruebas funcionales/no funcionales bajo un enfoque **Shift Left** (pruebas desde la izquierda del pipeline = lo antes posible en desarrollo).
+
+**Prompt final refinado (v1.0.0):**
+
+```
+Como experto en QA Senior, diseña un flujo DevOps completo que integre las pruebas unitarias, de integración, smoke e2e existentes bajo un enfoque Shift Left. Implementa un pipeline CI/CD que incluya pruebas funcionales y no funcionales (análisis de vulnerabilidades con Trivy, análisis de calidad de código con SonarQube) en cada etapa. 
+
+El pipeline debe progresionalmente:
+1. Ejecutar pruebas unitarias de caja blanca (unit tests en paralelo por servicio).
+2. Realizar pruebas de integración y análisis estático de código (SonarQube).
+3. Ejecutar análisis de vulnerabilidades (Trivy sobre imágenes Docker y dependencias).
+4. Ejecutar pruebas e2e de caja negra (smoke tests + system e2e).
+5. Validar garantías de seguridad y rendimiento (métricas de cobertura, deuda técnica).
+
+Requisitos:
+- Automatización completa en GitHub Actions o similar (CI/CD).
+- Reportes generados para cobertura, vulnerabilidades y calidad de código.
+- Fallos en etapas críticas deben bloquear progresión (ej: vulnerabilidades críticas, cobertura < 70%).
+- Integración con artefactos existentes: docker-compose.yml, scripts de test (docker-smoke-test.sh, system-e2e-test.sh, etc.).
+- Logs estructurados y trazabilidad de cada ejecución.
+```
+
+**Objetivos principales:**
+- **Caja blanca → Caja negra:** Comenzar con pruebas de unitarias enfocadas en lógica de negocio y dominios, evolucionar hacia pruebas de integración e2e que validen comportamiento desde la perspectiva del usuario.
+- **Early detection:** Detectar problemas de calidad, seguridad y funcionalidad tan pronto como sea posible en el ciclo de desarrollo.
+- **Calidad sostenible:** Mantener métricas de cobertura, deuda técnica y vulnerabilidades bajo control continuo.
+
+**Artefactos esperados:**
+- Pipeline CI/CD documentado (GitHub Actions workflow YAML).
+- Configuración de SonarQube (sonarcloud.io o self-hosted).
+- Configuración de Trivy (scan de imágenes y dependencias).
+- Dashboard de calidad y seguridad (métricas por servicio).
+- Reporte consolidado de pruebas (cobertura, smoke, e2e, vulnerabilidades).
+
+**Referencias internas (ya existentes):**
+- [TESTING_STRATEGY.md](TESTING_STRATEGY.md) — Estrategia global de testing.
+- [TEST_PLAN.md](TEST_PLAN.md) — Plan detallado de pruebas.
+- [TDD_report.md](TDD_report.md) — Registro de pruebas ATDD.
+- [docker-smoke-test.sh](docker-smoke-test.sh), [system-e2e-test.sh](system-e2e-test.sh), [migrate-all-test.sh](migrate-all-test.sh) — Scripts de automatización.
+
 Verificación y evidencia de avance
 - Cada artefacto generado (`spec.md`, `plan.md`, `tasks.md`) se diseñó para ser testable y transferible a la fase de implementación.
 - La verificación se planificó contra los Acceptance Scenarios en `spec.md` y contra las tareas en `tasks.md` (checkboxes).

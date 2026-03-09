@@ -49,8 +49,19 @@ jobs:
 
       - name: Verify Tables in Postgres
         run: |
+          echo "Listing all schemas..."
+          docker exec speckit-postgres psql -U postgres -d ticketing -c "\dn"
+          echo "Listing Catalog tables..."
           docker exec speckit-postgres psql -U postgres -d ticketing -c "\dt bc_catalog.*"
+          echo "Checking Catalog Events content..."
           docker exec speckit-postgres psql -U postgres -d ticketing -c "SELECT COUNT(*) FROM bc_catalog.\"Events\";" || echo "Events table might not exist yet"
+          echo "Checking Catalog Seats content..."
+          docker exec speckit-postgres psql -U postgres -d ticketing -c "SELECT COUNT(*) FROM bc_catalog.\"Seats\";" || echo "Seats table might not exist yet"
+
+      - name: Catalog Service Logs
+        if: always()
+        run: |
+          docker logs speckit-catalog
 
       - name: Run E2E System Test
         run: |

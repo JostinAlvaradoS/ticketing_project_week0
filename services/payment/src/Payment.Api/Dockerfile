@@ -22,6 +22,10 @@ RUN dotnet ef migrations bundle \
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
+
+# Install native dependencies for librdkafka (required by Confluent.Kafka on Linux)
+RUN apt-get update && apt-get install -y librdkafka-dev && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/publish .
 RUN chmod +x /app/efbundle
 

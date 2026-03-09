@@ -20,19 +20,27 @@ RUN dotnet ef migrations bundle \
     --self-contained \
     --force
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
+# Install native dependencies for librdkafka (required by Confluent.Kafka)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    librdkafka-dev \
+    libicu-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user for security
-RUN addgroup -g 1000 appuser && \
-    adduser -u 1000 -G appuser -s /bin/sh -D appuser
+RUN groupadd -g 1000 appuser && \
+    useradd -u 1000 -g appuser -s /bin/sh -m appuser
 
 # Copy application and set ownership
 COPY --from=build --chown=appuser:appuser /app/publish .
 RUN chmod +x /app/efbundle
 
 # Entrypoint script: run migrations then start app
-RUN printf '#!/bin/sh\nset -e\necho "Applying EF Core migrations..."\n/app/efbundle --connection "$ConnectionStrings__Default" || echo "Migration warning: migrations may already be applied"\necho "Starting application..."\nexec dotnet Catalog.Api.dll\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+RUN printf '#!/bin/sh\nset -e\necho "Current user: $(id)"\necho "Applying EF Core migrations..."\n' > /app/entrypoint.sh && \
+    printf '/app/efbundle --connection "$ConnectionStrings__Default" || echo "Migration warning: migrations may already be applied"\necho "Starting application..."\nexec dotnet Catalog.Api.dll\n' >> /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
 
 USER appuser
 

@@ -1,4 +1,6 @@
 using Inventory.Infrastructure;
+using Inventory.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Inventory.Domain.Ports;
 using Inventory.Api.Endpoints;
 using MediatR;
@@ -40,7 +42,20 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 // Map endpoints
 app.MapReservationEndpoints();
 
-// DB initialization and migrations are now handled externally (pipeline)
+// Apply migrations automatically on startup
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+        dbContext.Database.Migrate();
+        Console.WriteLine("✅ Inventory migrations applied successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ Warning: Could not apply migrations: {ex.Message}");
+    }
+}
 
 app.Run();
 

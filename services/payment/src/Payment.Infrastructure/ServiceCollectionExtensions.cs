@@ -72,8 +72,21 @@ public static class ServiceCollectionExtensions
 
     public static WebApplication UseInfrastructure(this WebApplication app)
     {
-        // DB initialization and migrations are now handled externally (pipeline)
-        
+        // Apply migrations automatically on startup
+        using (var scope = app.Services.CreateScope())
+        {
+            try
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();
+                dbContext.Database.Migrate();
+                Console.WriteLine("✅ Payment migrations applied successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Warning: Could not apply migrations: {ex.Message}");
+            }
+        }
+
         // Configure the HTTP request pipeline
         if (app.Environment.IsDevelopment())
         {

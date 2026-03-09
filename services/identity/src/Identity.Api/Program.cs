@@ -3,6 +3,8 @@ using Identity.Domain.ValueObjects;
 using Identity.Application.UseCases.IssueToken;
 using Identity.Application.UseCases.CreateUser;
 using Identity.Infrastructure;
+using Identity.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,7 +61,20 @@ app.MapPost("/token", async (
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "identity" }));
 
-// DB initialization and migrations are now handled externally (pipeline)
+// Apply migrations automatically on startup
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        dbContext.Database.Migrate();
+        Console.WriteLine("✅ Identity migrations applied successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ Warning: Could not apply migrations: {ex.Message}");
+    }
+}
 
 app.Run();
 

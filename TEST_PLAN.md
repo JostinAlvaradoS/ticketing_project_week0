@@ -45,29 +45,29 @@ A continuación se mapean las Historias de Usuario (HU) definidas en las [specs]
 ### HU-P1: Compra de Boleto (Critical Path)
 *Como Cliente, quiero seleccionar un asiento, reservarlo temporalmente, agregarlo al carrito y pagar para recibir mi boleto con QR.*
 
-| ID Prueba | Escenario de Aceptación | Nivel | Técnica / Limites establecidos | Estado |
-| :--- | :--- | :--- | :--- | :--- |
-| **TC-P1-01** | Selección y reserva con TTL 15 min. | Integración | **Valores Límite:** 14:59 (Válido), 15:01 (Expirado). | ✅ Implementado |
-| **TC-P1-02** | Bloqueo de doble reserva simultánea. | Integración | **Concurrencia:** Lock en Redis (TTL 30s) / Optimistic Lock (Version control). | ✅ Implementado |
-| **TC-P1-03** | Conversión de Reserva a Orden `Draft`. | Unitario | **Transición Estados:** Solo 1 Orden `Draft` permitida por `User_Id`. | ✅ Implementado |
-| **TC-P1-04** | Pago Exitoso (Simulado) -> Orden `Paid`. | Unitario | **Partición Equiv:** Balance >= Total (Success), Balance < Total (Fail). | ✅ Implementado |
-| **TC-P1-05** | Fallo en Pago -> Orden `Pending/Failed`. | Unitario | **Error Guessing:** Timeout de Red, Tarjeta declinada (Simulación). | ✅ Implementado |
-| **TC-P1-06** | Generación de Ticket PDF con QR. | Integración | **Caja Negra:** Formato PDF plano A4, QR debe contener `Ticket_Id` + `Hash`. | ✅ Implementado |
+| ID Prueba | Escenario de Aceptación | Nivel | Técnica / Límites Reales Probadoss | Evidencia / Ubicación | Estado |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **TC-P1-01** | Selección y reserva con TTL 15 min. | Integración | **Límites:** 14:59 (OK), 15:01 (Expira). | [system-e2e-test.sh](system-e2e-test.sh#L86) / [ReservationTests.cs](services/inventory/tests/unit/Inventory.UnitTests/Domain/ReservationTests.cs) | ✅ Implementado |
+| **TC-P1-02** | Bloqueo de doble reserva simultánea. | Integración | **Concurrencia:** Lock en Redis/DB. | [InventoryRepository.cs](services/inventory/src/Inventory.Infrastructure/Persistence/Repositories/InventoryRepository.cs) | ✅ Implementado |
+| **TC-P1-03** | Conversión de Reserva a Orden `Draft`. | Unitario | **Transición:** Reserva -> Orden (1:1). | [CheckoutOrderHandlerTests.cs](services/ordering/tests/unit/Ordering.Application.UnitTests/CheckoutOrderHandlerTests.cs) | ✅ Implementado |
+| **TC-P1-04** | Pago Exitoso (Simulado) -> Orden `Paid`. | Unitario | **Partición:** Balance >= Total. | [ProcessPaymentHandlerTests.cs](services/payment/tests/unit/Payment.Application.UnitTests/ProcessPaymentHandlerTests.cs) | ✅ Implementado |
+| **TC-P1-05** | Fallo en Pago -> Orden `Pending/Failed`. | Unitario | **Partición:** Balance < Total. | [PaymentTests.cs](services/payment/tests/unit/Payment.Domain.UnitTests/PaymentTests.cs) | ✅ Implementado |
+| **TC-P1-06** | Generación de Ticket PDF con QR. | Integración | **Validación:** QR contiene TicketId hash. | [TicketEntityTests.cs](services/fulfillment/tests/unit/Fulfillment.Domain.UnitTests/Entities/TicketEntityTests.cs) | ✅ Implementado |
 
 ### HU-P2: Navegación y Descubrimiento
 *Como Visitante, quiero ver eventos y mapas de asientos para elegir qué reservar.*
 
-| ID Prueba | Escenario de Aceptación | Nivel | Técnica / Limites establecidos | Estado |
-| :--- | :--- | :--- | :--- | :--- |
-| **TC-P2-01** | Consulta de catálogo de eventos activos. | Unitario | **Caja Blanca:** Solo eventos con `Start_Date` > `Now`. | ✅ Implementado |
-| **TC-P2-02** | Mapa de asientos refleja disponibilidad. | Contrato | **API Testing:** Sincronización `Catalog` vs `Inventory` < 200ms. | ✅ Implementado |
+| ID Prueba | Escenario de Aceptación | Nivel | Técnica / Límites Reales Probados | Evidencia / Ubicación | Estado |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **TC-P2-01** | Consulta de catálogo de eventos activos. | Unitario | **Filtro:** `Start_Date` > `Now`. | [GetAllEventsHandlerTests.cs](services/catalog/tests/unit/Catalog.Application.UnitTests/UseCases/GetAllEvents/GetAllEventsHandlerTests.cs) | ✅ Implementado |
+| **TC-P2-02** | Mapa de asientos refleja disponibilidad. | Contrato | **Sync:** Catalog <> Inventory. | [system-e2e-test.sh](system-e2e-test.sh#L76) / [SeatTests.cs](services/catalog/tests/unit/Catalog.Domain.UnitTests/Entities/SeatTests.cs) | ✅ Implementado |
 
 ### HU-P3: Gestión por Organizador
 *Como Organizador, quiero crear eventos y configurar asientos.*
 
-| ID Prueba | Escenario de Aceptación | Nivel | Técnica / Limites establecidos | Estado |
-| :--- | :--- | :--- | :--- | :--- |
-| **TC-P3-01** | Creación de evento con asientos. | Integración | **Límites:** Máximo 50,000 asientos por evento (Escalabilidad DB). | ✅ Implementado |
+| ID Prueba | Escenario de Aceptación | Nivel | Técnica / Límites Reales Probados | Evidencia / Ubicación | Estado |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **TC-P3-01** | Creación de evento con asientos. | Integración | **Escalabilidad:** Max 50k asientos. | [CreateEventCommandHandlerTests.cs](services/catalog/tests/unit/Catalog.Application.UnitTests/UseCases/CreateEvent/CreateEventCommandHandlerTests.cs) | ✅ Implementado |
 
 ## 5. Casos de Prueba Detallados (Baseline)
 

@@ -26,8 +26,9 @@ public static class ServiceCollectionExtensions
 
         // Configure Redis connection multiplexer and Redis lock adapter
         var redisConn = configuration.GetConnectionString("Redis") ?? configuration["Redis:Connection"] ?? "localhost:6379";
-        var multiplexer = ConnectionMultiplexer.Connect(redisConn);
-        services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+        
+        // Lazy registration for Redis to avoid connection on EF build
+        services.AddSingleton<IConnectionMultiplexer>(sp => ConnectionMultiplexer.Connect(redisConn));
         services.AddScoped<IRedisLock, RedisLock>();
 
         // Configure Kafka producer
@@ -38,8 +39,8 @@ public static class ServiceCollectionExtensions
             AllowAutoCreateTopics = true,
             Acks = Acks.All
         };
-        var producer = new ProducerBuilder<string?, string>(kafkaConfig).Build();
-        services.AddSingleton(producer);
+        
+        services.AddSingleton(sp => new ProducerBuilder<string?, string>(kafkaConfig).Build());
         services.AddSingleton<IKafkaProducer, KafkaProducer>();
 
         // Register inventory event consumer
@@ -61,10 +62,11 @@ public static class ServiceCollectionExtensions
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false
         };
-        var consumer = new ConsumerBuilder<string?, string>(consumerConfig).Build();
+        
         services.AddSingleton<IHostedService, SeatsGeneratedConsumer>(sp =>
         {
             var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            var consumer = new ConsumerBuilder<string?, string>(consumerConfig).Build();
             return new SeatsGeneratedConsumer(scopeFactory, consumer);
         });
 

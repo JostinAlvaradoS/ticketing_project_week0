@@ -10,17 +10,24 @@ public class KafkaEventPublisher : IEventPublisher
 {
     private readonly IProducer<string, string> _producer;
     private readonly ILogger<KafkaEventPublisher> _logger;
+    private readonly ProducerConfig _config;
 
     public KafkaEventPublisher(IOptions<KafkaOptions> kafkaOptions, ILogger<KafkaEventPublisher> logger)
     {
         _logger = logger;
         
-        var config = new ProducerConfig
+        _config = new ProducerConfig
         {
             BootstrapServers = kafkaOptions.Value.BootstrapServers
         };
 
-        _producer = new ProducerBuilder<string, string>(config).Build();
+        // No instanciamos el productor aquí para evitar problemas en tiempo de diseño (EF Core)
+    }
+
+    private IProducer<string, string> GetProducer()
+    {
+        // El productor se crea perezosamente al primer intento de uso
+        return _producer ?? new ProducerBuilder<string, string>(_config).Build();
     }
 
     public async Task<bool> PublishAsync<T>(string topic, string key, T @event) where T : class
@@ -38,7 +45,8 @@ public class KafkaEventPublisher : IEventPublisher
                 Value = json
             };
 
-            var result = await _producer.ProduceAsync(topic, message);
+            var producer = GetProducer();
+            var result = await producer.ProduceAsync(topic, message);
             
             _logger.LogInformation($"Evento publicado en {topic}: {key}");
             return result.Status == PersistenceStatus.Persisted;

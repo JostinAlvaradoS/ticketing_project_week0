@@ -53,8 +53,7 @@ public static class ServiceCollectionExtensions
             MessageTimeoutMs = 5000
         };
         
-        var producer = new ProducerBuilder<string?, string>(kafkaConfig).Build();
-        services.AddSingleton(producer);
+        services.AddSingleton(sp => new ProducerBuilder<string?, string>(kafkaConfig).Build());
         services.AddSingleton<IKafkaProducer, KafkaProducer>();
         
         // Event-driven service validation (replaces HTTP clients)

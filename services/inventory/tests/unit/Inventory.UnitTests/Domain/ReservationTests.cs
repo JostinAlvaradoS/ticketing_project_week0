@@ -36,4 +36,26 @@ public class ReservationTests
         reservation.ExpiresAt.Should().Be(expiresAt);
         reservation.Status.Should().Be(status);
     }
+
+    [Theory]
+    [InlineData(14, false)] // TC-P1-01: 14:59 (Valido)
+    [InlineData(15, true)]  // Límite: 15:00 (Expirado - siguiendo lógica strictly greater than 15)
+    [InlineData(16, true)]  // TC-P1-01: 15:01 (Expirado)
+    public void IsExpired_Should_Return_Correct_Status_Based_On_TTL(int minutesPassed, bool expectedExpired)
+    {
+        // Arrange
+        var createdAt = DateTime.UtcNow;
+        var reservation = new Reservation
+        {
+            CreatedAt = createdAt,
+            Status = "active"
+        };
+        var checkTime = createdAt.AddMinutes(minutesPassed).AddSeconds(1);
+
+        // Act
+        var result = reservation.IsExpired(checkTime);
+
+        // Assert
+        result.Should().Be(expectedExpired);
+    }
 }

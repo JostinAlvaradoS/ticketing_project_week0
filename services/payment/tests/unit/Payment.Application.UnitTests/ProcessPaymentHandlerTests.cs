@@ -77,6 +77,34 @@ public class ProcessPaymentHandlerTests
         VerifyPaymentSimulation(Times.Never());
     }
 
+    [Fact]
+    public async Task Handle_WhenAmountDoesNotMatchOrder_ShouldReturnFailure()
+    {
+        // Arrange (TC-P1-04/05 boundary: Balance vs Total)
+        var command = CreateValidCommand();
+        var mismatchedAmount = command.Amount - 0.01m;
+        var commandWithMismatch = new ProcessPaymentCommand(
+            command.OrderId,
+            command.CustomerId,
+            command.ReservationId.Value,
+            mismatchedAmount, // User tries to pay LESS
+            command.Currency,
+            command.PaymentMethod
+        );
+
+        SetupOrderValidation(commandWithMismatch, false, "Amount mismatch. Order total is 100.00");
+
+        var handler = CreateHandler();
+
+        // Act
+        var result = await handler.Handle(commandWithMismatch, CancellationToken.None);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("Amount mismatch");
+        VerifyPaymentSimulation(Times.Never());
+    }
+
     // --- Helper Methods for Setup and Verification ---
 
     private static ProcessPaymentCommand CreateValidCommand() => new(

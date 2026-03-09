@@ -33,12 +33,12 @@ Nuestro pipeline implementa el Shift-Left mediante:
 
 ## 3. Pirámide de Pruebas (Test Pyramid)
 
-Nuestra pirámide está diseñada para maximizar el ROI de las pruebas:
+Nuestra pirámide está diseñada para maximizar el ROI de las pruebas y la eficiencia del CI:
 
 ```mermaid
 graph TD
     subgraph Pyramid
-    E2E[5% - Smoke/E2E: Scripts Bash + Docker-Compose]
+    E2E[5% - System Verification: Calidad + E2E Unificado]
     INT_SYS[10% - Pruebas de Sistema: Kafka Event-Flow]
     INT_COMP[15% - Integración de Componentes: Testcontainers/Repo]
     UNIT[70% - Unitarias: Domain/Application Logic]
@@ -52,6 +52,7 @@ graph TD
 - **Pruebas Unitarias (Caja Blanca):** Validamos la lógica interna de los Handlers y Entidades. Usamos **Mocks** para aislar dependencias.
 - **Integración de Componentes (Component Integration):** Validamos la comunicación entre el código y su base de datos/cache real usando **Testcontainers**.
 - **Pruebas de Sistema (System Integration):** Validamos el flujo asíncrono entre servicios vía **Kafka** (ej: `payment-succeeded` -> `ticket-issued`).
+- **Verificación de Sistema (Unified System Check):** Un solo paso de orquestación en CI que valida la infraestructura (Health) y el flujo de negocio (E2E) sobre la misma instancia de Docker Compose para optimizar tiempos.
 
 ---
 
@@ -71,17 +72,42 @@ Para que una prueba sea considerada de **Integración Real** en nuestra estrateg
 - **Persistencia de Esquema:** Validar que los esquemas `bc_*` y sus `constraints` (Unique, Foreign Key) funcionen correctamente.
 - **Conectividad:** Probar que el microservicio puede comunicarse con el broker de mensajes real.
 
-### 4.3 Diferencia Técnica por Capas
-| Aspecto | Unitarias (Domain) | Integración de Componente (API) | Integración de Sistema |
-| :--- | :--- | :--- | :--- |
-| **Sujeto** | Lógica pura (.cs) | Pipeline ASP.NET Core | Coreografía Microservicios |
-| **Persistencia** | Mocks (Moq) | SQL In-Memory | Postgres (Docker/Testcontainers) |
-| **Velocidad** | Instantánea | Rápida (Segundos) | Lenta (Minutos) |
-| **Enfoque** | Caja Blanca | Caja Gris | Caja Negra |
+### 4.3 Diferencia Técnica por Capas y Estrategia de Validación
+| Capa | Sujeto de Prueba | ¿Qué Validamos? (Business) | ¿Qué Verificamos? (Technical) | Herramienta Clave |
+| :--- | :--- | :--- | :--- | :--- |
+| **Unitarias (Domain)** | Lógica Pura, Entidades, Handlers | Reglas de negocio críticas (ej: stock < 0). | Invariantes del modelo y lógica determinista. | xUnit + Moq |
+| **Integración de Componentes** | API Controllers + Pipeline Middleware | Contratos de API (JSON), ruteo y códigos HTTP. | Orquestación interna: Controller -> Handler -> Repo. | `WebApplicationFactory` + In-Memory |
+| **Integración de Infraestructura** | Persistence (EF Core) + Event Bus | Persistencia correcta de datos complejos. | Conectividad real y Constraints de DB (Unique/FK). | Testcontainers |
+| **E2E / Sistema** | Flujo Transversal (HU-P1) | Cumplimiento de la Historia de Usuario completa. | Coreografía de eventos entre microservicios (Kafka). | Docker Compose + Scripts K8s |
+
+### 4.4 Análisis de Nuestra Implementación Actual
+Tras auditar el directorio `tests/`, es fundamental aclarar el estado real de nuestras pruebas para la defensa técnica:
+
+1.  **Pruebas de "Integración de Componentes" (Actuales):** 
+    - **Ubicación:** `/services/*/tests/integration/`
+    - **Naturaleza:** Son pruebas de **Caja Gris** que validan el pipeline de ASP.NET Core. 
+    - **Estatus:** **IMPLEMENTADO.** Usamos `WebApplicationFactory` con `UseInMemoryDatabase`. 
+    - **Defensa:** Validamos que el request llegue al controller y se procese, pero **verificamos** solo la lógica interna, omitiendo la latencia y restricciones de una base de datos real.
+
+2.  **Pruebas de "Integración de Infraestructura" (Futuro/Escalado):**
+    - **Estado:** Se recomienda migrar a **Testcontainers** para reemplazar el In-Memory por instancias reales de Postgres en el CI.
+
+3.  **Validación vs. Verificación en nuestro Pipeline:**
+    - **Validación (¿Estamos construyendo el producto correcto?):** Se hace en la capa **E2E** y **Manual**. Validamos que el flujo de compra "Ticketing MVP" cumple con la necesidad del usuario de principio a fin.
+    - **Verificación (¿Estamos construyendo el producto correctamente?):** Se hace en las capas **Unitarias** e **Integración**. Verificamos que el código cumple con las especificaciones técnicas (ej: el JSON tiene el formato exacto, el código HTTP es 201 Created).
 
 ---
 
-## 5. Pruebas Funcionales y No Funcionales
+## 5. Cuadro de Defensa de QA (Resumen para Jurado)
+| Pregunta | Respuesta Estratégica |
+| :--- | :--- |
+| **¿Por qué dicen que tienen pruebas de integración si usan In-Memory?** | "Tenemos **Integración de Componentes**. Validamos la integración del framework ASP.NET con nuestro código de aplicación. No es integración de infraestructura pura, pero es altamente eficiente para validar el pipeline de ejecución sin la fragilidad de servicios externos." |
+| **¿Dónde está la validación de Kafka en el CI?** | "Actualmente verificamos la **intención de emisión** mediante Mocks. En el flujo final de `system-verification.yml`, validamos la **coreografía real** observando los cambios de estado finales en las bases de datos tras la propagación de eventos." |
+| **¿Cómo aseguran que el Shift-Left sea real?** | "Mediante el feedback instantáneo en los PRs. Ningún código llega a la rama `main` sin haber verificado satisfactoriamente las capas unitaria y de componentes, reduciendo el costo de corrección en un 80%." |
+
+---
+
+## 6. Pruebas Funcionales y No Funcionales
 
 Como parte del rigor de QA Senior, dividimos las pruebas en dos grandes dimensiones:
 

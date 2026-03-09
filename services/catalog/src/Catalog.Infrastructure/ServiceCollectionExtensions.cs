@@ -44,8 +44,9 @@ public static class ServiceCollectionExtensions
             AllowAutoCreateTopics = true,
             Acks = Acks.All
         };
-        var producer = new ProducerBuilder<string?, string>(kafkaConfig).Build();
-        services.AddSingleton(producer);
+        
+        // Use factory registration to avoid building producer during EF migrations
+        services.AddSingleton(sp => new ProducerBuilder<string?, string>(kafkaConfig).Build());
         services.AddSingleton<IKafkaProducer, KafkaProducer>();
 
         // Kafka consumers
@@ -58,10 +59,12 @@ public static class ServiceCollectionExtensions
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false
         };
-        var consumer = new ConsumerBuilder<string?, string>(consumerConfig).Build();
+        
+        // Using factory registration for the consumer too
         services.AddSingleton<IHostedService, TicketIssuedConsumer>(sp =>
         {
             var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            var consumer = new ConsumerBuilder<string?, string>(consumerConfig).Build();
             return new TicketIssuedConsumer(scopeFactory, consumer);
         });
         
@@ -104,7 +107,21 @@ public static class ServiceCollectionExtensions
 
     public static WebApplication UseInfrastructure(this WebApplication app)
     {
-        // DB initialization and migrations are now handled externally (pipeline)
+        // Apply migrations automatically on startup
+        using (var scope = app.Services.CreateScope())
+        {
+            try
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+                dbContext.Database.Migrate();
+                Console.WriteLine("✅ Catalog migrations applied successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Warning: Could not apply migrations: {ex.Message}");
+            }
+        }
+
         // Configure the HTTP request pipeline
         if (app.Environment.IsDevelopment())
         {

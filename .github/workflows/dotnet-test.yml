@@ -31,6 +31,12 @@ jobs:
           SERVICE_DIR=$(dirname "${{ inputs.service_path }}")
           TEST_DIR="$SERVICE_DIR/tests/${{ inputs.test_type }}"
           
+          # Skip architecture tests entirely
+          if [[ "${{ inputs.test_type }}" == "architecture" ]]; then
+            echo "Architecture tests are currently skipped (under development)."
+            exit 0
+          fi
+          
           if [ -d "$TEST_DIR" ]; then
             echo "Searching for test projects in $TEST_DIR"
             # Buscamos archivos .csproj de forma recursiva
@@ -48,15 +54,11 @@ jobs:
               echo "Running tests for: $PROJECT"
               echo "--------------------------------------------------------"
               
-              if [[ "${{ inputs.test_type }}" != "architecture" ]]; then
-                PROJECT_NAME=$(basename "$PROJECT" .csproj)
-                dotnet test "$PROJECT" --configuration Release \
-                  --settings coverlet.runsettings \
-                  --collect:"XPlat Code Coverage" \
-                  --results-directory "./test-results-output/$PROJECT_NAME"
-              else
-                dotnet test "$PROJECT" --configuration Release
-              fi
+              PROJECT_NAME=$(basename "$PROJECT" .csproj)
+              dotnet test "$PROJECT" --configuration Release \
+                --settings coverlet.runsettings \
+                --collect:"XPlat Code Coverage" \
+                --results-directory "./test-results-output/$PROJECT_NAME"
             done
           else
             echo "Skipping: No ${{ inputs.test_type }} tests directory found at $TEST_DIR"

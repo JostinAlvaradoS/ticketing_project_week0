@@ -16,7 +16,11 @@ public sealed class GetAllEventsHandler : IRequestHandler<GetAllEventsQuery, IEn
     {
         var events = await _repository.GetAllEventsWithSeatsAsync(cancellationToken);
 
+        // Filter: TC-P2-01 - Start_Date > Now (Only active/future events)
+        var now = DateTime.UtcNow;
+
         return events
+            .Where(e => e.EventDate > now && e.IsActive)
             .Select(e => {
                 var soldSeats = e.GetSoldSeatsCount();
                 var revenue = e.Seats.Where(s => s.IsSold()).Sum(s => s.Price);

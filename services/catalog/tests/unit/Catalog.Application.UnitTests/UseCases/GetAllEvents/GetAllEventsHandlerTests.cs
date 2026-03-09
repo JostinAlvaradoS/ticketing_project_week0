@@ -159,6 +159,37 @@ public class GetAllEventsHandlerTests
         result.Should().OnlyContain(e => e.EventDate == sameDate);
     }
 
+    [Fact]
+    public async Task Handle_Should_Filter_Out_Past_Events_And_Inactive_Events()
+    {
+        // Arrange (TC-P2-01: Start_Date > Now)
+        var cancellationToken = CancellationToken.None;
+        var query = new GetAllEventsQuery();
+        var now = DateTime.UtcNow;
+
+        var futureActive = CreateEvent("Future Event", now.AddDays(1), 100m);
+        
+        // Simular un evento pasado sin usar el Factory que valida la fecha
+        var pastEvent = (Event)System.Runtime.Serialization.FormatterServices.GetUninitializedObject(typeof(Event));
+        typeof(Event).GetProperty("Id")?.SetValue(pastEvent, Guid.NewGuid());
+        typeof(Event).GetProperty("Name")?.SetValue(pastEvent, "Past Event");
+        typeof(Event).GetProperty("EventDate")?.SetValue(pastEvent, now.AddDays(-1));
+        typeof(Event).GetProperty("Status")?.SetValue(pastEvent, "active");
+
+        var events = new List<Event> { futureActive, pastEvent };
+
+        _mockRepository
+            .Setup(r => r.GetAllEventsWithSeatsAsync(cancellationToken))
+            .ReturnsAsync(events);
+
+        // Act
+        var result = await _handler.Handle(query, cancellationToken);
+
+        // Assert
+        result.Should().HaveCount(1);
+        result.Single().Name.Should().Be("Future Event");
+    }
+
     // Test Helper Methods
     private static Event CreateEvent(string name, DateTime eventDate, decimal basePrice)
     {

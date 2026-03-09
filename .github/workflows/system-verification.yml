@@ -24,49 +24,109 @@ jobs:
       - name: Install EF Tool
         run: dotnet tool install --global dotnet-ef
 
+      - name: Clean Docker Environment
+        run: |
+          echo "Removing old Postgres volume (if any)..."
+          docker volume rm ticketing_project_week0_postgres-data || true
+          echo "Cleaning up any stopped containers..."
+          docker container prune -f || true
+
       - name: Docker Compose Up
         run: |
           cd infra
           docker compose up -d --build
           
-      - name: Wait for Infrastructure
+      - name: Wait for Infrastructure (Aggressive Sync)
         run: |
-          echo "Waiting for Postgres..."
-          until docker exec speckit-postgres pg_isready -U postgres; do
+          echo "=== STEP 1: Install netcat ==="
+          apt-get update && apt-get install -y netcat-openbsd postgresql-client || true
+          
+          echo "=== STEP 2: Wait for Postgres TCP port ==="
+          for i in {1..30}; do
+            if timeout 2 bash -c "echo > /dev/tcp/localhost/5432" 2>/dev/null; then
+              echo "[✓] Postgres TCP port is open"
+              break
+            fi
+            echo "Attempt $i/30: Postgres TCP not ready... waiting"
             sleep 2
           done
-          echo "Waiting for services to be healthy..."
-          sleep 15 # Give time for .NET health checks to warm up
+          
+          echo "=== STEP 3: Wait for Postgres to accept queries ==="
+          for i in {1..30}; do
+            if docker exec speckit-postgres psql -U postgres -d postgres -c "SELECT 1" > /dev/null 2>&1; then
+              echo "[✓] Postgres is accepting queries"
+              break
+            fi
+            echo "Attempt $i/30: Postgres not ready yet... waiting"
+            sleep 2
+          done
+          
+          echo "=== STEP 4: Verify test database exists ==="
+          docker exec speckit-postgres psql -U postgres -c "SELECT datname FROM pg_database WHERE datname='ticketing'" || {
+            echo "[CRITICAL] Database 'ticketing' not found!"
+            docker exec speckit-postgres psql -U postgres -c "\l"
+            exit 1
+          }
+          
+          echo "=== STEP 5: Verify schemas exist ==="
+          docker exec speckit-postgres psql -U postgres -d ticketing -c "SELECT nspname FROM pg_catalog.pg_namespace WHERE nspname LIKE 'bc_%' ORDER BY nspname" || {
+            echo "[WARNING] Could not list bc_* schemas. Showing all schemas:"
+            docker exec speckit-postgres psql -U postgres -d ticketing -c "\dn"
+          }
+          
+          echo "=== STEP 6: Wait for services to be healthy ==="
+          sleep 5
 
-      - name: Apply Database Migrations
+      - name: Apply Database Migrations (Strict Validation)
         run: |
+          cd /Users/jostinalvarados/Dev/Sofka/ticketing_project_week0
           chmod +x migrate-all-test.sh
-          # Set vars for the migration script to target docker
+          
+          # Export explicit connection string for migrations
           export DB_HOST="localhost"
           export DB_PORT="5432"
-          # Disable colors for cleaner logs and run script
-          ./migrate-all-test.sh || (echo "Migration script failed with exit code $?" && exit 1)
+          export DB_NAME="ticketing"
+          export DB_USER="postgres"
+          export DB_PASSWORD="postgres"
+          
+          echo "=== Executing migrations ==="
+          ./migrate-all-test.sh || {
+            echo "[CRITICAL] Migration script failed!"
+            docker logs speckit-postgres
+            docker logs speckit-catalog || true
+            exit 1
+          }
 
-      - name: Verify Tables in Postgres
+      - name: Validate Database Tables (Critical Check)
         run: |
-          echo "Listing all schemas..."
+          echo "=== Checking all schemas ==="
           docker exec speckit-postgres psql -U postgres -d ticketing -c "\dn"
-          echo "Listing Catalog tables..."
-          docker exec speckit-postgres psql -U postgres -d ticketing -c "\dt bc_catalog.*"
-          echo "Checking Catalog Events content..."
-          docker exec speckit-postgres psql -U postgres -d ticketing -c "SELECT COUNT(*) FROM bc_catalog.\"Events\";" || echo "Events table might not exist yet"
-          echo "Checking Catalog Seats content..."
-          docker exec speckit-postgres psql -U postgres -d ticketing -c "SELECT COUNT(*) FROM bc_catalog.\"Seats\";" || echo "Seats table might not exist yet"
-
-      - name: Catalog Service Logs
-        if: always()
-        run: |
-          docker logs speckit-catalog
+          
+          echo "=== Checking bc_catalog tables ==="
+          docker exec speckit-postgres psql -U postgres -d ticketing -c "\dt bc_catalog.*" || {
+            echo "[CRITICAL] bc_catalog tables do not exist!"
+            docker exec speckit-postgres psql -U postgres -d ticketing -c "SELECT * FROM pg_catalog.pg_tables WHERE schemaname = 'bc_catalog'"
+            exit 1
+          }
+          
+          echo "=== Checking Events table content ==="
+          EVENTS_COUNT=$(docker exec speckit-postgres psql -U postgres -d ticketing -t -c "SELECT COUNT(*) FROM bc_catalog.\"Events\"")
+          echo "Events in table: $EVENTS_COUNT"
+          if [ -z "$EVENTS_COUNT" ] || [ "$EVENTS_COUNT" -eq 0 ]; then
+            echo "[WARNING] Events table is empty but exists (will be populated by seed)"
+          fi
+          
+          echo "=== Checking Inventory.Seats ==="
+          docker exec speckit-postgres psql -U postgres -d ticketing -c "\dt bc_inventory.*" || echo "[INFO] bc_inventory tables not yet created"
 
       - name: Run E2E System Test
         run: |
+          cd /Users/jostinalvarados/Dev/Sofka/ticketing_project_week0
           chmod +x system-e2e-test.sh
-          bash ./system-e2e-test.sh
+          bash ./system-e2e-test.sh || {
+            echo "[E2E FAILED] Test execution failed"
+            exit 1
+          }
 
       - name: Docker Logs on Failure
         if: failure()

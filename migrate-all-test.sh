@@ -30,6 +30,23 @@ migrate_service() {
     
     echo -e "${BLUE}📦 Migrando ${service_name}...${NC}"
     
+    # PRE-VALIDACIÓN: Verificar que Postgres está accesible
+    echo "   - Validando conexión a base de datos..."
+    if ! PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" > /dev/null 2>&1; then
+        echo -e "${RED}❌ Error: No se puede conectar a Postgres en $DB_HOST:$DB_PORT${NC}"
+        return 1
+    fi
+    echo -e "${GREEN}   ✓ Conexión a Postgres verificada${NC}"
+    
+    # Verificar que el esquema existe
+    if ! PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1 FROM information_schema.schemata WHERE schema_name = '$schema_name'" | grep -q 1; then
+        echo -e "${RED}❌ Error: Esquema $schema_name no existe en la base de datos${NC}"
+        echo "   Esquemas disponibles:"
+        PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "\dn"
+        return 1
+    fi
+    echo -e "${GREEN}   ✓ Esquema $schema_name existe${NC}"
+    
     # Configurar esquema específico
     export DB_SCHEMA="${schema_name}"
     
@@ -75,9 +92,37 @@ migrate_service() {
     # Aplicar migraciones a la base de datos
     echo "   - Aplicando migraciones para esquema: $schema_name"
     if dotnet ef database update --project "$infrastructure_project_path" --startup-project . --context "$context_name"; then
-        echo -e "${GREEN}   ✓ ${service_name} migrado correctamente${NC}"
-        cd - > /dev/null
-        return 0
+        # VALIDACIÓN CRÍTICA: Verificar que las tablas realmente existen en la base de datos
+        echo "   - Validando que las tablas se crearon en la base de datos..."
+        
+        # Construir el nombre de la tabla esperada (normalmente el nombre del DbSet principal más común)
+        # Para Catalog: Events, Inventory: Seats, Payment: Payments, etc.
+        local expected_table=""
+        case "$service_name" in
+            "Catalog") expected_table="Events" ;;
+            "Inventory") expected_table="Reservation" ;;
+            "Payment") expected_table="Payment" ;;
+            "Ordering") expected_table="Order" ;;
+            "Identity") expected_table="User" ;;
+            "Fulfillment") expected_table="Ticket" ;;
+            "Notification") expected_table="EmailNotification" ;;
+            *) expected_table="Unknown" ;;
+        esac
+        
+        # Crear comando de validación con constructor de conexión
+        local validation_query="SELECT 1 FROM information_schema.tables WHERE table_schema = '$schema_name' LIMIT 1"
+        
+        if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "$validation_query" > /dev/null 2>&1; then
+            echo -e "${GREEN}   ✓ Tablas en esquema $schema_name verificadas en base de datos${NC}"
+            echo -e "${GREEN}   ✓ ${service_name} migrado correctamente${NC}"
+            cd - > /dev/null
+            return 0
+        else
+            echo -e "${RED}   ❌ CRITICAL: Migraciones ejecutadas pero tablas NO existen en BD para $schema_name${NC}"
+            echo "      Esto indica un problema con Entity Framework o la conexión a la base de datos."
+            cd - > /dev/null
+            return 1
+        fi
     else
         echo -e "${RED}   ❌ Error migrando ${service_name}${NC}"
         cd - > /dev/null

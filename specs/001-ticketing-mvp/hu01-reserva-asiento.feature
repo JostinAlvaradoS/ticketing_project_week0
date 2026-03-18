@@ -10,8 +10,9 @@ Característica: Selección y Reserva Temporal de Asiento
     Y el cliente está visualizando el mapa de asientos
 
   Escenario: Reserva exitosa de un asiento disponible
-    Dado que un asiento se encuentra en estado "disponible"
-    Cuando el cliente selecciona dicho asiento para reservarlo y agregarlo al carrito simultáneamente
+    Dado que soy un usuario autenticado
+    Y que un asiento se encuentra en estado "disponible"
+    Cuando el cliente selecciona dicho asiento para reservarlo
     Entonces el sistema debe confirmar la reserva y la adición al carrito del usuario de forma exitosa
     Y debe iniciar automáticamente el conteo del tiempo de reserva temporal (TTL)
     Y el asiento seleccionado debe quedar bloqueado para otros usuarios mientras el tiempo de reserva esté vigente
@@ -26,8 +27,7 @@ Característica: Selección y Reserva Temporal de Asiento
   Escenario: Intento de reserva de un asiento ya ocupado por otro cliente
     Dado que un asiento ya ha sido reservado por otro usuario previamente
     Cuando un nuevo cliente intenta seleccionar ese mismo asiento para comprarlo
-    Entonces el sistema debe rechazar la solicitud de selección de forma inmediata
-    Y debe mostrar un mensaje de error indicando que "El asiento ya no está disponible"
+    Entonces el sistema debe mostrar indisponibilidad del asiento
 
   Escenario: Visualización del tiempo restante
     Dado que el cliente tiene una reserva activa

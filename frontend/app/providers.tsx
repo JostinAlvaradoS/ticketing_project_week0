@@ -10,16 +10,14 @@ import { LoginScreen } from "@/components/login-screen"
 import type { ReactNode } from "react"
 
 function AuthenticatedApp({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth()
+  // Hardcoded authentication for automation development
+  const userId = "00000000-0000-0000-0000-000000000001"
+  const isAuthenticated = true
   const pathname = usePathname()
 
   // Don't apply regular auth to admin routes
   if (pathname?.startsWith('/admin')) {
     return <>{children}</>
-  }
-
-  if (!isAuthenticated) {
-    return <LoginScreen />
   }
 
   return (

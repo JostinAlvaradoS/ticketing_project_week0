@@ -26,3 +26,9 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 
 - **Próximos pasos:** Indagar a profundidad en los enlaces de referencia para aplicar todo a la nueva feature que propondré pendiente a decisión aún.
 
+## Third Commit
+
+- **Acción:** Identificar correctamente las necesidades de mi sistema, que hacer actualmente, para buscar una feature adecuada que me permita realmente darme cuenta del impacto que puede llegar a tener una implementación o algo por el estilo.
+- **Descripción:**  Mi sistema es actualmente un sistema de ticketing, un siustema distribuido con kafka y redis para lockear asientos, manejar reservass, ventas, etc, mi idea por ahora realmente se basa en agergar una lista de espeara.
+- **Detalles:** Cuantas veces no nos ha pasado que queremos ir a un concierto o algo por el estilo y ya no hay disponibilidad de boletos, puede ser frustrante si es un evento al que de verdad queremos ir, sin embargo a veces las listas de espera nos brindan esperanza, entonces, mi idea en si es implementar ello, para que luego en caso de que alguna reserva no se concrete o algo por el estilo se libere y con FIFO cada usuario que entra a lista de espera pueda ir ocupando esos asiento equitativamente conforme se libera.
+- **Próximos pasos:** Indagar a profundidad en las metodologías y buenas prácticas para partir de una HU hacía lo necesario de ir documentando previo a la solución.

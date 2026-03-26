@@ -59,3 +59,12 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 - **Descripción:**  La feature nace en base a una limitación actual del sistema, por lo que procedemos a redactar esa documentación en el documento en google docs.
 - **Detalles:** Actualmente el sistema vende los tickets, su limitante esta en no tener una forma de que tickets que se liberen se vendan luego de forma rápida.
 - **Próximos pasos:** Proceder con la docuemntaci´øn completa dividida ya en épica y HU documentando todo claro en el google docs.
+
+## Second Commit
+
+- **Acción:** Adicionar HU a la documentación respectiva.
+- **Descripción:**  En el google docs se adiciona las HU necesarias para empezar a trabajar los diagramas de la respectiva feature, desde casos de uso hasta despliegue.
+- **Detalles:** Las HU se trabajan en un formato de épica y formato de Como... Quiero.... Para.....
+- **Próximos pasos:** Proceder con la la documentaci´øn de los casos de USO y los criterios de aceptación de las HU.
+
+

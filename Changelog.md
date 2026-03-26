@@ -2,7 +2,7 @@
 
 Este documento es una bitácora diaria de trabajo. Aquí se registran las acciones realizadas cada día, basadas en conversaciones, clases y tareas del proyecto.
 
-## 2026-03-25 (Martes - Miércoles)
+## 2026-03-25 (Miércoles)
 
 ## First Commit
 

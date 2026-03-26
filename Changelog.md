@@ -39,3 +39,14 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 - **Descripción:**  Mi sistema es actualmente un sistema de ticketing, un siustema distribuido con kafka y redis para lockear asientos, manejar reservass, ventas, etc, mi idea por ahora realmente se basa en agergar una lista de espeara.
 - **Detalles:** Cuantas veces no nos ha pasado que queremos ir a un concierto o algo por el estilo y ya no hay disponibilidad de boletos, puede ser frustrante si es un evento al que de verdad queremos ir, sin embargo a veces las listas de espera nos brindan esperanza, entonces, mi idea en si es implementar ello, para que luego en caso de que alguna reserva no se concrete o algo por el estilo se libere y con FIFO cada usuario que entra a lista de espera pueda ir ocupando esos asiento equitativamente conforme se libera.
 - **Próximos pasos:** Indagar a profundidad en las metodologías y buenas prácticas para partir de una HU hacía lo necesario de ir documentando previo a la solución.
+
+## 5to Commit
+
+- **Acción:** Me ayude de la IA para evaluar que tan buena es la feature que quiero implementar con respecto a mi proyecto.
+- **Descripción:**  Con ayuda de un agente recorri el proyecto original y me recomendaba una feature distinta.
+- **Feature propuesta por la IA:** la ia proponia que lo siguiente:
+    Como: Usuario comprador.
+    Quiero: Que mi orden se cancele y el ticket se libere automáticamente si mi pago es rechazado o el servicio de pagos falla.
+    Criterios de Aceptación: Implementación de eventos de Kafka (PaymentFailed), transacciones compensatorias en Inventory y actualización de estado en Ordering.
+- **Por qué la refute?:** Creo que no es una mala feature, sin embargo, creo que no esta bien alineada al negocio, ya que estamos diciendo que si el servicio de pagos falla, saga va a liberar ese ticket, por que debería suceder esto?, de cierto modo estamos haciendo que el cliente o usuario final pueda llegar a perder su boleto que reservo por un fallo del sistema, entonces por ello la descarté, creo que es una feature que debe implementarse pero con un enfoque algo diferente.
+- **Próximos pasos:** Proceder con la feature que describi anteriormente propuesta por mí ya que me pareció más adecuada y resuelve algo más real de problema de negocio.

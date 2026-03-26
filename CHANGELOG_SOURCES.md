@@ -50,3 +50,12 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
     Criterios de Aceptación: Implementación de eventos de Kafka (PaymentFailed), transacciones compensatorias en Inventory y actualización de estado en Ordering.
 - **Por qué la refute?:** Creo que no es una mala feature, sin embargo, creo que no esta bien alineada al negocio, ya que estamos diciendo que si el servicio de pagos falla, saga va a liberar ese ticket, por que debería suceder esto?, de cierto modo estamos haciendo que el cliente o usuario final pueda llegar a perder su boleto que reservo por un fallo del sistema, entonces por ello la descarté, creo que es una feature que debe implementarse pero con un enfoque algo diferente.
 - **Próximos pasos:** Proceder con la feature que describi anteriormente propuesta por mí ya que me pareció más adecuada y resuelve algo más real de problema de negocio.
+
+## 2026-03-26 (Jueves)
+
+## First Commit
+
+- **Acción:** Tras la confirmación de alcance de la feature se procede a trabajar en base a esa.
+- **Descripción:**  La feature nace en base a una limitación actual del sistema, por lo que procedemos a redactar esa documentación en el documento en google docs.
+- **Detalles:** Actualmente el sistema vende los tickets, su limitante esta en no tener una forma de que tickets que se liberen se vendan luego de forma rápida.
+- **Próximos pasos:** Proceder con la docuemntaci´øn completa dividida ya en épica y HU documentando todo claro en el google docs.

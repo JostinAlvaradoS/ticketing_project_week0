@@ -126,4 +126,36 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 - **Referencia para la decisión:** https://dev-to.translate.goog/lazypro/message-queue-in-redis-38dm?_x_tr_sl=en&_x_tr_tl=es&_x_tr_hl=es&_x_tr_pto=sge
 
 
+## 6TO Commit
+
+- **Acción:** Se evalúo una opción arquitectonica dada por la IA
+- **Descripción:** Actualmente estoy haciendo un refinamiento de las decisiones para saber si fue lo óptimo.
+- **Implicación de la IA:** La IA me dio la sugerencia de hacer trigges en base de datos.
+- **Por qué no tome esa opción:** Hacer triggers en base de datos me parecia que cambiaba el enfoque de kafka y además en cierto punto podía llegar a llevarme a duplicar lógica que esta presente en los servicios a nivel de .NET en la base de datos, por lo que no me pareció óptimo, mas simple, si, pero no óptimo a nivel de mantenibilidad.
+
+
+## 7mo Commit
+
+- **Acción:** Se documenta los riesgos e impacto
+- **Descripción:** Hay varios riesgos, a los que los sistemas de ticketing se enfrentan comunmente, por lo que es importante tratar de documentar la mayor.ia para mitigarlos.
+
+
+## 8vo Commit
+
+- **Acción:** El riesgo de los bots registrandose en lista de espera y haciendo perder la venta a usuarios reales debe ser documentado
+- **Descripción:** Es uno de los problemas actuales más graves, ya que causa diversas complicaciones
+- **Implicación de la IA:** La IA me dio la solución de rate limiting, excelente, pero realmente no tomo en cuenta otra alternativa para complementar.
+- **Que agregué?:** Cloudflare es el estandar para evitar y filtrar este tipo de ataques a nivel mundial, por lo que decidí incuirlo como un aspecto de mitigación.
+- **Referencia para la decisión:** 
+https://www.cloudflare.com/en-gb/application-services/products/bot-management/
+
+
+
+## 9no Commit
+
+- **Acción:** Se indagó acerca de un término que en mi anterior empleo se usaba muchísimo, las pruebas de regresión.
+- **Descripción:** Todo esto surgió de una pregunta, si estoy modificando servicios también aparte del nuevo, lo lógico tambien no es volver a probarlos?
+- **Conclusión:** Tras una revisión llegue al concepto de pruebas de regresión, donde se documentaba que en una nueva feature igualmente se hacen pruebas de los sistema afectados para validar que su comportamiento no haya cambiado.
+- **Referencia para la decisión:** 
+https://www.ibm.com/es-es/think/topics/regression-testing
 

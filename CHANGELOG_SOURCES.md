@@ -2,7 +2,7 @@
 
 Registro diario de acciones, decisiones, investigaciones e implicaciones de IA durante el desarrollo de la feature **Sistema de Lista de Espera Inteligente**. La bitácora consolida las herramientas utilizadas, los recursos de investigación consultados y las decisiones de alcance tomadas a lo largo del proceso.
 
-> El uso de IA fue mínimo y puntual: recomendaciones y apoyo en redacción de aspectos ya definidos por mí. La mayor parte del trabajo se basó en experiencias, consultas y proyectos anteriores.
+> El uso de IA fue mínimo y puntual: recomendaciones y apoyo en redacción de aspectos ya definidos por mí. La mayor parte del trabajo se basó en experiencias, consultas y proyectos anteriores. No utilicé la IA para escanear factores críticos del proyecto ni nada por el estilo ya que mi idea era regirme al escenario de no tener a disposición IA por ende agentes y demás, la solución fue modelada en base al readme y los contracts definidos en la documentación.
 
 ---
 

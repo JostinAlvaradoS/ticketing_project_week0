@@ -67,4 +67,9 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 - **Detalles:** Las HU se trabajan en un formato de épica y formato de Como... Quiero.... Para.....
 - **Próximos pasos:** Proceder con la la documentaci´øn de los casos de USO y los criterios de aceptación de las HU.
 
+## Third Commit
 
+- **Acción:** Adicionar casos de Uso en el google docs
+- **Descripción:**  Se adicionan los 3 casos de uso necesarios para definir correctamente la documentación de la nueva feature.
+- **Detalles:** Los casos de uso fueron realizados en draw.io
+- **Próximos pasos:** Proceder con el diagrama de secuencia respectivo.

@@ -10,12 +10,30 @@ Registro diario de acciones, decisiones, investigaciones e implicaciones de IA d
 
 | Sección | Descripción |
 |---|---|
+| [IA vs. Criterio propio](#ia-vs-criterio) | 7 decisiones donde contraté la recomendación de la IA con mi juicio |
 | [Herramientas utilizadas](#herramientas-utilizadas) | Stack de herramientas empleadas durante el proceso |
 | [Recursos de referencia](#recursos-de-referencia-principales) | Fuentes consultadas para investigación y decisiones |
 | [Decisiones de alcance](#decisiones-de-alcance) | Decisiones clave que delimitan el documento |
 | [2026-03-25 · Miércoles](#fecha-2026-03-25) | 5 commits — Plantilla, investigación 4+1, decisión de feature |
 | [2026-03-26 · Jueves](#fecha-2026-03-26) | 4 commits — HU, casos de uso, diagramas de secuencia |
 | [2026-03-27 · Viernes](#fecha-2026-03-27) | 10 commits — Vista lógica, requisitos, ADRs, riesgos, pruebas, estimación |
+
+---
+
+<a id="ia-vs-criterio"></a>
+## IA vs. Criterio propio
+
+Registro de los momentos donde la recomendación de la IA fue evaluada y contrastada con mi juicio. En todos los casos la decisión final fue tomada por mí.
+
+| # | Tema | IA recomendó | Mi decisión | Commit |
+|:---:|---|---|---|:---:|
+| 1 | Feature a documentar | Cancelación automática de ticket por pago fallido | Lista de Espera Inteligente — problema de negocio más real y tangible | [25/03 · C5](#commit-25-c5) |
+| 2 | Criterios de aceptación | No usar Gherkin | Mantener Gherkin — recomendación explícita del curso y facilita evaluación | [27/03 · C1](#commit-27-c1) |
+| 3 | Vista física (Kruchten) | Incluirla por valor de documentación de infraestructura | No incluirla — sistema en localhost sin ambientes diferenciados, sobreingeniería en esta etapa | [27/03 · C4](#commit-27-c4) |
+| 4 | Almacén de la cola FIFO | Redis por baja latencia | PostgreSQL — flujo reactivo y persistente, no tiempo real; ofrece ACID y auditoría sin infraestructura adicional | [27/03 · C5](#commit-27-c5) |
+| 5 | Reacción a cambios de estado de asientos | Triggers en base de datos | Eventos Kafka — los triggers duplican lógica de negocio que ya reside en los servicios .NET | [27/03 · C6](#commit-27-c6) |
+| 6 | Mitigación de bots en la lista de espera | Rate limiting como única solución | Rate limiting + Cloudflare Bot Management — estándar de la industria | [27/03 · C8](#commit-27-c8) |
+| 7 | Estimación de esfuerzo | Estimar por componentes, tareas e infraestructura individualmente | Estimar por Historia de Usuario — correcto en Scrum; las tareas son derivadas, no se estiman de forma independiente | [27/03 · C10](#commit-27-c10) |
 
 ---
 
@@ -103,6 +121,7 @@ Registro diario de acciones, decisiones, investigaciones e implicaciones de IA d
 
 ---
 
+<a id="commit-25-c5"></a>
 ### Commit 5 — Evaluación de feature alternativa propuesta por IA
 
 | Campo | Detalle |
@@ -162,6 +181,7 @@ Registro diario de acciones, decisiones, investigaciones e implicaciones de IA d
 <a id="fecha-2026-03-27"></a>
 ## 2026-03-27 · Viernes
 
+<a id="commit-27-c1"></a>
 ### Commit 1 — Vista lógica y criterios de aceptación en Gherkin
 
 | Campo | Detalle |
@@ -192,6 +212,7 @@ Registro diario de acciones, decisiones, investigaciones e implicaciones de IA d
 
 ---
 
+<a id="commit-27-c4"></a>
 ### Commit 4 — Decisión sobre vista física
 
 | Campo | Detalle |
@@ -203,6 +224,7 @@ Registro diario de acciones, decisiones, investigaciones e implicaciones de IA d
 
 ---
 
+<a id="commit-27-c5"></a>
 ### Commit 5 — Investigación Redis vs SQL para cola FIFO
 
 | Campo | Detalle |
@@ -214,6 +236,7 @@ Registro diario de acciones, decisiones, investigaciones e implicaciones de IA d
 
 ---
 
+<a id="commit-27-c6"></a>
 ### Commit 6 — Evaluación de triggers en base de datos
 
 | Campo | Detalle |
@@ -233,6 +256,7 @@ Registro diario de acciones, decisiones, investigaciones e implicaciones de IA d
 
 ---
 
+<a id="commit-27-c8"></a>
 ### Commit 8 — Riesgo de bots en la Lista de Espera
 
 | Campo | Detalle |
@@ -255,6 +279,7 @@ Registro diario de acciones, decisiones, investigaciones e implicaciones de IA d
 
 ---
 
+<a id="commit-27-c10"></a>
 ### Commit 10 — Estimación de esfuerzo por Historia de Usuario
 
 | Campo | Detalle |

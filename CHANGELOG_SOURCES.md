@@ -73,3 +73,9 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 - **Descripción:**  Se adicionan los 3 casos de uso necesarios para definir correctamente la documentación de la nueva feature.
 - **Detalles:** Los casos de uso fueron realizados en draw.io
 - **Próximos pasos:** Proceder con el diagrama de secuencia respectivo.
+
+## Foutrhy commit
+- **Acción:** Adicionar diagramas de secuencia
+- **Descripción:**  Se adicionan los diagramas de secuencia de cada flujo que habrá con el fin de tener claridad de que sistemas interactuan y como se debe implementar todo
+- **Detalles:** Son un diagrama de secuencia por cada caso de uso.
+- **Próximos pasos:** Proceder con la vista de desarrollo.

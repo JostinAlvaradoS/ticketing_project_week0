@@ -96,3 +96,15 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 - **Por que no tome esa alternativa?:** Principalmente por un tema de que es más fácil que esten en gherkin para evaluar esos criterios de aceptación luego, además de que esa fue una recomendación de la última revisi´øn que tuvimos de conceptos.
 
 
+## Second Commit
+
+- **Acción:** Se refactoriza el documento para usar un formato de tablas y facilitar la lectura del mismo
+- **Descripción:** En lugar de solo escribir texto plano se incluyen tablas estructuradas.
+- **Detalles:** Anteriormente en otra experiencia laboral que tuve se usaba un formato similar, por lo que me estoy basando en ello para la creación del documento.
+
+
+## Third Commit
+
+- **Acción:** Se documenta requisitos funcionales y no funcionales
+- **Descripción:** Me ayude de la IA para esta parte un poco, sin embargo los requisitos no funcionales tienen una métrica muy especifica que quuero validar si es viable de implementarlo como requisito.
+

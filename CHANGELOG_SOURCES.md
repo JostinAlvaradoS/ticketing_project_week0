@@ -79,3 +79,8 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 - **Descripción:**  Se adicionan los diagramas de secuencia de cada flujo que habrá con el fin de tener claridad de que sistemas interactuan y como se debe implementar todo
 - **Detalles:** Son un diagrama de secuencia por cada caso de uso.
 - **Próximos pasos:** Proceder con la vista de desarrollo.
+
+## 5to commit
+- **Acción:** Documentación de pregunta de diseño
+- **Descripción:**  No estoy del todo seguro de implementar la vista de despliegue para la feature, ya que realmente aun no se encuentra en etapa productiva el software por lo que realmente quedoi pendiente de validar la viabilidad y conveniencia de incluirlo.
+

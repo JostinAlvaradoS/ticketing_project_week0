@@ -108,3 +108,22 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 - **Acción:** Se documenta requisitos funcionales y no funcionales
 - **Descripción:** Me ayude de la IA para esta parte un poco, sin embargo los requisitos no funcionales tienen una métrica muy especifica que quuero validar si es viable de implementarlo como requisito.
 
+
+## Fourth Commit
+
+- **Acción:** Se toma como decisión final no incluir la vista física de la feature
+- **Descripción:** Se lo toma como decisión ya que al no estar el sistema en sí en un servidor o tener múltiples ambientes aún pues se mantiene solo localhost, sería sobreingenieria incluirlo actualmente.
+- **Implicación de la IA:** La IA recomendaba fuertemente incluirlo, sin embargo, esto era principalmente por la contextualización de donde esta ahora mismo construyendose el sistema.
+- **Human check:** El diagrama de vista física no lo veo necesario ya que todo esta en localhost, sin embargo, no descarto por completo su implementaci´øn basado en los tiempos disponibles.
+
+
+## 5TO Commit
+
+- **Acción:** Se realizó una investigación acerca de redis y sql como cola de FIFO
+- **Descripción:** Se realizó la investigaci´øn para clarificar el descarte de una alternativa.
+- **Implicación de la IA:** La IA me recomendaba fuertemente incluir redis para la cola FIFO.
+- **Por qué no tome esa opción:** Tras mi investigación caí en cuenta que lo que mas se suele usar es redis, pero más que nada por el enfoque una lista de espera normalmente es en tiempo real y de baja latencia, la idea es que este disponible ahi rapidamente cuando un sistema falla rapidamente un pago y demás o incluso a veces va mas por temas de balanceo de carga, para no sobrecargar el sistema de pagos se crea dicha lista de espera para reaccionar rapido cuando ya me permita acceder al servicio o pantalla, sin embargo mi enfoque es distinto, porque va mas a un contexto donde se registra en una lista de espera por si acaso un boleto se libera, es decir no es en tiempo real y podría liberarse como no ese boleto, por ello prefiero hacer un flujo mas sencillo y persistente en SQL porque a la final mas que un evento en tiempo real es un evento reactivo.
+- **Referencia para la decisión:** https://dev-to.translate.goog/lazypro/message-queue-in-redis-38dm?_x_tr_sl=en&_x_tr_tl=es&_x_tr_hl=es&_x_tr_pto=sge
+
+
+

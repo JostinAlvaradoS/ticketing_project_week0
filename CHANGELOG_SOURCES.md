@@ -159,3 +159,26 @@ https://www.cloudflare.com/en-gb/application-services/products/bot-management/
 - **Referencia para la decisión:** 
 https://www.ibm.com/es-es/think/topics/regression-testing
 
+
+
+## 10mo Commit
+
+- **Acción:** Se indagó acerca de como estimar el esfuerzo por HU
+- **Descripción:** Para realizar esto fue intriducido inicialmente en la clase brindada por Santiago, sin emabrgo, decidi indagar más porque la IA me genero una confusión
+- **Recomendación de la IA:** La IA me dio la recomendación de estimar por componentes, tareas y demás.
+- **Por qué no la acogí:** No me pareció lo idoneo, ya que según fuentes y santiago en el workshop en realidad esto se hace por HU en sí.
+- **Referencia para la decisión:** https://www.youtube.com/watch?v=nERa84eHSRs&themeRefresh=1
+- **Tabla de referencia para estimación:**
+Tabla de equivalencia de referencia:
+
+Talla	Puntos	Descripción
+XS	1	Cambio trivial, sin lógica de negocio
+S	3	Endpoint simple con validación y persistencia directa
+M	5	Lógica de negocio moderada con una dependencia externa
+L	13	Coordinación multi-servicio con procesamiento asíncrono
+XL	21	Alta complejidad distribuida con dependencia bloqueante externa
+
+
+
+
+

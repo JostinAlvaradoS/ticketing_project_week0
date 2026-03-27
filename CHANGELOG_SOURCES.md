@@ -84,3 +84,15 @@ https://miro-com.translate.goog/diagramming/what-is-a-use-case-diagram/?_x_tr_sl
 - **Acción:** Documentación de pregunta de diseño
 - **Descripción:**  No estoy del todo seguro de implementar la vista de despliegue para la feature, ya que realmente aun no se encuentra en etapa productiva el software por lo que realmente quedoi pendiente de validar la viabilidad y conveniencia de incluirlo.
 
+## 2026-03-27 (Viernes)
+
+## First Commit
+
+- **Acción:** Se agrega el diagrama de vista lógica de feature.
+- **Descripción:** el Diagrama de vista lógica nos permite ver como se van a comunicar las clases de la nueva feature.
+- **Detalles:** Este diagrama es de el servicio de waitlist netamente y representa sus componentes de arquitectura hexagonal.
+- **Próximos pasos:** Proceder con la redacción de los criterios de aceptación en gherkin que tenia pendientes.
+- **Recomendación de IA:** No realizar los criterios de aceptación en gherkin
+- **Por que no tome esa alternativa?:** Principalmente por un tema de que es más fácil que esten en gherkin para evaluar esos criterios de aceptación luego, además de que esa fue una recomendación de la última revisi´øn que tuvimos de conceptos.
+
+

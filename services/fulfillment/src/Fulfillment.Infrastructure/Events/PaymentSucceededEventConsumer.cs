@@ -94,7 +94,7 @@ public class PaymentSucceededEventConsumer : BackgroundService
                             Id = Guid.NewGuid(),
                             OrderId = orderDetails.OrderId,
                             CustomerEmail = orderDetails.CustomerEmail,
-                            EventName = orderDetails.EventName,
+                            EventName = orderDetails.EventName ?? "N/A",
                             SeatNumber = orderDetails.SeatNumber,
                             Price = orderDetails.Price,
                             Currency = orderDetails.Currency,

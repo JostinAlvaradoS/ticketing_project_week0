@@ -8,8 +8,8 @@ public interface IOrderingServiceClient
 public record OrderDetailsDto(
     Guid OrderId,
     string CustomerEmail,
-    Guid EventId,
-    string EventName,
+    Guid? EventId,
+    string? EventName,
     string SeatNumber,
     decimal Price,
     string Currency

@@ -62,7 +62,7 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
             // Domain method encapsula la validación y el cambio de estado
             seat.Reserve();
 
-            var reservation = Reservation.Create(request.SeatId, request.CustomerId, ReservationTTLMinutes);
+            var reservation = Reservation.Create(request.SeatId, request.CustomerId, ttlMinutes: ReservationTTLMinutes);
 
             await _seatRepository.UpdateAsync(seat, cancellationToken).ConfigureAwait(false);
             var createdReservation = await _reservationRepository.CreateAsync(reservation, cancellationToken).ConfigureAwait(false);

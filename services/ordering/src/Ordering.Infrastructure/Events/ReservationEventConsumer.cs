@@ -160,11 +160,35 @@ public class ReservationEventConsumer : BackgroundService
 
             case "reservation-expired":
                 var expiredEvent = JsonSerializer.Deserialize<ReservationExpiredEvent>(messageValue, _jsonOptions);
-                
+
                 if (expiredEvent != null)
                 {
                     reservationStore.RemoveReservation(expiredEvent);
-                    _logger.LogInformation("Processed reservation-expired event for reservation {ReservationId}", 
+
+                    if (Guid.TryParse(expiredEvent.SeatId, out var expiredSeatId))
+                    {
+                        var orderRepo = scope.ServiceProvider.GetRequiredService<Ordering.Application.Ports.IOrderRepository>();
+                        var activeOrder = await orderRepo.GetActiveOrderBySeatIdAsync(expiredSeatId, cancellationToken);
+                        if (activeOrder != null)
+                        {
+                            try
+                            {
+                                activeOrder.Cancel();
+                                await orderRepo.UpdateAsync(activeOrder, cancellationToken);
+                                _logger.LogInformation(
+                                    "Order {OrderId} cancelled due to reservation-expired event for seat {SeatId}",
+                                    activeOrder.Id, expiredSeatId);
+                            }
+                            catch (InvalidOperationException ex)
+                            {
+                                _logger.LogWarning(
+                                    "Could not cancel order {OrderId}: {Reason}",
+                                    activeOrder.Id, ex.Message);
+                            }
+                        }
+                    }
+
+                    _logger.LogInformation("Processed reservation-expired event for reservation {ReservationId}",
                         expiredEvent.ReservationId);
                 }
                 break;

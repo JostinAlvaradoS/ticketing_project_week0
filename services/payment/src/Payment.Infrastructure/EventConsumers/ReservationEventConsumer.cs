@@ -1,7 +1,9 @@
 using Confluent.Kafka;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Payment.Application.Ports;
 using Payment.Infrastructure.Events;
 using Payment.Infrastructure.Services;
 using System.Text.Json;
@@ -19,14 +21,18 @@ public class ReservationEventConsumer : BackgroundService
     private readonly ILogger<ReservationEventConsumer> _logger;
     private IConsumer<string?, string>? _consumer;
 
+    private readonly IServiceProvider _serviceProvider;
+
     public ReservationEventConsumer(
         IOptions<KafkaOptions> kafkaOptions,
         ReservationStateStore reservationStore,
-        ILogger<ReservationEventConsumer> logger)
+        ILogger<ReservationEventConsumer> logger,
+        IServiceProvider serviceProvider)
     {
         _kafkaOptions = kafkaOptions.Value;
         _reservationStore = reservationStore;
         _logger = logger;
+        _serviceProvider = serviceProvider;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -155,29 +161,51 @@ public class ReservationEventConsumer : BackgroundService
         return Task.CompletedTask;
     }
 
-    private Task HandleReservationExpired(string eventJson, CancellationToken cancellationToken)
+    private async Task HandleReservationExpired(string eventJson, CancellationToken cancellationToken)
     {
-        var expiredEvent = JsonSerializer.Deserialize<ReservationExpiredEvent>(eventJson, new JsonSerializerOptions 
-        { 
-            PropertyNameCaseInsensitive = true 
+        var expiredEvent = JsonSerializer.Deserialize<ReservationExpiredEvent>(eventJson, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
         });
 
         if (expiredEvent == null)
         {
             _logger.LogWarning("Failed to deserialize reservation-expired event");
-            return Task.CompletedTask;
+            return;
         }
 
         if (!Guid.TryParse(expiredEvent.ReservationId, out var reservationId))
         {
             _logger.LogWarning("Invalid ReservationId GUID in reservation-expired event");
-            return Task.CompletedTask;
+            return;
         }
 
         _reservationStore.ExpireReservation(reservationId);
-        
+
+        // Cancel the associated pending payment in the DB (idempotent)
+        using var scope = _serviceProvider.CreateScope();
+        var paymentRepo = scope.ServiceProvider.GetRequiredService<IPaymentRepository>();
+        var payment = await paymentRepo.GetByReservationIdAsync(reservationId, cancellationToken);
+
+        if (payment != null && payment.Status == Domain.Entities.Payment.StatusPending)
+        {
+            try
+            {
+                payment.Cancel();
+                await paymentRepo.UpdateAsync(payment, cancellationToken);
+                _logger.LogInformation(
+                    "Payment {PaymentId} cancelled due to reservation-expired event for reservation {ReservationId}",
+                    payment.Id, reservationId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(
+                    "Could not cancel payment {PaymentId}: {Reason}",
+                    payment.Id, ex.Message);
+            }
+        }
+
         _logger.LogInformation("Processed reservation-expired event for reservation {ReservationId}", reservationId);
-        return Task.CompletedTask;
     }
 
     public override void Dispose()

@@ -26,15 +26,8 @@ public class OrdersIntegrationTests : IClassFixture<OrderingApiFactory>
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
         
-        var orderId = Guid.NewGuid();
-        var testOrder = new Order 
-        { 
-            Id = orderId, 
-            UserId = "test-user-123", 
-            TotalAmount = 99.99m,
-            State = "draft",
-            CreatedAt = DateTime.UtcNow
-        };
+        var testOrder = Order.Create("test-user-123", null);
+        var orderId = testOrder.Id;
         db.Orders.Add(testOrder);
         await db.SaveChangesAsync();
 

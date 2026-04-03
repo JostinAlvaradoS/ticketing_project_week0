@@ -82,4 +82,13 @@ public class OrderRepository : IOrderRepository
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<Order?> GetActiveOrderBySeatIdAsync(Guid seatId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Orders
+            .Include(o => o.Items)
+            .Where(o => (o.State == Order.StateDraft || o.State == Order.StatePending)
+                        && o.Items.Any(i => i.SeatId == seatId))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

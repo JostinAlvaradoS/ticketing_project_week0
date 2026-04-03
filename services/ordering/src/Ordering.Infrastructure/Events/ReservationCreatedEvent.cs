@@ -40,16 +40,19 @@ public record ReservationCreatedEvent
 }
 
 /// <summary>
-/// Event published when a reservation expires.
+/// Event published when a reservation expires (v2 — includes customerId).
 /// </summary>
 public record ReservationExpiredEvent
 {
     [JsonPropertyName("reservationId")]
     public string ReservationId { get; init; } = string.Empty;
-    
+
     [JsonPropertyName("seatId")]
     public string SeatId { get; init; } = string.Empty;
-    
+
+    [JsonPropertyName("customerId")]
+    public string? CustomerId { get; init; }
+
     [JsonPropertyName("expiredAt")]
     public DateTime ExpiredAt { get; init; }
 }

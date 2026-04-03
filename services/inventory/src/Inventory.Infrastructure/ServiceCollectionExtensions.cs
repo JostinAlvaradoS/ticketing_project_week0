@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Inventory.Application.Ports;
+using Inventory.Infrastructure.Clients;
 using Inventory.Infrastructure.Persistence;
 using Inventory.Infrastructure.Locking;
 using Inventory.Infrastructure.Messaging;
@@ -50,12 +51,29 @@ public static class ServiceCollectionExtensions
         // Register inventory event consumer
         services.AddHostedService<Inventory.Infrastructure.Messaging.InventoryEventConsumer>();
 
+        // WaitlistHttpClient — calls GET /api/v1/waitlist/has-pending (ADR-03)
+        var waitlistUrl = configuration["Services:WaitlistUrl"] ?? "http://localhost:5006";
+        services.AddHttpClient<IWaitlistClient, WaitlistHttpClient>(client =>
+        {
+            client.BaseAddress = new Uri(waitlistUrl);
+            client.Timeout = TimeSpan.FromMilliseconds(200); // ADR-03: max 200ms
+        });
+
         // Register expiry worker as hosted service (optional in tests)
         services.AddSingleton<IHostedService, Inventory.Infrastructure.Workers.ReservationExpiryWorker>(sp =>
         {
             var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
             var kafka = sp.GetRequiredService<IKafkaProducer>();
-            return new Inventory.Infrastructure.Workers.ReservationExpiryWorker(scopeFactory, kafka);
+            var waitlistClient = sp.GetService<IWaitlistClient>();
+            return new Inventory.Infrastructure.Workers.ReservationExpiryWorker(scopeFactory, kafka, waitlistClient);
+        });
+
+        // Register payment-failed consumer (releases seats on failed payments)
+        services.AddSingleton<IHostedService, Inventory.Infrastructure.Consumers.PaymentFailedConsumer>(sp =>
+        {
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Inventory.Infrastructure.Consumers.PaymentFailedConsumer>>();
+            return new Inventory.Infrastructure.Consumers.PaymentFailedConsumer(scopeFactory, logger, kafkaBootstrapServers);
         });
 
         // Register seats-generated Kafka consumer as hosted service

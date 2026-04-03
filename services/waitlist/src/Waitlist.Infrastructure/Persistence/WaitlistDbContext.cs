@@ -29,12 +29,12 @@ public class WaitlistDbContext : DbContext
 
             // Expiry worker index
             e.HasIndex(x => x.ExpiresAt)
-             .HasFilter("status = 'assigned'")
+             .HasFilter("\"Status\" = 'assigned'")
              .HasDatabaseName("idx_waitlist_expiry");
 
             // OrderId lookup index
             e.HasIndex(x => x.OrderId)
-             .HasFilter("order_id IS NOT NULL")
+             .HasFilter("\"OrderId\" IS NOT NULL")
              .HasDatabaseName("idx_waitlist_order");
         });
     }

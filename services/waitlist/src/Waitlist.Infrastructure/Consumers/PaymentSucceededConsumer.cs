@@ -31,6 +31,9 @@ public class PaymentSucceededConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Yield immediately so the host can finish startup before this blocks on Consume()
+        await Task.Yield();
+
         var config = new ConsumerConfig
         {
             BootstrapServers = _kafkaOptions.BootstrapServers,

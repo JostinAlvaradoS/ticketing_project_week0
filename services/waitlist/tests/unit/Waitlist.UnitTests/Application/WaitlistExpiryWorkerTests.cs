@@ -1,7 +1,7 @@
 // TDD Ciclos 17-19 — Spec US3: Rotación por Inacción
-// STATUS: 🔴 RED — WaitlistExpiryWorker does not exist yet
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Waitlist.Application.Ports;
 using Waitlist.Domain.Entities;
@@ -11,11 +11,12 @@ namespace Waitlist.UnitTests.Application;
 
 public class WaitlistExpiryWorkerTests
 {
-    private readonly Mock<IWaitlistRepository> _repoMock;
-    private readonly Mock<IOrderingClient>     _orderingMock;
-    private readonly Mock<IInventoryClient>    _inventoryMock;
-    private readonly Mock<IEmailService>       _emailMock;
-    private readonly WaitlistExpiryWorker      _worker;
+    private readonly Mock<IWaitlistRepository>  _repoMock;
+    private readonly Mock<IOrderingClient>      _orderingMock;
+    private readonly Mock<IInventoryClient>     _inventoryMock;
+    private readonly Mock<IEmailService>        _emailMock;
+    private readonly Mock<IServiceScopeFactory> _scopeFactoryMock;
+    private readonly WaitlistExpiryWorker       _worker;
 
     public WaitlistExpiryWorkerTests()
     {
@@ -23,8 +24,21 @@ public class WaitlistExpiryWorkerTests
         _orderingMock  = new Mock<IOrderingClient>();
         _inventoryMock = new Mock<IInventoryClient>();
         _emailMock     = new Mock<IEmailService>();
-        _worker        = new WaitlistExpiryWorker(
-            _repoMock.Object, _orderingMock.Object, _inventoryMock.Object, _emailMock.Object);
+
+        // Wire IServiceScopeFactory → IServiceScope → IServiceProvider → all scoped deps
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock.Setup(x => x.GetService(typeof(IWaitlistRepository))).Returns(_repoMock.Object);
+        serviceProviderMock.Setup(x => x.GetService(typeof(IOrderingClient))).Returns(_orderingMock.Object);
+        serviceProviderMock.Setup(x => x.GetService(typeof(IInventoryClient))).Returns(_inventoryMock.Object);
+        serviceProviderMock.Setup(x => x.GetService(typeof(IEmailService))).Returns(_emailMock.Object);
+
+        var scopeMock = new Mock<IServiceScope>();
+        scopeMock.Setup(x => x.ServiceProvider).Returns(serviceProviderMock.Object);
+
+        _scopeFactoryMock = new Mock<IServiceScopeFactory>();
+        _scopeFactoryMock.Setup(x => x.CreateScope()).Returns(scopeMock.Object);
+
+        _worker = new WaitlistExpiryWorker(_scopeFactoryMock.Object);
     }
 
     // ─────────────────────────────────────────────────────────────

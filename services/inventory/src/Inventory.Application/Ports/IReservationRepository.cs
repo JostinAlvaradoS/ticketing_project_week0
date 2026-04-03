@@ -8,4 +8,6 @@ namespace Inventory.Application.Ports;
 public interface IReservationRepository
 {
     Task<Reservation> CreateAsync(Reservation reservation, CancellationToken cancellationToken);
+    Task<Reservation?> GetByIdAsync(Guid reservationId, CancellationToken cancellationToken);
+    Task UpdateAsync(Reservation reservation, CancellationToken cancellationToken);
 }

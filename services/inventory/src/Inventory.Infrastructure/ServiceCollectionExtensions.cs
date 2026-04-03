@@ -58,6 +58,14 @@ public static class ServiceCollectionExtensions
             return new Inventory.Infrastructure.Workers.ReservationExpiryWorker(scopeFactory, kafka);
         });
 
+        // Register payment-failed consumer (releases seats on failed payments)
+        services.AddSingleton<IHostedService, Inventory.Infrastructure.Consumers.PaymentFailedConsumer>(sp =>
+        {
+            var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+            var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Inventory.Infrastructure.Consumers.PaymentFailedConsumer>>();
+            return new Inventory.Infrastructure.Consumers.PaymentFailedConsumer(scopeFactory, logger, kafkaBootstrapServers);
+        });
+
         // Register seats-generated Kafka consumer as hosted service
         var consumerConfig = new ConsumerConfig
         {

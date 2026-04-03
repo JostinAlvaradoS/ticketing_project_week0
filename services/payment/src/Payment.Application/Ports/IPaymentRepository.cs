@@ -36,4 +36,12 @@ public interface IPaymentRepository
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>List of payments for the order</returns>
     Task<IEnumerable<Domain.Entities.Payment>> GetByOrderIdAsync(Guid orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves the payment for a reservation ID.
+    /// </summary>
+    /// <param name="reservationId">Reservation ID to search for</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Payment entity if found, null otherwise</returns>
+    Task<Domain.Entities.Payment?> GetByReservationIdAsync(Guid reservationId, CancellationToken cancellationToken = default);
 }

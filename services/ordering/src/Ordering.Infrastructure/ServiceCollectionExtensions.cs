@@ -42,7 +42,10 @@ public static class ServiceCollectionExtensions
 
         // Register Kafka consumer as hosted service
         services.AddHostedService<ReservationEventConsumer>();
-        
+
+        // Register payment-failed consumer (cancels orders on payment failure)
+        services.AddHostedService<PaymentFailedConsumer>();
+
         return services;
     }
 

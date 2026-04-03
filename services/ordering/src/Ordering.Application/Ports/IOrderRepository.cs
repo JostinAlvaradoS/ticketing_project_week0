@@ -36,4 +36,10 @@ public interface IOrderRepository
     /// Gets orders for a guest token.
     /// </summary>
     Task<IEnumerable<Order>> GetOrdersByGuestTokenAsync(string guestToken, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Finds the active (draft or pending) order that contains an item for the given seat.
+    /// Used to cancel orders when a seat reservation expires.
+    /// </summary>
+    Task<Order?> GetActiveOrderBySeatIdAsync(Guid seatId, CancellationToken cancellationToken = default);
 }

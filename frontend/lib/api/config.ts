@@ -3,6 +3,7 @@ export const API_CONFIG = {
   inventory: process.env.NEXT_PUBLIC_INVENTORY_URL || "http://localhost:50002",
   ordering: process.env.NEXT_PUBLIC_ORDERING_URL || "http://localhost:5003",
   payment: process.env.NEXT_PUBLIC_PAYMENT_URL || "http://localhost:5004",
+  waitlist: process.env.NEXT_PUBLIC_WAITLIST_URL || "http://localhost:5006",
 } as const
 
 export const RETRY_DELAY_MS = 3000

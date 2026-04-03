@@ -11,15 +11,15 @@ interface SeatButtonProps {
 
 const statusConfig = {
   available: {
-    bgClass: "bg-seat-available/20 border-seat-available/50 hover:bg-seat-available/40 hover:border-seat-available cursor-pointer",
+    bgClass: "bg-seat-available/30 border-seat-available/60 hover:bg-seat-available hover:border-seat-available cursor-pointer",
     label: "Available",
   },
   reserved: {
-    bgClass: "bg-seat-reserved/20 border-seat-reserved/50 cursor-not-allowed opacity-60",
+    bgClass: "bg-seat-reserved/30 border-seat-reserved/50 cursor-not-allowed opacity-50",
     label: "Reserved",
   },
   sold: {
-    bgClass: "bg-seat-sold/20 border-seat-sold/50 cursor-not-allowed opacity-40",
+    bgClass: "bg-seat-sold/30 border-seat-sold/50 cursor-not-allowed opacity-40",
     label: "Sold",
   },
 } as const
@@ -33,35 +33,34 @@ export function SeatButton({ seat, isSelected, onSelect }: SeatButtonProps) {
       type="button"
       disabled={!isClickable}
       onClick={() => isClickable && onSelect(seat)}
+      title={`${seat.sectionCode} · Row ${seat.rowNumber} · Seat ${seat.seatNumber} · $${seat.price.toLocaleString()}`}
       aria-label={`Seat ${seat.sectionCode}${seat.rowNumber}-${seat.seatNumber}, $${seat.price}, ${config.label}`}
       className={cn(
-        "flex items-center justify-center rounded-md border text-xs font-medium transition-all size-10",
+        "shrink-0 rounded-sm border transition-all size-5",
         config.bgClass,
-        isSelected && isClickable && "ring-2 ring-accent bg-accent/30 border-accent"
+        isSelected && isClickable && "ring-1 ring-accent ring-offset-0 bg-accent border-accent"
       )}
-    >
-      {seat.seatNumber}
-    </button>
+    />
   )
 }
 
 export function SeatLegend() {
   return (
-    <div className="flex items-center gap-6 text-sm text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <div className="size-4 rounded-sm bg-seat-available/40 border border-seat-available/60" />
+    <div className="flex items-center gap-5 text-xs text-muted-foreground">
+      <div className="flex items-center gap-1.5">
+        <div className="size-5 rounded-sm bg-seat-available/30 border border-seat-available/60" />
         <span>Available</span>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="size-4 rounded-sm bg-seat-reserved/40 border border-seat-reserved/60" />
+      <div className="flex items-center gap-1.5">
+        <div className="size-5 rounded-sm bg-seat-reserved/30 border border-seat-reserved/50 opacity-50" />
         <span>Reserved</span>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="size-4 rounded-sm bg-seat-sold/40 border border-seat-sold/60" />
+      <div className="flex items-center gap-1.5">
+        <div className="size-5 rounded-sm bg-seat-sold/30 border border-seat-sold/50 opacity-40" />
         <span>Sold</span>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="size-4 rounded-sm ring-2 ring-accent bg-accent/30 border border-accent" />
+      <div className="flex items-center gap-1.5">
+        <div className="size-5 rounded-sm ring-1 ring-accent bg-accent border-accent" />
         <span>Selected</span>
       </div>
     </div>

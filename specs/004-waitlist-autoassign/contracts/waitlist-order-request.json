@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "waitlist-order-request",
+  "title": "POST /orders/waitlist — Request & Response",
+  "description": "Internal HTTP contract for the Waitlist Service to create a guest order in the Ordering Service. Not exposed to the public frontend.",
+  "endpoint": "POST /api/v1/orders/waitlist",
+  "caller": "Waitlist Service (AssignNextHandler / WaitlistExpiryWorker)",
+  "callee": "Ordering Service",
+  "request": {
+    "type": "object",
+    "required": ["seatId", "price", "guestToken", "concertEventId"],
+    "properties": {
+      "seatId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "ID of the seat to reserve in this order."
+      },
+      "price": {
+        "type": "number",
+        "format": "decimal",
+        "minimum": 0,
+        "description": "Price of the seat in the local currency. Obtained from Catalog at assignment time."
+      },
+      "guestToken": {
+        "type": "string",
+        "format": "email",
+        "maxLength": 320,
+        "description": "Email address used as guest identifier. Maps to Order.GuestToken in bc_ordering."
+      },
+      "concertEventId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "ID of the concert event. Stored in the order for reference."
+      }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "201": {
+      "description": "Order created successfully.",
+      "type": "object",
+      "required": ["orderId"],
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "ID of the newly created order. Stored in WaitlistEntry.OrderId."
+        }
+      }
+    },
+    "400": {
+      "description": "Invalid request payload (missing fields, invalid UUID, negative price)."
+    },
+    "409": {
+      "description": "A non-terminal order already exists for the given seatId. Idempotency guard."
+    },
+    "503": {
+      "description": "Ordering Service temporarily unavailable."
+    }
+  },
+  "examples": {
+    "request": {
+      "seatId": "e5f6a7b8-0000-0000-0000-000000000001",
+      "price": 120.00,
+      "guestToken": "jostin@example.com",
+      "concertEventId": "c9d0e1f2-0000-0000-0000-000000000001"
+    },
+    "response_201": {
+      "orderId": "f1a2b3c4-0000-0000-0000-000000000001"
+    }
+  },
+  "implementation_notes": [
+    "The handler CreateWaitlistOrderCommand creates the order, adds the seat as an item, and transitions to 'pending' in a single EF Core transaction.",
+    "UserId is set to null; GuestToken is set to the email value.",
+    "This endpoint is not authenticated (internal call between services in the same Docker network)."
+  ]
+}

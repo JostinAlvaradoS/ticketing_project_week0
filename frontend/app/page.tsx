@@ -29,6 +29,7 @@ export default async function EventsPage() {
             Browse and reserve your seats before they sell out.
           </p>
         </div>
+      </div>
 
         {/* Error state */}
         {error && (
@@ -45,7 +46,7 @@ export default async function EventsPage() {
 
         {/* Event list */}
         {events.length > 0 ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {events.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}

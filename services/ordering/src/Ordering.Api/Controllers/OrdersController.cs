@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Ordering.Application.DTOs;
+using Ordering.Application.Exceptions;
 using Ordering.Application.UseCases.CheckoutOrder;
+using Ordering.Application.UseCases.CreateWaitlistOrder;
 using Ordering.Application.UseCases.GetOrder;
 
 namespace Ordering.Api.Controllers;
@@ -52,6 +54,26 @@ public class OrdersController : ControllerBase
         }
 
         return Ok(response.Order);
+    }
+
+    /// <summary>
+    /// Creates an order directly in Pending state for a waitlist assignment.
+    /// Called internally by the Waitlist Service. Uses guest token (email) as identity.
+    /// Returns 409 if an active order for the same seat already exists.
+    /// </summary>
+    [HttpPost("waitlist")]
+    public async Task<IActionResult> CreateWaitlistOrder([FromBody] CreateWaitlistOrderRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var command = new CreateWaitlistOrderCommand(request.SeatId, request.GuestToken, request.Price);
+            var result = await _mediator.Send(command, cancellationToken);
+            return CreatedAtAction(nameof(GetOrderDetails), new { id = result.OrderId }, new { orderId = result.OrderId });
+        }
+        catch (DuplicateSeatOrderException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
     }
 
     /// <summary>

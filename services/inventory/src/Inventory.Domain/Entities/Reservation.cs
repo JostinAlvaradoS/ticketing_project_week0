@@ -11,6 +11,7 @@ public class Reservation
 
     public Guid Id { get; private set; }
     public Guid SeatId { get; private set; }
+    public Guid EventId { get; private set; }
     public string CustomerId { get; private set; } = string.Empty;
     public DateTime CreatedAt { get; private set; }
     public DateTime ExpiresAt { get; private set; }
@@ -22,7 +23,7 @@ public class Reservation
     /// <summary>
     /// Crea una reserva válida con TTL configurable.
     /// </summary>
-    public static Reservation Create(Guid seatId, string customerId, int ttlMinutes = 15)
+    public static Reservation Create(Guid seatId, string customerId, Guid eventId = default, int ttlMinutes = 15)
     {
         if (seatId == Guid.Empty) throw new ArgumentException("SeatId cannot be empty.", nameof(seatId));
         if (string.IsNullOrWhiteSpace(customerId)) throw new ArgumentException("CustomerId cannot be empty.", nameof(customerId));
@@ -33,6 +34,7 @@ public class Reservation
         {
             Id = Guid.NewGuid(),
             SeatId = seatId,
+            EventId = eventId,
             CustomerId = customerId,
             CreatedAt = now,
             ExpiresAt = now.AddMinutes(ttlMinutes),

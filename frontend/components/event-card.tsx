@@ -6,6 +6,7 @@ import { Calendar, MapPin, ArrowRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { EventSummary } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 interface EventCardProps {
   event: EventSummary
@@ -25,11 +26,18 @@ export function EventCard({ event }: EventCardProps) {
 
   const formatEventDate = () => {
     try {
-      return format(eventDate, "MMM d, yyyy 'at' h:mm a")
+      return format(eventDate, "EEE, MMM d, yyyy · h:mm a")
     } catch {
       return eventDate.toLocaleDateString()
     }
   }
+
+  const totalSeats = event.totalSeats ?? event.maxCapacity ?? 0
+  const soldSeats = event.soldSeats ?? 0
+  const availableSeats = Math.max(0, totalSeats - soldSeats)
+  const soldPercent = totalSeats > 0 ? Math.min(100, Math.round((soldSeats / totalSeats) * 100)) : 0
+  const isSoldOut = availableSeats === 0 && totalSeats > 0
+  const isAlmostGone = !isSoldOut && soldPercent >= 80
 
   return (
     <div className="group relative flex overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:border-accent/50 hover:shadow-lg hover:-translate-y-0.5">

@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "reservation-expired-v3",
+  "title": "reservation-expired",
+  "description": "Kafka event published by Inventory.ReservationExpiryWorker when a reservation TTL expires. v3 renames 'eventId' to 'messageId' and adds 'concertEventId'.",
+  "version": "3",
+  "topic": "reservation-expired",
+  "type": "object",
+  "required": [
+    "messageId",
+    "reservationId",
+    "seatId",
+    "customerId",
+    "concertEventId"
+  ],
+  "properties": {
+    "messageId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique ID of this Kafka message. Used for idempotency by consumers. Previously named 'eventId' in v1/v2."
+    },
+    "reservationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the reservation that expired in bc_inventory.reservations."
+    },
+    "seatId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the seat that was held under the expired reservation."
+    },
+    "customerId": {
+      "type": "string",
+      "description": "Identifier of the customer who held the reservation. Used by Notification consumer."
+    },
+    "concertEventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the concert/event the seat belongs to (from bc_inventory.reservations.event_id). Used by Waitlist consumer to locate the correct FIFO queue."
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "messageId": "7f3a1bc2-0000-0000-0000-000000000001",
+      "reservationId": "a1b2c3d4-0000-0000-0000-000000000001",
+      "seatId": "e5f6a7b8-0000-0000-0000-000000000001",
+      "customerId": "user-uuid-or-email",
+      "concertEventId": "c9d0e1f2-0000-0000-0000-000000000001"
+    }
+  ],
+  "breaking_changes_from_v2": [
+    "Field 'eventId' renamed to 'messageId' — existing consumers that do NOT read this field are unaffected.",
+    "New required field 'concertEventId' — consumers must ignore unknown fields or update their DTOs."
+  ],
+  "consumers": [
+    {
+      "service": "Ordering.ReservationEventConsumer",
+      "reads": ["reservationId", "seatId"],
+      "breaking": false
+    },
+    {
+      "service": "Payment.ReservationEventConsumer",
+      "reads": ["reservationId"],
+      "breaking": false
+    },
+    {
+      "service": "Notification.ReservationExpiredConsumer",
+      "reads": ["customerId"],
+      "breaking": false
+    },
+    {
+      "service": "Waitlist.ReservationExpiredConsumer",
+      "reads": ["messageId", "seatId", "concertEventId"],
+      "breaking": true,
+      "note": "New consumer — requires v3 fields"
+    }
+  ]
+}

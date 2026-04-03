@@ -66,16 +66,15 @@ public class OrdersController : ControllerBase
         if (result == null)
             return NotFound();
 
-        // Map to enrichment DTO format expected by Fulfillment
-        return Ok(new
-        {
-            OrderId = result.Id,
-            CustomerEmail = result.UserId ?? "guest@example.com",
-            EventId = result.EventId,
-            EventName = result.EventName,
-            SeatNumber = result.SeatNumber,
-            Price = result.TotalAmount,
-            Currency = "USD"
-        });
+        var enrichment = new OrderEnrichmentDto(
+            OrderId: result.Id,
+            CustomerEmail: result.UserId, // null para guests — el consumidor decide el fallback
+            EventId: result.EventId == Guid.Empty ? null : result.EventId,
+            EventName: result.EventName == "Event Details Pending" ? null : result.EventName,
+            SeatNumber: result.SeatNumber == "N/A" ? null : result.SeatNumber,
+            Price: result.TotalAmount,
+            Currency: "USD"
+        );
+        return Ok(enrichment);
     }
 }

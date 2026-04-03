@@ -41,7 +41,7 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
         {
             // NEW: Step 0: Check for existing successful payment (Idempotency)
             var existingPayments = await _paymentRepository.GetByOrderIdAsync(request.OrderId, cancellationToken);
-            var completedPayment = existingPayments.FirstOrDefault(p => p.Status == "succeeded" || p.Status == "completed");
+            var completedPayment = existingPayments.FirstOrDefault(p => p.Status == Domain.Entities.Payment.StatusSucceeded);
             
             if (completedPayment != null)
             {
@@ -85,7 +85,7 @@ public sealed class ProcessPaymentHandler : IRequestHandler<ProcessPaymentComman
                 Amount = request.Amount,
                 Currency = request.Currency,
                 PaymentMethod = request.PaymentMethod,
-                Status = "pending",
+                Status = Domain.Entities.Payment.StatusPending,
                 CreatedAt = DateTime.UtcNow,
                 IsSimulated = true
             };

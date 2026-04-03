@@ -25,6 +25,8 @@ public class OrderingDbContext : DbContext
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.PaidAt).IsRequired(false);
 
+            entity.Navigation(x => x.Items).HasField("_items").UsePropertyAccessMode(PropertyAccessMode.Field);
+
             entity.HasMany(x => x.Items)
                 .WithOne(x => x.Order)
                 .HasForeignKey(x => x.OrderId)

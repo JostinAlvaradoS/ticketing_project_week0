@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using Identity.Domain.Entities;
-using Identity.Domain.Ports;
+using Identity.Application.Ports;
 using Microsoft.Extensions.Configuration;
 
 namespace Identity.Infrastructure.Security;

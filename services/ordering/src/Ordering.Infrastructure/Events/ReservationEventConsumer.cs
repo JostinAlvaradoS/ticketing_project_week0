@@ -177,8 +177,7 @@ public class ReservationEventConsumer : BackgroundService
                     var order = await orderRepo.GetByIdAsync(orderId, cancellationToken);
                     if (order != null)
                     {
-                        order.State = "paid";
-                        order.PaidAt = DateTime.UtcNow;
+                        order.MarkAsPaid();
                         await orderRepo.UpdateAsync(order, cancellationToken);
                         _logger.LogInformation("Order {OrderId} updated to State: PAID", orderId);
                     }

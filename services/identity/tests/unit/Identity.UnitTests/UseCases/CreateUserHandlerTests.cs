@@ -1,6 +1,6 @@
 using Identity.Application.UseCases.CreateUser;
 using Identity.Domain.Entities;
-using Identity.Domain.Ports;
+using Identity.Application.Ports;
 using Moq;
 using FluentAssertions;
 

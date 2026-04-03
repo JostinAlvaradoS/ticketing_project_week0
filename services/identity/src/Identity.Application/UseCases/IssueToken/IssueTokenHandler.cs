@@ -1,6 +1,6 @@
 namespace Identity.Application.UseCases.IssueToken;
 
-using Identity.Domain.Ports;
+using Identity.Application.Ports;
 using Identity.Domain.Entities;
 
 public class IssueTokenHandler

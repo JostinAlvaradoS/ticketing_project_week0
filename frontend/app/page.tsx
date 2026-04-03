@@ -29,7 +29,6 @@ export default async function EventsPage() {
             Browse and reserve your seats before they sell out.
           </p>
         </div>
-      </div>
 
         {/* Error state */}
         {error && (

@@ -21,8 +21,8 @@ public class SeatTests
             Id = id,
             Section = section,
             Row = row,
-            Number = number,
-            Reserved = false
+            Number = number
+            // Reserved defaults to false
         };
 
         // Assert

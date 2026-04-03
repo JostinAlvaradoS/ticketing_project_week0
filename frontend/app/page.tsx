@@ -1,7 +1,6 @@
 import { EventCard } from "@/components/event-card"
 import { getEvents } from "@/lib/api/catalog"
-import { Ticket, AlertCircle } from "lucide-react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Ticket, AlertCircle, CalendarX } from "lucide-react"
 
 export default async function EventsPage() {
   let events = []
@@ -9,40 +8,42 @@ export default async function EventsPage() {
 
   try {
     events = await getEvents()
-    console.log("Events:", events);
-    
   } catch (err) {
     error = err instanceof Error ? err.message : "Failed to load events"
-    console.error("Error loading events:", error)
   }
 
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 py-12">
-        {/* Header */}
-        <div className="flex flex-col gap-2 pb-8">
+        {/* Hero header */}
+        <div className="flex flex-col gap-3 pb-10">
           <div className="flex items-center gap-3">
-            <Ticket className="size-8 text-accent" />
+            <div className="flex size-10 items-center justify-center rounded-xl bg-accent/10 border border-accent/20">
+              <Ticket className="size-5 text-accent" />
+            </div>
             <h1 className="text-3xl font-bold text-foreground tracking-tight">
-              Events
+              Upcoming Events
             </h1>
           </div>
-          <p className="text-muted-foreground text-lg">
-            Browse upcoming events and reserve your seats.
+          <p className="text-muted-foreground text-base pl-[52px]">
+            Browse and reserve your seats before they sell out.
           </p>
         </div>
 
-        {/* Error Alert */}
+        {/* Error state */}
         {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="size-4" />
-            <AlertDescription>
-              Failed to load events. Make sure the Catalog service is running on localhost:50001. Error: {error}
-            </AlertDescription>
-          </Alert>
+          <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 mb-8">
+            <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-0.5">
+              <p className="text-sm font-medium text-destructive">Could not load events</p>
+              <p className="text-xs text-muted-foreground">
+                Make sure the Catalog service is running. {error}
+              </p>
+            </div>
+          </div>
         )}
 
-        {/* Event List */}
+        {/* Event list */}
         {events.length > 0 ? (
           <div className="flex flex-col gap-4">
             {events.map((event) => (
@@ -50,8 +51,14 @@ export default async function EventsPage() {
             ))}
           </div>
         ) : !error ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No events available</p>
+          <div className="flex flex-col items-center gap-3 py-20 text-center">
+            <div className="flex size-14 items-center justify-center rounded-full bg-secondary border border-border">
+              <CalendarX className="size-6 text-muted-foreground" />
+            </div>
+            <p className="font-medium text-foreground">No events available</p>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              Check back soon — new events are added regularly.
+            </p>
           </div>
         ) : null}
       </div>

@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "has-pending-response",
+  "title": "GET /waitlist/has-pending — Request & Response",
+  "description": "Synchronous HTTP endpoint on the Waitlist Service consulted by the Inventory ReservationExpiryWorker before deciding whether to release a seat to the general pool.",
+  "endpoint": "GET /api/v1/waitlist/has-pending",
+  "caller": "Inventory Service (ReservationExpiryWorker)",
+  "callee": "Waitlist Service",
+  "request": {
+    "query_parameters": {
+      "required": ["eventId"],
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Concert event ID to check for active waitlist entries in 'pending' status."
+        }
+      }
+    }
+  },
+  "response": {
+    "200": {
+      "description": "Query executed successfully.",
+      "type": "object",
+      "required": ["hasPending"],
+      "properties": {
+        "hasPending": {
+          "type": "boolean",
+          "description": "true if there is at least one WaitlistEntry with status='pending' for the given eventId."
+        },
+        "pendingCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of entries in 'pending' status. Optional — for informational purposes."
+        }
+      }
+    },
+    "400": {
+      "description": "Missing or invalid eventId parameter."
+    },
+    "503": {
+      "description": "Waitlist Service temporarily unavailable."
+    }
+  },
+  "examples": {
+    "request": "GET /api/v1/waitlist/has-pending?eventId=c9d0e1f2-0000-0000-0000-000000000001",
+    "response_true": {
+      "hasPending": true,
+      "pendingCount": 3
+    },
+    "response_false": {
+      "hasPending": false,
+      "pendingCount": 0
+    }
+  },
+  "caller_behavior": {
+    "if_hasPending_true": "Publish 'reservation-expired' WITHOUT calling seat.Release(). The Waitlist Service manages the seat.",
+    "if_hasPending_false": "Call seat.Release() as usual, then publish 'reservation-expired'. Normal inventory flow.",
+    "if_503_or_timeout": "Fallback: call seat.Release() and publish 'reservation-expired' (original behavior preserved). Log warning."
+  },
+  "performance_requirements": {
+    "timeout_ms": 200,
+    "p95_latency_ms": 50,
+    "description": "The call must be fast to not delay the ReservationExpiryWorker polling cycle. Query uses idx_waitlist_fifo index."
+  }
+}

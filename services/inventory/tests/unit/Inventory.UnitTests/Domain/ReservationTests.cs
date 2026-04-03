@@ -32,7 +32,7 @@ public class ReservationTests
     public void IsExpired_Should_Return_Correct_Status_Based_On_TTL(int minutesPassed, bool expectedExpired)
     {
         // Arrange — TTL de 15 minutos
-        var reservation = Reservation.Create(Guid.NewGuid(), "customer-123", 15);
+        var reservation = Reservation.Create(Guid.NewGuid(), "customer-123", ttlMinutes: 15);
         var checkTime = reservation.CreatedAt.AddMinutes(minutesPassed).AddSeconds(1);
 
         // Act

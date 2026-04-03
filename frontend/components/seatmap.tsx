@@ -19,7 +19,6 @@ export function Seatmap({ seatmap, onSeatReserved }: SeatmapProps) {
   const [localError, setLocalError] = useState<string | null>(null)
   const [showWaitlistModal, setShowWaitlistModal] = useState(false)
 
-  // Detect sold out: no available seats (excluding ones in user's cart)
   const isSoldOut = useMemo(() =>
     seatmap.seats.every(s => s.status !== "available"),
     [seatmap.seats]
@@ -110,9 +109,8 @@ export function Seatmap({ seatmap, onSeatReserved }: SeatmapProps) {
         <div className="absolute inset-x-0 -bottom-3 h-3 bg-gradient-to-b from-accent/10 to-transparent rounded-b-lg" />
       </div>
 
-      {/* Seat map — scrolls horizontally; sections are side-by-side columns */}
+      {/* Seat map — sections side by side, scrolls horizontally */}
       <div className="overflow-x-auto rounded-lg border border-border/40 bg-secondary/20 p-4">
-        {/* min-w-max forces this div to be as wide as its content, enabling x-scroll */}
         <div className="flex items-start gap-6 min-w-max">
           {Array.from(sections.entries())
             .sort(([a], [b]) => a.localeCompare(b))
@@ -121,7 +119,6 @@ export function Seatmap({ seatmap, onSeatReserved }: SeatmapProps) {
               const availableInSection = allSeatsInSection.filter(s => s.status === "available").length
               return (
                 <div key={sectionCode} className="flex items-start">
-                  {/* Section column */}
                   <div className="flex flex-col gap-1">
                     {/* Section header */}
                     <div className="flex flex-col items-center pb-2 mb-1 border-b border-border/50">
@@ -143,7 +140,6 @@ export function Seatmap({ seatmap, onSeatReserved }: SeatmapProps) {
                             <span className="text-[9px] text-muted-foreground/60 w-4 text-right font-mono shrink-0 leading-none select-none">
                               {rowNumber}
                             </span>
-                            {/* flex-nowrap ensures seats never wrap to next line */}
                             <div className="flex flex-nowrap items-center gap-px">
                               {seats.map((seat) => {
                                 const isInUserCart = isSeatInCart(seat.id)
@@ -164,7 +160,6 @@ export function Seatmap({ seatmap, onSeatReserved }: SeatmapProps) {
                         ))}
                     </div>
                   </div>
-                  {/* Divider between sections */}
                   {idx < arr.length - 1 && (
                     <div className="w-px self-stretch bg-border/50 mx-5" />
                   )}

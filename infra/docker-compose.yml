@@ -258,6 +258,29 @@ services:
 # Example REDIS_URL: redis:6379
 # Example KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
+  waitlist:
+    build:
+      context: ..
+      dockerfile: services/waitlist/src/Waitlist.Api/Dockerfile
+    container_name: speckit-waitlist
+    ports:
+      - "5006:5006"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5006
+      - ConnectionStrings__Default=Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres;SearchPath=bc_waitlist;Include Error Detail=true
+      - Kafka__BootstrapServers=kafka:9092
+      - Services__CatalogUrl=http://catalog:5001
+      - Services__OrderingUrl=http://ordering:5003
+      - Services__InventoryUrl=http://inventory:5002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
 networks:
   default:
     name: speckit-net

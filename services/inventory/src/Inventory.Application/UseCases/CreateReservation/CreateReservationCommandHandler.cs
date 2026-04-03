@@ -1,18 +1,18 @@
 using System.Text.Json;
 using MediatR;
 using Inventory.Application.DTOs;
+using Inventory.Application.Ports;
 using Inventory.Domain.Entities;
-using Inventory.Domain.Ports;
-using Inventory.Infrastructure.Persistence;
 
 namespace Inventory.Application.UseCases.CreateReservation;
 
 /// <summary>
-/// Handler for creating a seat reservation with distributed locking and optimistic concurrency.
+/// Handler para crear una reserva de asiento con distributed locking y concurrencia optimista.
 /// </summary>
 public class CreateReservationCommandHandler : IRequestHandler<CreateReservationCommand, CreateReservationResponse>
 {
-    private readonly InventoryDbContext _context;
+    private readonly ISeatRepository _seatRepository;
+    private readonly IReservationRepository _reservationRepository;
     private readonly IRedisLock _redisLock;
     private readonly IKafkaProducer _kafkaProducer;
 
@@ -21,11 +21,13 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
     private const int ReservationTTLMinutes = 15;
 
     public CreateReservationCommandHandler(
-        InventoryDbContext context,
+        ISeatRepository seatRepository,
+        IReservationRepository reservationRepository,
         IRedisLock redisLock,
         IKafkaProducer kafkaProducer)
     {
-        _context = context ?? throw new ArgumentNullException(nameof(context));
+        _seatRepository = seatRepository ?? throw new ArgumentNullException(nameof(seatRepository));
+        _reservationRepository = reservationRepository ?? throw new ArgumentNullException(nameof(reservationRepository));
         _redisLock = redisLock ?? throw new ArgumentNullException(nameof(redisLock));
         _kafkaProducer = kafkaProducer ?? throw new ArgumentNullException(nameof(kafkaProducer));
     }
@@ -49,8 +51,7 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
 
         try
         {
-            // Fetch the seat and check if already reserved
-            var seat = await _context.Seats.FindAsync([request.SeatId], cancellationToken: cancellationToken)
+            var seat = await _seatRepository.GetByIdAsync(request.SeatId, cancellationToken)
                 .ConfigureAwait(false);
 
             if (seat is null)
@@ -58,46 +59,26 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
                 throw new KeyNotFoundException($"Seat {request.SeatId} not found");
             }
 
-            if (seat.Reserved)
-            {
-                throw new InvalidOperationException($"Seat {request.SeatId} is already reserved");
-            }
+            // Domain method encapsula la validación y el cambio de estado
+            seat.Reserve();
 
-            // Create reservation with 15-minute TTL
-            var now = DateTime.UtcNow;
-            var expiresAt = now.AddMinutes(ReservationTTLMinutes);
-            var reservation = new Reservation
-            {
-                Id = Guid.NewGuid(),
-                SeatId = request.SeatId,
-                CustomerId = request.CustomerId,
-                CreatedAt = now,
-                ExpiresAt = expiresAt,
-                Status = "active"
-            };
+            var reservation = Reservation.Create(request.SeatId, request.CustomerId, ReservationTTLMinutes);
 
-            // Update seat: mark as reserved
-            seat.Reserved = true;
+            await _seatRepository.UpdateAsync(seat, cancellationToken).ConfigureAwait(false);
+            var createdReservation = await _reservationRepository.CreateAsync(reservation, cancellationToken).ConfigureAwait(false);
 
-            // Add reservation and update seat in transaction
-            _context.Reservations.Add(reservation);
-            _context.Seats.Update(seat);
-            await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-            // Publish reservation-created event
-            await PublishReservationCreatedEvent(reservation, seat, cancellationToken).ConfigureAwait(false);
+            await PublishReservationCreatedEvent(createdReservation, seat, cancellationToken).ConfigureAwait(false);
 
             return new CreateReservationResponse(
-                ReservationId: reservation.Id,
-                SeatId: reservation.SeatId,
-                CustomerId: reservation.CustomerId,
-                ExpiresAt: reservation.ExpiresAt,
-                Status: reservation.Status
+                ReservationId: createdReservation.Id,
+                SeatId: createdReservation.SeatId,
+                CustomerId: createdReservation.CustomerId,
+                ExpiresAt: createdReservation.ExpiresAt,
+                Status: createdReservation.Status
             );
         }
         finally
         {
-            // Always release the lock
             await _redisLock.ReleaseLockAsync(lockKey, lockToken).ConfigureAwait(false);
         }
     }
@@ -117,10 +98,7 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
             Status: reservation.Status
         );
 
-        var jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
+        var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         var json = JsonSerializer.Serialize(@event, jsonOptions);
         await _kafkaProducer.ProduceAsync("reservation-created", json, reservation.SeatId.ToString("N"))
             .ConfigureAwait(false);

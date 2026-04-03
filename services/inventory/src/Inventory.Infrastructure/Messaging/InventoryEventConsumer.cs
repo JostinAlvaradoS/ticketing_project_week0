@@ -82,14 +82,14 @@ public class InventoryEventConsumer : BackgroundService
 
                             if (reservation != null)
                             {
-                                reservation.Status = "confirmed";
+                                reservation.Status = Reservation.StatusConfirmed;
                                 _logger.LogInformation("Reservation {ReservationId} confirmed for Seat {SeatId}", reservation.Id, reservation.SeatId);
-                                
+
                                 // UPDATE SEAT STATUS
                                 var seat = await dbContext.Seats.FindAsync(new object[] { reservation.SeatId }, stoppingToken);
                                 if (seat != null)
                                 {
-                                    seat.Reserved = true; // Ensure it stays reserved (sold)
+                                    if (!seat.Reserved) seat.Reserve(); // Ensure it stays reserved (sold)
                                     _logger.LogInformation("Seat {SeatId} status confirmed as RESERVED (Sold)", seat.Id);
                                 }
 

@@ -97,8 +97,8 @@ public class SeatsGeneratedConsumer : BackgroundService
                 Id = seatDto.SeatId,
                 Section = seatDto.Section,
                 Row = seatDto.Row,
-                Number = seatDto.Number,
-                Reserved = false
+                Number = seatDto.Number
+                // Reserved defaults to false — asiento nuevo, disponible
             });
         }
 

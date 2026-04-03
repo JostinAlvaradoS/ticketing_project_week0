@@ -1,9 +1,9 @@
-namespace Fulfillment.Infrastructure.Events;
+namespace Fulfillment.Application.Ports;
 
+/// <summary>
+/// Puerto para publicación de eventos a Kafka.
+/// </summary>
 public interface IEventPublisher
 {
-    /// <summary>
-    /// Publica un evento a Kafka
-    /// </summary>
     Task<bool> PublishAsync<T>(string topic, string key, T @event) where T : class;
 }

@@ -20,90 +20,56 @@ public sealed class AddToCartHandler : IRequestHandler<AddToCartCommand, AddToCa
 
     public async Task<AddToCartResponse> Handle(AddToCartCommand request, CancellationToken cancellationToken)
     {
-        try 
+        var validationResult = await _reservationValidationService.ValidateReservationAsync(
+            request.ReservationId,
+            request.SeatId);
+
+        if (!validationResult.IsValid)
         {
-            // Validate reservation before adding to cart
-            var validationResult = await _reservationValidationService.ValidateReservationAsync(
-                request.ReservationId, 
-                request.SeatId);
-
-            if (!validationResult.IsValid)
-            {
-                return new AddToCartResponse(false, validationResult.ErrorMessage, null);
-            }
-
-            // Find existing draft order or create new one
-            var existingOrder = await _orderRepository.GetDraftOrderAsync(
-                request.UserId, request.GuestToken, cancellationToken);
-
-            Order order;
-            
-            if (existingOrder != null)
-            {
-                // Check if seat is already in the cart
-                if (existingOrder.Items.Any(i => i.SeatId == request.SeatId))
-                {
-                    return new AddToCartResponse(false, "Seat is already in the cart", null);
-                }
-
-                // Add item to existing order
-                var newItem = new OrderItem
-                {
-                    Id = Guid.NewGuid(),
-                    OrderId = existingOrder.Id,
-                    SeatId = request.SeatId,
-                    Price = request.Price
-                };
-                
-                existingOrder.Items.Add(newItem);
-                existingOrder.TotalAmount = existingOrder.Items.Sum(i => i.Price);
-                
-                order = await _orderRepository.UpdateAsync(existingOrder, cancellationToken);
-            }
-            else
-            {
-                // Create new draft order
-                order = new Order
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = request.UserId,
-                    GuestToken = request.GuestToken,
-                    TotalAmount = request.Price,
-                    State = "draft",
-                    CreatedAt = DateTime.UtcNow,
-                    Items = new List<OrderItem>
-                    {
-                        new OrderItem
-                        {
-                            Id = Guid.NewGuid(),
-                            SeatId = request.SeatId,
-                            Price = request.Price
-                        }
-                    }
-                };
-                
-                // Set the OrderId on the item
-                order.Items.First().OrderId = order.Id;
-                
-                order = await _orderRepository.CreateAsync(order, cancellationToken);
-            }
-
-            var orderDto = new OrderDto(
-                order.Id,
-                order.UserId,
-                order.GuestToken,
-                order.TotalAmount,
-                order.State,
-                order.CreatedAt,
-                order.PaidAt,
-                order.Items.Select(i => new OrderItemDto(i.Id, i.SeatId, i.Price))
-            );
-
-            return new AddToCartResponse(true, null, orderDto);
+            return new AddToCartResponse(false, validationResult.ErrorMessage, null);
         }
-        catch (Exception ex)
+
+        var existingOrder = await _orderRepository.GetDraftOrderAsync(
+            request.UserId, request.GuestToken, cancellationToken);
+
+        Order order;
+
+        if (existingOrder != null)
         {
-            return new AddToCartResponse(false, $"Failed to add item to cart: {ex.Message}", null);
+            // Seat-already-in-cart es una regla de negocio del dominio — se convierte a respuesta de fallo
+            try
+            {
+                existingOrder.AddItem(request.SeatId, request.Price);
+            }
+            catch (InvalidOperationException)
+            {
+                return new AddToCartResponse(false, "Seat is already in the cart", null);
+            }
+
+            order = await _orderRepository.UpdateAsync(existingOrder, cancellationToken);
         }
+        else
+        {
+            order = Order.Create(request.UserId, request.GuestToken);
+            order.AddItem(request.SeatId, request.Price);
+            order = await _orderRepository.CreateAsync(order, cancellationToken);
+        }
+
+        var orderDto = MapToDto(order);
+        return new AddToCartResponse(true, null, orderDto);
+    }
+
+    private static OrderDto MapToDto(Order order)
+    {
+        return new OrderDto(
+            order.Id,
+            order.UserId,
+            order.GuestToken,
+            order.TotalAmount,
+            order.State,
+            order.CreatedAt,
+            order.PaidAt,
+            order.Items.Select(i => new OrderItemDto(i.Id, i.SeatId, i.Price))
+        );
     }
 }

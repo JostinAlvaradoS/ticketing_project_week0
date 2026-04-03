@@ -2,125 +2,204 @@ namespace Ordering.Domain.UnitTests;
 
 public class OrderTests
 {
-    [Fact]
-    public void Order_ShouldBeCreated_WithCorrectDefaultValues()
-    {
-        // Arrange & Act
-        var order = new Order();
+    // ─── Order.Create ────────────────────────────────────────────────────────
 
-        // Assert
-        order.Id.Should().Be(Guid.Empty); // Id is not auto-generated, starts empty
-        order.UserId.Should().BeNull();
+    [Fact]
+    public void Order_Create_WithUserId_ShouldSetDraftStateAndGenerateId()
+    {
+        var order = Order.Create("user-123", null);
+
+        order.Id.Should().NotBeEmpty();
+        order.UserId.Should().Be("user-123");
         order.GuestToken.Should().BeNull();
+        order.State.Should().Be(Order.StateDraft);
         order.TotalAmount.Should().Be(0);
-        order.State.Should().Be("draft");
-        order.CreatedAt.Should().Be(DateTime.MinValue); // CreatedAt is not auto-set
-        order.PaidAt.Should().BeNull();
-        order.Items.Should().NotBeNull();
         order.Items.Should().BeEmpty();
+        order.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
     }
 
     [Fact]
-    public void Order_ShouldAcceptValidUserId()
+    public void Order_Create_WithGuestToken_ShouldSucceed()
     {
-        // Arrange
-        var order = new Order();
-        var userId = "user123";
+        var order = Order.Create(null, "guest-token-abc");
 
-        // Act
-        order.UserId = userId;
-
-        // Assert
-        order.UserId.Should().Be(userId);
+        order.GuestToken.Should().Be("guest-token-abc");
+        order.UserId.Should().BeNull();
+        order.State.Should().Be(Order.StateDraft);
     }
 
     [Fact]
-    public void Order_ShouldAcceptValidGuestToken()
+    public void Order_Create_WithoutUserIdOrGuestToken_ShouldThrow()
     {
-        // Arrange
-        var order = new Order();
-        var guestToken = "guest-token-123";
+        var act = () => Order.Create(null, null);
 
-        // Act
-        order.GuestToken = guestToken;
-
-        // Assert
-        order.GuestToken.Should().Be(guestToken);
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*UserId or GuestToken*");
     }
 
-    [Theory]
-    [InlineData("draft")]
-    [InlineData("pending")]
-    [InlineData("paid")]
-    [InlineData("fulfilled")]
-    [InlineData("cancelled")]
-    public void Order_ShouldAcceptValidStates(string state)
+    // ─── Order.AddItem ────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Order_AddItem_ShouldAddItemAndRecalculateTotal()
     {
-        // Arrange
-        var order = new Order();
+        var order = Order.Create("user-1", null);
+        var seatId = Guid.NewGuid();
 
-        // Act
-        order.State = state;
+        order.AddItem(seatId, 50.00m);
 
-        // Assert
-        order.State.Should().Be(state);
+        order.Items.Should().HaveCount(1);
+        order.TotalAmount.Should().Be(50.00m);
     }
 
     [Fact]
-    public void Order_ShouldCalculateTotalAmount_WhenItemsAdded()
+    public void Order_AddItem_MultipleTimes_ShouldAccumulateTotal()
     {
-        // Arrange
-        var order = new Order { Id = Guid.NewGuid() };
-        var item1 = new OrderItem { Id = Guid.NewGuid(), OrderId = order.Id, SeatId = Guid.NewGuid(), Price = 50.00m };
-        var item2 = new OrderItem { Id = Guid.NewGuid(), OrderId = order.Id, SeatId = Guid.NewGuid(), Price = 75.50m };
+        var order = Order.Create("user-1", null);
 
-        // Act
-        order.Items.Add(item1);
-        order.Items.Add(item2);
-        order.TotalAmount = order.Items.Sum(i => i.Price);
+        order.AddItem(Guid.NewGuid(), 50.00m);
+        order.AddItem(Guid.NewGuid(), 75.50m);
 
-        // Assert
-        order.TotalAmount.Should().Be(125.50m);
         order.Items.Should().HaveCount(2);
+        order.TotalAmount.Should().Be(125.50m);
     }
 
     [Fact]
-    public void Order_ShouldBeEmpty_WhenNoItems()
+    public void Order_AddItem_DuplicateSeat_ShouldThrow()
     {
-        // Arrange
-        var order = new Order();
+        var order = Order.Create("user-1", null);
+        var seatId = Guid.NewGuid();
+        order.AddItem(seatId, 50.00m);
 
-        // Act & Assert
-        order.Items.Should().BeEmpty();
-        order.TotalAmount.Should().Be(0);
+        var act = () => order.AddItem(seatId, 50.00m);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*already in the cart*");
     }
 
     [Fact]
-    public void Order_ShouldSetPaidAt_WhenMarkedAsPaid()
+    public void Order_AddItem_WhenNotInDraft_ShouldThrow()
     {
-        // Arrange
-        var order = new Order { State = "pending" };
-        var paidTime = DateTime.UtcNow;
+        var order = Order.Create("user-1", null);
+        order.AddItem(Guid.NewGuid(), 50.00m);
+        order.Checkout();
 
-        // Act
-        order.State = "paid";
-        order.PaidAt = paidTime;
+        var act = () => order.AddItem(Guid.NewGuid(), 30.00m);
 
-        // Assert
-        order.State.Should().Be("paid");
-        order.PaidAt.Should().Be(paidTime);
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Cannot add items*");
+    }
+
+    // ─── Order.Checkout ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void Order_Checkout_WithItems_ShouldTransitionToPending()
+    {
+        var order = Order.Create("user-1", null);
+        order.AddItem(Guid.NewGuid(), 100.00m);
+
+        order.Checkout();
+
+        order.State.Should().Be(Order.StatePending);
     }
 
     [Fact]
-    public void Order_ShouldHaveUniqueId_WhenCreated()
+    public void Order_Checkout_WithoutItems_ShouldThrow()
     {
-        // Arrange & Act
-        var order1 = new Order { Id = Guid.NewGuid() };
-        var order2 = new Order { Id = Guid.NewGuid() };
+        var order = Order.Create("user-1", null);
 
-        // Assert
+        var act = () => order.Checkout();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*empty*");
+    }
+
+    [Fact]
+    public void Order_Checkout_AlreadyPending_ShouldThrow()
+    {
+        var order = Order.Create("user-1", null);
+        order.AddItem(Guid.NewGuid(), 50.00m);
+        order.Checkout();
+
+        var act = () => order.Checkout();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Cannot checkout*");
+    }
+
+    // ─── Order.MarkAsPaid ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void Order_MarkAsPaid_WhenPending_ShouldTransitionToPaid()
+    {
+        var order = Order.Create("user-1", null);
+        order.AddItem(Guid.NewGuid(), 50.00m);
+        order.Checkout();
+
+        order.MarkAsPaid();
+
+        order.State.Should().Be(Order.StatePaid);
+        order.PaidAt.Should().NotBeNull();
+        order.PaidAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public void Order_MarkAsPaid_WhenDraft_ShouldThrow()
+    {
+        var order = Order.Create("user-1", null);
+
+        var act = () => order.MarkAsPaid();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Cannot mark as paid*");
+    }
+
+    // ─── Order.BelongsTo ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Order_BelongsTo_CorrectUser_ShouldReturnTrue()
+    {
+        var order = Order.Create("user-123", null);
+
+        order.BelongsTo("user-123", null).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Order_BelongsTo_WrongUser_ShouldReturnFalse()
+    {
+        var order = Order.Create("user-123", null);
+
+        order.BelongsTo("user-999", null).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Order_BelongsTo_CorrectGuestToken_ShouldReturnTrue()
+    {
+        var order = Order.Create(null, "guest-abc");
+
+        order.BelongsTo(null, "guest-abc").Should().BeTrue();
+    }
+
+    // ─── State constants ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Order_StateConstants_ShouldMatchExpectedValues()
+    {
+        Order.StateDraft.Should().Be("draft");
+        Order.StatePending.Should().Be("pending");
+        Order.StatePaid.Should().Be("paid");
+        Order.StateFulfilled.Should().Be("fulfilled");
+        Order.StateCancelled.Should().Be("cancelled");
+    }
+
+    // ─── Unique IDs ───────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Order_Create_TwoOrders_ShouldHaveUniqueIds()
+    {
+        var order1 = Order.Create("user-1", null);
+        var order2 = Order.Create("user-2", null);
+
         order1.Id.Should().NotBe(order2.Id);
         order1.Id.Should().NotBeEmpty();
-        order2.Id.Should().NotBeEmpty();
     }
 }

@@ -96,3 +96,15 @@ export interface EventSummary {
   revenue: number
   imageUrl?: string
 }
+
+// --- Waitlist Service Types ---
+
+export interface JoinWaitlistRequest {
+  email: string
+  eventId: string
+}
+
+export interface JoinWaitlistResponse {
+  entryId: string
+  position: number
+}

@@ -1,5 +1,8 @@
-namespace Inventory.Domain.Ports;
+namespace Inventory.Application.Ports;
 
+/// <summary>
+/// Puerto para adquisición y liberación de locks distribuidos (Redis).
+/// </summary>
 public interface IRedisLock
 {
     /// <summary>

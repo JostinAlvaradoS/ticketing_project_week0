@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Identity.Domain.Entities;
-using Identity.Domain.Ports;
+using Identity.Application.Ports;
 
 namespace Identity.Infrastructure.Persistence;
 

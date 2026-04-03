@@ -2,7 +2,7 @@ using Confluent.Kafka;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using Fulfillment.Infrastructure.Events;
+using Fulfillment.Application.Ports;
 
 namespace Fulfillment.Infrastructure.Events;
 

@@ -1,43 +1,48 @@
 namespace Inventory.Domain.Entities;
 
 /// <summary>
-/// Represents a reserved seat with TTL (15 minutes). Once expired, a background worker will handle cleanup.
+/// Representa un asiento reservado con TTL. Una vez expirado, un worker en background maneja la limpieza.
 /// </summary>
 public class Reservation
 {
-    /// <summary>
-    /// Unique reservation identifier (primary key).
-    /// </summary>
-    public Guid Id { get; set; }
+    public const string StatusActive = "active";
+    public const string StatusExpired = "expired";
+    public const string StatusConfirmed = "confirmed";
+
+    public Guid Id { get; private set; }
+    public Guid SeatId { get; private set; }
+    public string CustomerId { get; private set; } = string.Empty;
+    public DateTime CreatedAt { get; private set; }
+    public DateTime ExpiresAt { get; private set; }
+    public string Status { get; set; } = StatusActive; // set accesible para EF Core y el worker de expiración
+
+    // Constructor sin parámetros requerido por EF Core
+    private Reservation() { }
 
     /// <summary>
-    /// Reference to the seat being reserved.
+    /// Crea una reserva válida con TTL configurable.
     /// </summary>
-    public Guid SeatId { get; set; }
+    public static Reservation Create(Guid seatId, string customerId, int ttlMinutes = 15)
+    {
+        if (seatId == Guid.Empty) throw new ArgumentException("SeatId cannot be empty.", nameof(seatId));
+        if (string.IsNullOrWhiteSpace(customerId)) throw new ArgumentException("CustomerId cannot be empty.", nameof(customerId));
+        if (ttlMinutes <= 0) throw new ArgumentException("TTL must be positive.", nameof(ttlMinutes));
+
+        var now = DateTime.UtcNow;
+        return new Reservation
+        {
+            Id = Guid.NewGuid(),
+            SeatId = seatId,
+            CustomerId = customerId,
+            CreatedAt = now,
+            ExpiresAt = now.AddMinutes(ttlMinutes),
+            Status = StatusActive
+        };
+    }
 
     /// <summary>
-    /// Customer/user who made the reservation.
+    /// Verifica si la reserva ha superado su TTL.
     /// </summary>
-    public string CustomerId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// When the reservation was created.
-    /// </summary>
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>
-    /// When the reservation expires (typically now + 15 minutes).
-    /// </summary>
-    public DateTime ExpiresAt { get; set; }
-
-    /// <summary>
-    /// Status: active, expired, or confirmed.
-    /// </summary>
-    public string Status { get; set; } = "active";
-
-    /// <summary>
-    /// Checks if the reservation has exceeded its TTL (15 minutes).
-    /// </summary>
-    public bool IsExpired(DateTime currentTime) => 
-        Status == "expired" || currentTime > CreatedAt.AddMinutes(15);
+    public bool IsExpired(DateTime currentTime) =>
+        Status == StatusExpired || currentTime > ExpiresAt;
 }

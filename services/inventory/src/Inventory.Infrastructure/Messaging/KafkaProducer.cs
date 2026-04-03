@@ -1,5 +1,5 @@
 using Confluent.Kafka;
-using Inventory.Domain.Ports;
+using Inventory.Application.Ports;
 
 namespace Inventory.Infrastructure.Messaging;
 

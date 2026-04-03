@@ -1,5 +1,5 @@
 using System.Text;
-using Inventory.Domain.Ports;
+using Inventory.Application.Ports;
 using StackExchange.Redis;
 
 namespace Inventory.Infrastructure.Locking;

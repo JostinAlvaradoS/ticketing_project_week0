@@ -23,34 +23,16 @@ public class AddToCartHandlerTests
             Price: 99.99m,
             UserId: "user123");
 
-        var validationResult = new ReservationValidationResult(true, null, null);
-        
         _reservationServiceMock
             .Setup(x => x.ValidateReservationAsync(command.ReservationId, command.SeatId))
-            .ReturnsAsync(validationResult);
+            .ReturnsAsync(new ReservationValidationResult(true, null, null));
 
         _orderRepositoryMock
             .Setup(x => x.GetDraftOrderAsync(command.UserId, command.GuestToken, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Order?)null);
 
-        var createdOrder = new Order
-        {
-            Id = Guid.NewGuid(),
-            UserId = command.UserId,
-            GuestToken = command.GuestToken,
-            TotalAmount = command.Price,
-            State = "draft",
-            CreatedAt = DateTime.UtcNow,
-            Items = new List<OrderItem>
-            {
-                new OrderItem
-                {
-                    Id = Guid.NewGuid(),
-                    SeatId = command.SeatId,
-                    Price = command.Price
-                }
-            }
-        };
+        var createdOrder = Order.Create(command.UserId, null);
+        createdOrder.AddItem(command.SeatId, command.Price);
 
         _orderRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()))
@@ -64,7 +46,7 @@ public class AddToCartHandlerTests
         result.ErrorMessage.Should().BeNull();
         result.Order.Should().NotBeNull();
         result.Order!.UserId.Should().Be(command.UserId);
-        result.Order.State.Should().Be("draft");
+        result.Order.State.Should().Be(Order.StateDraft);
         result.Order.TotalAmount.Should().Be(command.Price);
         result.Order.Items.Should().HaveCount(1);
         result.Order.Items.First().SeatId.Should().Be(command.SeatId);
@@ -77,64 +59,28 @@ public class AddToCartHandlerTests
     public async Task Handle_WithExistingDraftOrder_ShouldAddItemToExistingOrder()
     {
         // Arrange
-        var existingOrderId = Guid.NewGuid();
         var command = new AddToCartCommand(
             ReservationId: Guid.NewGuid(),
             SeatId: Guid.NewGuid(),
             Price: 75.50m,
             UserId: "user123");
 
-        var existingOrder = new Order
-        {
-            Id = existingOrderId,
-            UserId = command.UserId,
-            TotalAmount = 50.00m,
-            State = "draft",
-            CreatedAt = DateTime.UtcNow.AddMinutes(-5),
-            Items = new List<OrderItem>
-            {
-                new OrderItem
-                {
-                    Id = Guid.NewGuid(),
-                    OrderId = existingOrderId,
-                    SeatId = Guid.NewGuid(),
-                    Price = 50.00m
-                }
-            }
-        };
+        var existingOrder = Order.Create(command.UserId, null);
+        existingOrder.AddItem(Guid.NewGuid(), 50.00m);
+        var existingOrderId = existingOrder.Id;
 
-        var validationResult = new ReservationValidationResult(true, null, null);
-        
         _reservationServiceMock
             .Setup(x => x.ValidateReservationAsync(command.ReservationId, command.SeatId))
-            .ReturnsAsync(validationResult);
+            .ReturnsAsync(new ReservationValidationResult(true, null, null));
 
         _orderRepositoryMock
             .Setup(x => x.GetDraftOrderAsync(command.UserId, command.GuestToken, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingOrder);
 
-        var updatedOrder = new Order
-        {
-            Id = existingOrder.Id,
-            UserId = existingOrder.UserId,
-            TotalAmount = 125.50m, // 50.00 + 75.50
-            State = "draft",
-            CreatedAt = existingOrder.CreatedAt,
-            Items = new List<OrderItem>(existingOrder.Items)
-            {
-                new OrderItem
-                {
-                    Id = Guid.NewGuid(),
-                    OrderId = existingOrder.Id,
-                    SeatId = command.SeatId,
-                    Price = command.Price
-                }
-            }
-        };
-
+        // Handler mutates existingOrder via AddItem — return the same object
         _orderRepositoryMock
             .Setup(x => x.UpdateAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(updatedOrder);
+            .ReturnsAsync(existingOrder);
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -161,11 +107,9 @@ public class AddToCartHandlerTests
             Price: 99.99m,
             UserId: "user123");
 
-        var validationResult = new ReservationValidationResult(false, "Reservation not found", null);
-        
         _reservationServiceMock
             .Setup(x => x.ValidateReservationAsync(command.ReservationId, command.SeatId))
-            .ReturnsAsync(validationResult);
+            .ReturnsAsync(new ReservationValidationResult(false, "Reservation not found", null));
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -190,29 +134,12 @@ public class AddToCartHandlerTests
             Price: 99.99m,
             UserId: "user123");
 
-        var existingOrder = new Order
-        {
-            Id = Guid.NewGuid(),
-            UserId = command.UserId,
-            TotalAmount = 50.00m,
-            State = "draft",
-            CreatedAt = DateTime.UtcNow.AddMinutes(-5),
-            Items = new List<OrderItem>
-            {
-                new OrderItem
-                {
-                    Id = Guid.NewGuid(),
-                    SeatId = seatId, // Same seat already in cart
-                    Price = 50.00m
-                }
-            }
-        };
+        var existingOrder = Order.Create(command.UserId, null);
+        existingOrder.AddItem(seatId, 50.00m); // same seat already in cart
 
-        var validationResult = new ReservationValidationResult(true, null, null);
-        
         _reservationServiceMock
             .Setup(x => x.ValidateReservationAsync(command.ReservationId, command.SeatId))
-            .ReturnsAsync(validationResult);
+            .ReturnsAsync(new ReservationValidationResult(true, null, null));
 
         _orderRepositoryMock
             .Setup(x => x.GetDraftOrderAsync(command.UserId, command.GuestToken, It.IsAny<CancellationToken>()))
@@ -240,34 +167,16 @@ public class AddToCartHandlerTests
             UserId: null,
             GuestToken: "guest-token-123");
 
-        var validationResult = new ReservationValidationResult(true, null, null);
-        
         _reservationServiceMock
             .Setup(x => x.ValidateReservationAsync(command.ReservationId, command.SeatId))
-            .ReturnsAsync(validationResult);
+            .ReturnsAsync(new ReservationValidationResult(true, null, null));
 
         _orderRepositoryMock
             .Setup(x => x.GetDraftOrderAsync(command.UserId, command.GuestToken, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Order?)null);
 
-        var createdOrder = new Order
-        {
-            Id = Guid.NewGuid(),
-            UserId = null,
-            GuestToken = command.GuestToken,
-            TotalAmount = command.Price,
-            State = "draft",
-            CreatedAt = DateTime.UtcNow,
-            Items = new List<OrderItem>
-            {
-                new OrderItem
-                {
-                    Id = Guid.NewGuid(),
-                    SeatId = command.SeatId,
-                    Price = command.Price
-                }
-            }
-        };
+        var createdOrder = Order.Create(null, command.GuestToken);
+        createdOrder.AddItem(command.SeatId, command.Price);
 
         _orderRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<Order>(), It.IsAny<CancellationToken>()))
@@ -284,7 +193,7 @@ public class AddToCartHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenRepositoryThrows_ShouldReturnFailure()
+    public async Task Handle_WhenRepositoryThrows_ShouldPropagateException()
     {
         // Arrange
         var command = new AddToCartCommand(
@@ -293,23 +202,18 @@ public class AddToCartHandlerTests
             Price: 99.99m,
             UserId: "user123");
 
-        var validationResult = new ReservationValidationResult(true, null, null);
-        
         _reservationServiceMock
             .Setup(x => x.ValidateReservationAsync(command.ReservationId, command.SeatId))
-            .ReturnsAsync(validationResult);
+            .ReturnsAsync(new ReservationValidationResult(true, null, null));
 
         _orderRepositoryMock
             .Setup(x => x.GetDraftOrderAsync(command.UserId, command.GuestToken, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database error"));
 
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Failed to add item to cart");
-        result.Order.Should().BeNull();
+        // Act & Assert — infrastructure exceptions propagate, they are not swallowed
+        await _handler.Invoking(h => h.Handle(command, CancellationToken.None))
+            .Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Database error*");
     }
 
     [Fact]

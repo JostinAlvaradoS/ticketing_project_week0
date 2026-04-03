@@ -15,58 +15,46 @@ public sealed class CheckoutOrderHandler : IRequestHandler<CheckoutOrderCommand,
 
     public async Task<CheckoutOrderResponse> Handle(CheckoutOrderCommand request, CancellationToken cancellationToken)
     {
+        var order = await _orderRepository.GetByIdAsync(request.OrderId, cancellationToken);
+
+        if (order == null)
+        {
+            return new CheckoutOrderResponse(false, "Order not found", null);
+        }
+
+        if (!order.BelongsTo(request.UserId, request.GuestToken))
+        {
+            return new CheckoutOrderResponse(false, "Unauthorized", null);
+        }
+
+        // La lógica de validación (estado Draft, items no vacíos) está en order.Checkout()
+        // Las excepciones de dominio se convierten a respuestas de fallo — las de infraestructura propagan
         try
         {
-            var order = await _orderRepository.GetByIdAsync(request.OrderId, cancellationToken);
-            
-            if (order == null)
-            {
-                return new CheckoutOrderResponse(false, "Order not found", null);
-            }
-
-            // Validate ownership
-            if (!string.IsNullOrEmpty(request.UserId) && order.UserId != request.UserId)
-            {
-                return new CheckoutOrderResponse(false, "Unauthorized", null);
-            }
-
-            if (!string.IsNullOrEmpty(request.GuestToken) && order.GuestToken != request.GuestToken)
-            {
-                return new CheckoutOrderResponse(false, "Unauthorized", null);
-            }
-
-            // Validate order state
-            if (order.State != "draft")
-            {
-                return new CheckoutOrderResponse(false, "Order is not in draft state", null);
-            }
-
-            if (!order.Items.Any())
-            {
-                return new CheckoutOrderResponse(false, "Order is empty", null);
-            }
-
-            // Update order state to pending (ready for payment)
-            order.State = "pending";
-            
-            var updatedOrder = await _orderRepository.UpdateAsync(order, cancellationToken);
-
-            var orderDto = new OrderDto(
-                updatedOrder.Id,
-                updatedOrder.UserId,
-                updatedOrder.GuestToken,
-                updatedOrder.TotalAmount,
-                updatedOrder.State,
-                updatedOrder.CreatedAt,
-                updatedOrder.PaidAt,
-                updatedOrder.Items.Select(i => new OrderItemDto(i.Id, i.SeatId, i.Price))
-            );
-
-            return new CheckoutOrderResponse(true, null, orderDto);
+            order.Checkout();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex) when (ex.Message.Contains("empty"))
         {
-            return new CheckoutOrderResponse(false, $"Failed to checkout order: {ex.Message}", null);
+            return new CheckoutOrderResponse(false, "Order is empty", null);
         }
+        catch (InvalidOperationException)
+        {
+            return new CheckoutOrderResponse(false, "Order is not in draft state", null);
+        }
+
+        var updatedOrder = await _orderRepository.UpdateAsync(order, cancellationToken);
+
+        var orderDto = new OrderDto(
+            updatedOrder.Id,
+            updatedOrder.UserId,
+            updatedOrder.GuestToken,
+            updatedOrder.TotalAmount,
+            updatedOrder.State,
+            updatedOrder.CreatedAt,
+            updatedOrder.PaidAt,
+            updatedOrder.Items.Select(i => new OrderItemDto(i.Id, i.SeatId, i.Price))
+        );
+
+        return new CheckoutOrderResponse(true, null, orderDto);
     }
 }

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Identity.Domain.Ports;
+using Identity.Application.Ports;
 using Identity.Infrastructure.Persistence;
 using Identity.Infrastructure.Security;
 

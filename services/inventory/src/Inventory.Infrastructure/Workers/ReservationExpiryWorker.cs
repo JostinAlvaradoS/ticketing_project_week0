@@ -1,5 +1,6 @@
 using System.Text.Json;
-using Inventory.Domain.Ports;
+using Inventory.Application.Ports;
+using Inventory.Domain.Entities;
 using Inventory.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
@@ -52,7 +53,7 @@ public class ReservationExpiryWorker : BackgroundService
 
         var now = DateTime.UtcNow;
         var expirables = await db.Reservations
-            .Where(r => r.Status == "active" && r.ExpiresAt <= now)
+            .Where(r => r.Status == Reservation.StatusActive && r.ExpiresAt <= now)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -60,12 +61,12 @@ public class ReservationExpiryWorker : BackgroundService
 
         foreach (var res in expirables)
         {
-            res.Status = "expired";
+            res.Status = Reservation.StatusExpired;
 
             var seat = await db.Seats.FindAsync(new object[] { res.SeatId }, cancellationToken).ConfigureAwait(false);
             if (seat != null)
             {
-                seat.Reserved = false;
+                seat.Release();
                 db.Seats.Update(seat);
             }
 

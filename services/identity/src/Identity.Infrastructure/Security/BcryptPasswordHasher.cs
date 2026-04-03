@@ -1,4 +1,4 @@
-using Identity.Domain.Ports;
+using Identity.Application.Ports;
 
 namespace Identity.Infrastructure.Security;
 

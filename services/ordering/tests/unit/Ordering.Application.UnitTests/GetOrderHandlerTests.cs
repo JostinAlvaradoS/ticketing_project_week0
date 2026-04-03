@@ -23,15 +23,8 @@ public class GetOrderHandlerTests
     public async Task Handle_WithExistingOrder_ShouldReturnOrderDto()
     {
         // Arrange
-        var orderId = Guid.NewGuid();
-        var order = new Order
-        {
-            Id = orderId,
-            UserId = "user123",
-            State = "draft",
-            CreatedAt = DateTime.UtcNow,
-            Items = new List<OrderItem>()
-        };
+        var order = Order.Create("user123", null);
+        var orderId = order.Id;
         _orderRepositoryMock.Setup(r => r.GetByIdAsync(orderId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(order);
 

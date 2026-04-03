@@ -4,6 +4,8 @@ using Identity.Application.UseCases.IssueToken;
 using Identity.Application.UseCases.CreateUser;
 using Identity.Infrastructure;
 using Identity.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +18,12 @@ builder.Services.AddScoped<CreateUserHandler>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Configure JSON serialization to handle enum strings
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 // Add CORS policy for frontend on localhost:3000
 builder.Services.AddCors(options =>
@@ -58,6 +66,31 @@ app.MapPost("/token", async (
     }
 });
 
+// Create user endpoint
+app.MapPost("/users", async (
+    CreateUserRequest request,
+    CreateUserHandler handler) =>
+{
+    try
+    {
+        var userId = await handler.Handle(
+            new CreateUserCommand(request.Email, request.Password, request.Role));
+
+        var response = new CreateUserResponse(
+            userId: userId,
+            email: request.Email,
+            role: request.Role.ToString()
+        );
+
+        return Results.Created($"/users/{userId}", response);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"User creation error: {ex.Message}");
+        return Results.BadRequest(new { error = ex.Message });
+    }
+});
+
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "identity" }));
 
@@ -85,6 +118,14 @@ public record IssueTokenResponse(
     DateTime expiresAt,
     string userRole,
     string userEmail
+);
+
+public record CreateUserRequest(string Email, string Password, Role Role = Role.User);
+
+public record CreateUserResponse(
+    Guid userId,
+    string email,
+    string role
 );
 
 public partial class Program { }

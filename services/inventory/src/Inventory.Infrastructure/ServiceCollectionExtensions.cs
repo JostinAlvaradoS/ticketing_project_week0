@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Inventory.Domain.Ports;
+using Inventory.Application.Ports;
 using Inventory.Infrastructure.Persistence;
 using Inventory.Infrastructure.Locking;
 using Inventory.Infrastructure.Messaging;
@@ -23,6 +23,10 @@ public static class ServiceCollectionExtensions
         });
 
         // IDbInitializer removed - migrations handled externally
+
+        // Register repositories
+        services.AddScoped<ISeatRepository, SeatRepository>();
+        services.AddScoped<IReservationRepository, ReservationRepository>();
 
         // Configure Redis connection multiplexer and Redis lock adapter
         var redisConn = configuration.GetConnectionString("Redis") ?? configuration["Redis:Connection"] ?? "localhost:6379";

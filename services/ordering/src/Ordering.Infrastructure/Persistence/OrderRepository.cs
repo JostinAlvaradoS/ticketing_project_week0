@@ -27,7 +27,7 @@ public class OrderRepository : IOrderRepository
     {
         var query = _context.Orders
             .Include(o => o.Items)
-            .Where(o => o.State == "draft");
+            .Where(o => o.State == Order.StateDraft);
 
         if (!string.IsNullOrEmpty(userId))
         {

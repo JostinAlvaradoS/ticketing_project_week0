@@ -228,25 +228,6 @@ services:
       kafka-init:
         condition: service_completed_successfully
 
-  frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_CATALOG_URL=http://catalog:5001
-        - NEXT_PUBLIC_INVENTORY_URL=http://inventory:5002
-        - NEXT_PUBLIC_ORDERING_URL=http://ordering:5003
-        - NEXT_PUBLIC_PAYMENT_URL=http://payment:5004
-    container_name: speckit-frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-    depends_on:
-      - catalog
-      - inventory
-      - ordering
-      - payment
   notification:
     build:
       context: ..

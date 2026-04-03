@@ -29,16 +29,16 @@ public class GetOrderHandler : IRequestHandler<GetOrderQuery, OrderDto?>
 
         return new OrderDto(
             order.Id,
-            order.UserId ?? "guest@example.com", // Ensure we have an email for Notification
+            order.UserId,
             order.GuestToken,
             order.TotalAmount,
             order.State,
             order.CreatedAt,
             order.PaidAt,
             order.Items.Select(i => new OrderItemDto(i.Id, i.SeatId, i.Price)),
-            "Awesome Event MVP", // Mocked EventName until Catalog integration is live
-            firstItem != null ? $"Seat-{firstItem.SeatId.ToString().Substring(0,4)}" : "N/A",
-            Guid.Empty // EventId (Placeholder)
+            EventName: null, // TODO: enriquecer desde Catalog service
+            SeatNumber: firstItem != null ? $"Seat-{firstItem.SeatId.ToString()[..4]}" : null,
+            EventId: Guid.Empty
         );
     }
 }

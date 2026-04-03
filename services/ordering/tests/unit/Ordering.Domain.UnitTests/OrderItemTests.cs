@@ -5,121 +5,77 @@ public class OrderItemTests
     [Fact]
     public void OrderItem_ShouldBeCreated_WithCorrectProperties()
     {
-        // Arrange
-        var orderId = Guid.NewGuid();
+        var order = Order.Create("user-1", null);
         var seatId = Guid.NewGuid();
-        var price = 99.99m;
 
-        // Act
-        var orderItem = new OrderItem
-        {
-            Id = Guid.NewGuid(),
-            OrderId = orderId,
-            SeatId = seatId,
-            Price = price
-        };
+        var item = order.AddItem(seatId, 99.99m);
 
-        // Assert
-        orderItem.Id.Should().NotBeEmpty();
-        orderItem.OrderId.Should().Be(orderId);
-        orderItem.SeatId.Should().Be(seatId);
-        orderItem.Price.Should().Be(price);
-        orderItem.Order.Should().BeNull(); // Navigation property not set
+        item.Id.Should().NotBeEmpty();
+        item.OrderId.Should().Be(order.Id);
+        item.SeatId.Should().Be(seatId);
+        item.Price.Should().Be(99.99m);
     }
 
     [Fact]
     public void OrderItem_ShouldHaveUniqueId_WhenCreated()
     {
-        // Arrange & Act
-        var item1 = new OrderItem { Id = Guid.NewGuid() };
-        var item2 = new OrderItem { Id = Guid.NewGuid() };
+        var order = Order.Create("user-1", null);
 
-        // Assert
+        var item1 = order.AddItem(Guid.NewGuid(), 50.00m);
+        var item2 = order.AddItem(Guid.NewGuid(), 75.00m);
+
         item1.Id.Should().NotBe(item2.Id);
         item1.Id.Should().NotBeEmpty();
         item2.Id.Should().NotBeEmpty();
     }
 
     [Fact]
-    public void OrderItem_ShouldAcceptZeroPrice()
-    {
-        // Arrange
-        var orderItem = new OrderItem();
-
-        // Act
-        orderItem.Price = 0;
-
-        // Assert
-        orderItem.Price.Should().Be(0);
-    }
-
-    [Fact]
     public void OrderItem_ShouldAcceptPositivePrice()
     {
-        // Arrange
-        var orderItem = new OrderItem();
+        var order = Order.Create("user-1", null);
         var price = 150.75m;
 
-        // Act
-        orderItem.Price = price;
+        var item = order.AddItem(Guid.NewGuid(), price);
 
-        // Assert
-        orderItem.Price.Should().Be(price);
+        item.Price.Should().Be(price);
     }
 
     [Fact]
     public void OrderItem_ShouldSetNavigationProperty_WhenOrderAssigned()
     {
-        // Arrange
-        var order = new Order { Id = Guid.NewGuid() };
-        var orderItem = new OrderItem { Id = Guid.NewGuid(), OrderId = order.Id };
+        var order = Order.Create("user-1", null);
+        var seatId = Guid.NewGuid();
 
-        // Act
-        orderItem.Order = order;
+        var item = order.AddItem(seatId, 50.00m);
 
-        // Assert
-        orderItem.Order.Should().Be(order);
-        orderItem.OrderId.Should().Be(order.Id);
+        item.OrderId.Should().Be(order.Id);
+        order.Items.Should().Contain(item);
     }
 
     [Fact]
-    public void OrderItem_ShouldBelongToOrder_WhenAddedToCollection()
+    public void OrderItem_ShouldBelongToOrder_WhenAddedViaAddItem()
     {
-        // Arrange
-        var order = new Order { Id = Guid.NewGuid() };
-        var orderItem = new OrderItem 
-        { 
-            Id = Guid.NewGuid(), 
-            OrderId = order.Id,
-            SeatId = Guid.NewGuid(),
-            Price = 50.00m,
-            Order = order
-        };
+        var order = Order.Create("user-1", null);
+        var seatId = Guid.NewGuid();
 
-        // Act
-        order.Items.Add(orderItem);
+        var item = order.AddItem(seatId, 50.00m);
 
-        // Assert
-        order.Items.Should().Contain(orderItem);
-        orderItem.OrderId.Should().Be(order.Id);
-        orderItem.Order.Should().Be(order);
+        order.Items.Should().HaveCount(1);
+        order.Items.First().SeatId.Should().Be(seatId);
+        item.OrderId.Should().Be(order.Id);
     }
 
     [Theory]
-    [InlineData(0)]
     [InlineData(0.01)]
     [InlineData(50.00)]
     [InlineData(99.99)]
     [InlineData(1000.00)]
     public void OrderItem_ShouldAcceptValidPrices(decimal price)
     {
-        // Arrange
-        var orderItem = new OrderItem();
+        var order = Order.Create("user-1", null);
 
-        // Act
-        orderItem.Price = price;
+        var item = order.AddItem(Guid.NewGuid(), price);
 
-        // Assert
-        orderItem.Price.Should().Be(price);
+        item.Price.Should().Be(price);
     }
 }

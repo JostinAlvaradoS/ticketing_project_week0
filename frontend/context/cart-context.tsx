@@ -222,7 +222,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const doCheckout = useCallback(async () => {
     if (!order) throw new Error("No order to checkout")
-    if (!userId) throw new Error("User not authenticated")
+    // if (!userId) throw new Error("User not authenticated")
     setIsCheckingOut(true)
     setError(null)
     try {

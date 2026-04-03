@@ -23,10 +23,61 @@ Durante la fase de implementación, se tomaron decisiones de personalización so
 - **Filosofía del Desarrollador (Jostin):** Se estableció que, aunque se utilicen frameworks de trabajo guiado por IA o metodologías como *Spec Driven Development*, el equipo debe **priorizar las convenciones internas del equipo de desarrollo** por encima de las restricciones rígidas del framework. 
 - **Resultado:** El flujo de trabajo es ahora "Spec-Driven" pero adaptado al lenguaje y cultura del equipo, permitiendo commits automáticos y nombres de ramas que reflejen mejor el contexto del proyecto real más allá del boilerplate del framework.
 
-### Actualización de Estrategia de Implementación (2026-02-28)
-- **Migración a ATDD (Acceptance Test-Driven Development):** Ante las funcionalidades pendientes listadas en [tasks.md](specs/001-ticketing-mvp/tasks.md), se ha tomado la decisión estratégica de abordar su desarrollo bajo el enfoque **ATDD**.
-- **Redefinición con la IA:** Se ha reconfigurado el flujo de trabajo con la IA para que las tareas de implementación restantes se generen y ejecuten basándose primero en las pruebas de aceptación. Esto garantiza que cada funcionalidad pendiente cumpla con los criterios de éxito definidos antes de dar por terminada la codificación.
-- **Registro de Pruebas:** El progreso y los resultados de este enfoque se documentarán detalladamente en [TDD_report.md](TDD_report.md).
+### Estrategia Multi-Repositorio y Trazabilidad con IA (Actualización 2026-03-16)
+
+Para escalar la automatización bajo estándares industriales de QA, hemos implementado una **Estructura Desacoplada basada en la Fuente de Verdad (SSOT)**. 
+
+#### 🧩 Arquitectura del Workflow con IA
+
+```mermaid
+graph TD
+    subgraph "Nivel 1: Nucleo de Arquitectura (SSOT)"
+        MainRepo["Repo: ticketing_project_week0 (.NET)"]
+        Spec[spec.md]
+        Features[hu*.feature]
+        Contracts[contracts/openapi]
+        MainRepo --> Spec
+        MainRepo --> Features
+        MainRepo --> Contracts
+    end
+
+    subgraph "Nivel 2: Desacoplamiento (Sincronización Git)"
+        Submodule["shared-specs/ (Git Submodule)"]
+        MainRepo -- "Conexión Física" --> Submodule
+    end
+
+    subgraph "Nivel 3: Validación Especializada (QA Repos)"
+        POMRepo["Repo: AUTO_FRONT_POM_FACTORY (Java)"]
+        ScreenplayRepo["Repo: AUTO_FRONT_SCREENPLAY (Java)"]
+        APIRepo["Repo: AUTO_API_SCREENPLAY (Java)"]
+        
+        Submodule --> POMRepo
+        Submodule --> ScreenplayRepo
+        Submodule --> APIRepo
+    end
+
+    subgraph "Nivel 4: Generación con IA (Spec-Driven Automation)"
+        AI_Draft["AI: /speckit.plan (Estrategia)"]
+        AI_Tasks["AI: /speckit.implement (Código)"]
+        
+        POMRepo -.-> AI_Draft
+        AI_Draft -.-> AI_Tasks
+        AI_Tasks -- "Genera Código Java/Serenity" --> POMRepo
+    end
+```
+
+#### 🛡️ Pilares de la Integración con IA
+1. **Contexto Alimentado por el Negocio:** La IA en los repositorios de QA (Java) no inventa casos de prueba; los genera analizando el archivo `shared-specs/specs/001-ticketing-mvp/spec.md` clonado del repo principal.
+2. **Trazabilidad de Cambios:** Cualquier modificación en las reglas de negocio se registra en el `CHANGELOG.md` del repositorio de arquitectura, permitiendo que la IA detecte discrepancias y actualice los scripts de prueba automáticamente.
+3. **Multi-Patrón Asistido:** Se utiliza la IA para diferenciar la implementación técnica:
+   - **POM + Factory:** Estructura clásica de clases y objetos.
+   - **Screenplay:** Estructura centrada en Actores, Tareas y Preguntas.
+4. **Validación de Contratos:** Los tests de API generados por la IA se validan contra los archivos YAML/OpenAPI presentes en el submódulo, asegurando que la automatización siempre esté sincronizada con el backend.
+
+**Repositorios Relacionados:**
+- UI (POM + Factory): [AUTO_FRONT_POM_FACTORY](https://github.com/JostinAlvaradoS/AUTO_FRONT_POM_FACTORY)
+- UI (Screenplay): [AUTO_FRONT_SCREENPLAY](https://github.com/JostinAlvaradoS/AUTO_FRONT_SCREENPLAY)
+- API (Screenplay REST): [AUTO_API_SCREENPLAY](https://github.com/JostinAlvaradoS/AUTO_API_SCREENPLAY)
 
 Referencias (archivos en el repo)
 - [spec.md](specs/001-ticketing-mvp/spec.md)

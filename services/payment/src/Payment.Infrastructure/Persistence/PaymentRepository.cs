@@ -39,4 +39,12 @@ public class PaymentRepository : IPaymentRepository
             .OrderBy(p => p.CreatedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<Domain.Entities.Payment?> GetByReservationIdAsync(Guid reservationId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Payments
+            .Where(p => p.ReservationId == reservationId)
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

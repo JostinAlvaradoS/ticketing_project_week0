@@ -77,7 +77,8 @@ public class ReservationExpiryWorker : BackgroundService
             {
                 eventId = Guid.NewGuid().ToString("D"),
                 reservationId = res.Id.ToString("D"),
-                seatId = res.SeatId.ToString("D")
+                seatId = res.SeatId.ToString("D"),
+                customerId = res.CustomerId
             };
 
             var json = JsonSerializer.Serialize(@event);

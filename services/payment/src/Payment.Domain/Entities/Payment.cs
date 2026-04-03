@@ -5,6 +5,7 @@ public class Payment
     public const string StatusPending = "pending";
     public const string StatusSucceeded = "succeeded";
     public const string StatusFailed = "failed";
+    public const string StatusCancelled = "cancelled";
 
     public Guid Id { get; set; }
     public Guid OrderId { get; set; }
@@ -41,6 +42,15 @@ public class Payment
         Status = StatusFailed;
         ErrorCode = errorCode;
         ErrorMessage = errorMessage;
+        ProcessedAt = DateTime.UtcNow;
+    }
+
+    public void Cancel()
+    {
+        if (Status == StatusSucceeded || Status == StatusCancelled)
+            throw new InvalidOperationException($"Cannot cancel a payment in status '{Status}'.");
+
+        Status = StatusCancelled;
         ProcessedAt = DateTime.UtcNow;
     }
 

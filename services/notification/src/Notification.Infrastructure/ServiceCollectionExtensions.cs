@@ -35,10 +35,11 @@ public static class ServiceCollectionExtensions
             configuration.GetSection(SmtpEmailOptions.Section));
         services.AddScoped<IEmailService, SmtpEmailService>();
 
-        // Add Kafka Event Consumer
+        // Add Kafka Event Consumers
         services.Configure<KafkaOptions>(
             configuration.GetSection(KafkaOptions.Section));
         services.AddHostedService<TicketIssuedEventConsumer>();
+        services.AddHostedService<ReservationExpiredConsumer>();
 
         return services;
     }

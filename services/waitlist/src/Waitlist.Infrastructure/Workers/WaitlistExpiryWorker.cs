@@ -36,7 +36,7 @@ public class WaitlistExpiryWorker : BackgroundService
                 Console.Error.WriteLine($"[WaitlistExpiryWorker] Error: {ex.Message}");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
         }
     }
 
@@ -80,7 +80,9 @@ public class WaitlistExpiryWorker : BackgroundService
 
         if (next is not null)
         {
-            // Ciclo 17: hay siguiente → reasignar sin liberar al pool
+            // Ciclo 17: hay siguiente → cancelar orden anterior y reasignar al siguiente
+            await ordering.CancelOrderAsync(expired.OrderId!.Value, cancellationToken);
+
             var newOrderId = await ordering.CreateWaitlistOrderAsync(
                 expired.SeatId!.Value, 0m, next.Email, expired.EventId, cancellationToken);
 

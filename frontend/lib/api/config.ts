@@ -8,4 +8,4 @@ export const API_CONFIG = {
 
 export const RETRY_DELAY_MS = 3000
 export const RETRY_ADD_TO_CART_ATTEMPTS = 3
-export const RESERVATION_MINUTES = 15
+export const RESERVATION_MINUTES = 1

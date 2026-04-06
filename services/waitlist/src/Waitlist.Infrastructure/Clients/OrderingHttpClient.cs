@@ -23,7 +23,7 @@ public class OrderingHttpClient : IOrderingClient
         });
 
         var response = await _http.PostAsync(
-            "/api/v1/orders/waitlist",
+            "/orders/waitlist",
             new StringContent(body, Encoding.UTF8, "application/json"),
             cancellationToken);
 
@@ -37,7 +37,7 @@ public class OrderingHttpClient : IOrderingClient
     public async Task CancelOrderAsync(Guid orderId, CancellationToken cancellationToken = default)
     {
         var response = await _http.PatchAsync(
-            $"/api/v1/orders/{orderId}/cancel",
+            $"/orders/{orderId}/cancel",
             new StringContent("{}", Encoding.UTF8, "application/json"),
             cancellationToken);
 

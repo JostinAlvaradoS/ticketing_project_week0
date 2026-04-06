@@ -33,7 +33,7 @@ public static class ReservationEndpoints
 
         try
         {
-            var command = new CreateReservationCommand(request.SeatId, request.CustomerId);
+            var command = new CreateReservationCommand(request.SeatId, request.CustomerId, request.EventId ?? Guid.Empty);
             var response = await mediator.Send(command, cancellationToken);
             
             return Results.Created($"/reservations/{response.ReservationId}", response);

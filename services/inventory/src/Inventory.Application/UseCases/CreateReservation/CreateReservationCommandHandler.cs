@@ -18,7 +18,7 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
 
     private const string RedisLockKeyPrefix = "lock:seat:";
     private const int LockExpirySeconds = 30;
-    private const int ReservationTTLMinutes = 15;
+    private const int ReservationTTLMinutes = 1;
 
     public CreateReservationCommandHandler(
         ISeatRepository seatRepository,
@@ -62,7 +62,7 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
             // Domain method encapsula la validación y el cambio de estado
             seat.Reserve();
 
-            var reservation = Reservation.Create(request.SeatId, request.CustomerId, ttlMinutes: ReservationTTLMinutes);
+            var reservation = Reservation.Create(request.SeatId, request.CustomerId, eventId: request.EventId, ttlMinutes: ReservationTTLMinutes);
 
             await _seatRepository.UpdateAsync(seat, cancellationToken).ConfigureAwait(false);
             var createdReservation = await _reservationRepository.CreateAsync(reservation, cancellationToken).ConfigureAwait(false);

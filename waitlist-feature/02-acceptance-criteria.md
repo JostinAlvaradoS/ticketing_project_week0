@@ -2,7 +2,7 @@
 
 > **Fase SDLC:** Análisis de Requisitos
 > **Audiencia:** QA, Dev, Negocio
-> **Metodología:** ATDD — estos escenarios son tests ejecutables, no solo documentación
+> **Metodología:** ATDD — estos escenarios son el contrato entre negocio y desarrollo
 
 ---
 
@@ -29,19 +29,18 @@ Feature: Sistema de Lista de Espera Inteligente
 
 ---
 
-## HU-01: Registro en Lista de Espera
+## Escenarios definidos en el diseño
 
-### ESC-01 — Registro exitoso
+Estos son los 6 escenarios originales definidos en la fase de diseño. Constituyen el contrato mínimo que el sistema debe cumplir.
+
+---
+
+### ESC-01 — Registro exitoso en lista de espera
 
 ```gherkin
-Scenario: Registro exitoso en lista de espera
-  Given  que el evento "Concierto Rock 2026" tiene stock = 0
-  And    que "jostin@example.com" no tiene una entrada activa para este evento
-  When   "jostin@example.com" envía POST /api/v1/waitlist/join con el EventId válido
-  Then   el sistema responde 201 Created
-  And    la respuesta incluye { "entryId": "<uuid>", "position": 1 }
-  And    la entrada queda registrada con Status = "pending"
-  And    RegisteredAt refleja el momento del registro
+Dado que el evento "Concierto Rock 2026" tiene stock = 0
+Cuando el usuario "jostin@example.com" se registra en la waitlist con su correo
+Entonces el sistema responde 201 Created
 ```
 
 **Regla validada:** HU-01 — flujo principal de registro
@@ -49,229 +48,170 @@ Scenario: Registro exitoso en lista de espera
 
 ---
 
-### ESC-02 — Rechazo por stock disponible
+### ESC-02 — Intento de registro con tickets disponibles
 
 ```gherkin
-Scenario: Intento de registro con asientos disponibles
-  Given  que el evento "Concierto Rock 2026" tiene stock = 5
-  When   "jostin@example.com" envía POST /api/v1/waitlist/join
-  Then   el sistema responde 409 Conflict
-  And    el mensaje indica "Hay tickets disponibles para este evento. La lista de espera no aplica."
-  And   no se crea ninguna entrada en la lista de espera
+Dado que el evento "Concierto Rock 2026" tiene stock > 0
+Cuando el usuario "jostin@example.com" intenta unirse a la lista de espera
+Entonces el sistema responde "Hay tickets disponibles, realiza la compra directamente"
 ```
 
-**Regla validada:** RN-02 — no unirse si hay stock
+**Regla validada:** RN-02 — no unirse si hay stock disponible
 **Test correspondiente:** `Handle_StockAvailable_ThrowsWaitlistConflictException`
 
 ---
 
-### ESC-03 — Rechazo por entrada duplicada
+### ESC-03 — Registro duplicado en la misma lista
 
 ```gherkin
-Scenario: Registro duplicado para el mismo evento
-  Given  que "jostin@example.com" ya tiene una entrada con Status = "pending"
-         para el evento "Concierto Rock 2026"
-  When   "jostin@example.com" intenta registrarse nuevamente para el mismo evento
-  Then   el sistema responde 409 Conflict
-  And    el mensaje indica "Ya estás en la lista de espera de este evento."
-  And    la entrada existente no se modifica
-
-Scenario: Registro duplicado con entrada en estado assigned
-  Given  que "jostin@example.com" tiene una entrada con Status = "assigned"
-         para el evento "Concierto Rock 2026"
-  When   "jostin@example.com" intenta registrarse nuevamente
-  Then   el sistema responde 409 Conflict
-  And    el mensaje indica "Ya estás en la lista de espera de este evento."
+Dado que "jostin@example.com" ya está registrado en la lista del evento "Concierto Rock 2026"
+Cuando el mismo correo intenta registrarse nuevamente para el mismo evento
+Entonces el sistema responde "Ya estás en la lista de espera para este evento"
 ```
 
-**Regla validada:** RN-01 — una entrada activa por usuario/evento
+**Regla validada:** RN-01 — una sola entrada activa por usuario por evento
 **Test correspondiente:** `Handle_DuplicateActiveEntry_ThrowsWaitlistConflictException`
 
 ---
 
-### ESC-09 — Validación de request inválido
+### ESC-04 — Asignación automática al expirar una reserva
 
 ```gherkin
-Scenario: Email con formato inválido
-  Given  que el usuario envía POST /api/v1/waitlist/join
-  When   el campo "email" contiene "no-es-un-email"
-  Then   el sistema responde 400 Bad Request
-  And    la respuesta incluye el error "Email format is invalid."
-
-Scenario: Email vacío
-  Given  que el usuario envía POST /api/v1/waitlist/join
-  When   el campo "email" está vacío
-  Then   el sistema responde 400 Bad Request
-  And    la respuesta incluye el error de validación correspondiente
-
-Scenario: EventId vacío
-  Given  que el usuario envía POST /api/v1/waitlist/join
-  When   el campo "eventId" es "00000000-0000-0000-0000-000000000000"
-  Then   el sistema responde 400 Bad Request
+Dado que "jostin@example.com" es el primero en la lista de espera del evento "Concierto Rock 2026"
+Cuando el tiempo de pago inicial caduca
+Entonces el sistema crea una orden automática para "jostin@example.com"
+Y actualiza el estado de la entrada a Asignado
+Y envía un correo con el enlace de pago con validez de 30 minutos
 ```
 
-**Regla validada:** Validación de entrada en frontera del sistema
-**Test correspondiente:** `Validator_InvalidEmail_ReturnsValidationError`
+**Regla validada:** RN-03 (FIFO), RN-04 (ventana de 30 minutos)
+**Test correspondiente:** `Handle_PendingEntryExists_AssignsEntryAndSendsEmail`
+
+---
+
+### ESC-05 — Liberación por inacción con siguiente en cola
+
+```gherkin
+Dado que "jostin@example.com" fue asignado y no pagó en 30 minutos
+Y "segundo@example.com" es el siguiente en la lista
+Cuando el sistema detecta este hecho
+Entonces el sistema marca la entrada de "jostin@example.com" como Expirado
+Y reasigna el asiento directamente a "segundo@example.com" sin liberarlo al pool general
+Y envía correo de pago a "segundo@example.com" con validez de 30 minutos
+```
+
+**Regla validada:** RN-04 (ventana de tiempo), RN-05 (asiento no vuelve al pool durante rotación)
+**Test correspondiente:** `ProcessExpired_WithNextPending_ExpiresCurrentAndAssignsNext`
+
+---
+
+### ESC-06 — Liberación por inacción con cola vacía
+
+```gherkin
+Dado que "jostin@example.com" fue asignado y no pagó en 30 minutos
+Y no hay más usuarios en la lista de espera del evento
+Cuando el sistema detecta este hecho
+Entonces el sistema cancela la orden y libera el asiento al pool general
+```
+
+**Regla validada:** RN-06 — liberar el asiento cuando la cola se agota
+**Test correspondiente:** `ProcessExpired_EmptyQueue_ReleasesSeatAndCancelsOrder`
+
+---
+
+## Escenarios adicionales de cobertura
+
+Estos escenarios no estaban en el diseño original pero se identificaron durante la implementación como casos de borde necesarios para garantizar la robustez del sistema.
+
+---
+
+### ESC-07 — Pago completado exitosamente por usuario asignado
+
+```gherkin
+Dado que "jostin@example.com" tiene una Entrada con Estado = Asignado
+Y su Orden de Compra fue pagada exitosamente
+Cuando el sistema recibe la confirmación del pago
+Entonces la Entrada de "jostin@example.com" pasa a Estado = Completado
+Y la asignación queda cerrada permanentemente
+```
+
+**Regla validada:** Cierre del ciclo de vida de la Entrada
+**Test correspondiente:** `Handle_AssignedEntry_SetsStatusCompleted`
+
+---
+
+### ESC-08 — Coordinación con Inventario para retención del asiento (ADR-03)
+
+```gherkin
+Dado que hay usuarios con Estado = Pendiente en la lista de espera para un evento
+Cuando el servicio de Inventario verifica si debe liberar un asiento expirado
+Entonces el sistema confirma que hay usuarios en espera
+Y el servicio de Inventario retiene el asiento sin liberarlo al inventario disponible
+
+Dado que no hay usuarios con Estado = Pendiente para el evento
+Cuando el servicio de Inventario verifica si debe liberar un asiento expirado
+Entonces el sistema confirma que la cola está vacía
+Y el servicio de Inventario libera el asiento al inventario disponible
+```
+
+**Regla validada:** ADR-03 — el asiento permanece bloqueado durante la rotación
+**Test correspondiente:** `ProcessExpiredReservations_WhenQueueActive_DoesNotReleaseSeat` (Inventory service)
+
+---
+
+### ESC-09 — Solicitud con datos inválidos
+
+```gherkin
+Dado que un usuario intenta unirse a la lista de espera
+Cuando el correo proporcionado no tiene un formato válido
+Entonces el sistema responde 400 Bad Request
+Y la respuesta incluye el error de validación correspondiente
+```
+
+**Regla validada:** Validación de entrada en la frontera del sistema
+**Test correspondiente:** `JoinWaitlistCommandValidator_InvalidEmail_HasValidationError`
 
 ---
 
 ### ESC-10 — Catálogo no disponible
 
 ```gherkin
-Scenario: Catalog Service no responde
-  Given  que el Catalog Service lanza una excepción HTTP al consultar disponibilidad
-  When   "jostin@example.com" intenta unirse a la lista de espera
-  Then   el sistema responde 503 Service Unavailable
-  And    el mensaje indica que no fue posible verificar la disponibilidad
-  And   no se crea ninguna entrada en la lista de espera
+Dado que el servicio de Catálogo no está disponible
+Cuando "jostin@example.com" intenta unirse a la lista de espera
+Entonces el sistema responde 503 Service Unavailable
+Y no se crea ninguna Entrada en la Lista de Espera
 ```
 
 **Regla validada:** Resiliencia ante fallo de servicio externo
-**Test correspondiente:** `Handle_CatalogUnavailable_ThrowsServiceUnavailableException`
+**Test correspondiente:** `Handle_CatalogClientThrows_ThrowsServiceUnavailableException`
 
 ---
 
-## HU-02: Asignación Automática
-
-### ESC-04 — Asignación al primer usuario en cola
+### ESC-11 — Idempotencia de asignación
 
 ```gherkin
-Scenario: Asignación automática al expirar una reserva
-  Given  que "jostin@example.com" es el primero en la cola del evento "Concierto Rock 2026"
-  And    que la cola tiene 3 entradas con Status = "pending"
-  When   Kafka recibe el evento "reservation-expired"
-         con SeatId = "<uuid>" y concertEventId = "<uuid>"
-  Then   el sistema crea una orden de compra automática para "jostin@example.com" en Ordering
-  And    actualiza la entrada de "jostin@example.com" a Status = "assigned"
-  And    establece ExpiresAt = momento_actual + 30 minutos
-  And    envía una notificación a "jostin@example.com" con el link de pago
+Dado que un asiento ya fue asignado a un usuario de la lista de espera
+Cuando el sistema recibe nuevamente la notificación de expiración para ese mismo asiento
+Entonces el sistema no crea una segunda asignación
+Y la entrada existente no se modifica
 ```
 
-**Regla validada:** RN-03 (FIFO), RN-04 (ventana 30 min)
-**Test correspondiente:** `Handle_PendingEntryExists_AssignsEntryAndSendsEmail`
-
----
-
-### ESC — Cola vacía al expirar reserva
-
-```gherkin
-Scenario: No hay usuarios en cola cuando expira una reserva
-  Given  que no hay entradas con Status = "pending" para el evento "Concierto Rock 2026"
-  When   Kafka recibe el evento "reservation-expired" con SeatId y concertEventId
-  Then   el sistema no realiza ninguna asignación
-  And    el asiento queda disponible para el flujo normal de compra
-```
-
-**Regla validada:** Comportamiento cuando la cola está vacía
-**Test correspondiente:** `Handle_EmptyQueue_DoesNothing`
-
----
-
-### ESC — Idempotencia de asignación
-
-```gherkin
-Scenario: Evento reservation-expired recibido dos veces para el mismo asiento
-  Given  que el asiento "<seatId>" ya tiene una entrada en Status = "assigned"
-  When   Kafka entrega nuevamente el evento "reservation-expired" para ese mismo asiento
-  Then   el sistema no crea una segunda asignación
-  And    la entrada existente no se modifica
-```
-
-**Regla validada:** Semántica at-least-once de Kafka — el sistema es idempotente
-**Test correspondiente:** `Handle_SeatAlreadyAssigned_ReturnsWithoutAction`
-
----
-
-## HU-03: Rotación de Asignación
-
-### ESC-05 — Rotación con siguiente en cola
-
-```gherkin
-Scenario: Rotación cuando el usuario asignado no paga en 30 minutos
-  Given  que "jostin@example.com" tiene una entrada con Status = "assigned"
-         y ExpiresAt < momento_actual (venció)
-  And    que "segundo@example.com" es el siguiente en cola con Status = "pending"
-  When   WaitlistExpiryWorker detecta la entrada expirada
-  Then   la entrada de "jostin@example.com" pasa a Status = "expired"
-  And    se envía notificación de expiración a "jostin@example.com"
-  And    se cancela la orden de compra de "jostin@example.com" en Ordering
-  And    se crea una nueva orden de compra para "segundo@example.com"
-  And    la entrada de "segundo@example.com" pasa a Status = "assigned"
-         con nuevo ExpiresAt = momento_actual + 30 minutos
-  And    se envía notificación con link de pago a "segundo@example.com"
-  And    el asiento NO vuelve al inventario disponible en ningún momento
-```
-
-**Regla validada:** RN-04, RN-05 — la más crítica del dominio
-**Test correspondiente:** `ProcessExpired_NextExists_RotatesDirectlyWithoutReleasingInventory`
-
----
-
-### ESC-06 — Liberación con cola vacía
-
-```gherkin
-Scenario: Cola vacía cuando el usuario asignado no paga
-  Given  que "jostin@example.com" tiene una entrada con Status = "assigned"
-         y ExpiresAt < momento_actual
-  And    que no hay más entradas con Status = "pending" para el evento
-  When   WaitlistExpiryWorker detecta la entrada expirada
-  Then   la entrada de "jostin@example.com" pasa a Status = "expired"
-  And    se envía notificación de expiración a "jostin@example.com"
-  And    se cancela la orden de compra en Ordering
-  And    se llama a Inventory para liberar el asiento al inventario disponible
-```
-
-**Regla validada:** RN-06 — liberación cuando la cola se agota
-**Test correspondiente:** `ProcessExpired_EmptyQueue_ReleasesToInventory`
-
----
-
-### ESC-07 — Pago completado por usuario asignado
-
-```gherkin
-Scenario: Usuario en waitlist completa el pago exitosamente
-  Given  que "jostin@example.com" tiene una entrada con Status = "assigned"
-         y OrderId = "<orderId>"
-  When   Kafka recibe el evento "payment-succeeded" con orderId = "<orderId>"
-  Then   la entrada de "jostin@example.com" pasa a Status = "completed"
-  And    la asignación queda cerrada permanentemente
-```
-
-**Regla validada:** Cierre del ciclo de vida de la entrada
-**Test correspondiente:** `Handle_AssignedEntryWithMatchingOrder_CompletesAssignment`
-
----
-
-## ESC-08 — Consulta de pendientes (integración ADR-03)
-
-```gherkin
-Scenario: Inventory consulta si hay usuarios en espera antes de liberar asiento
-  Given  que hay 3 entradas con Status = "pending" para el EventId "abc-123"
-  When   Inventory llama GET /api/v1/waitlist/has-pending?eventId=abc-123
-  Then   el sistema responde 200 OK
-  And    la respuesta es { "hasPending": true, "pendingCount": 3 }
-
-Scenario: No hay usuarios en espera
-  Given  que no hay entradas con Status = "pending" para el EventId "abc-123"
-  When   Inventory llama GET /api/v1/waitlist/has-pending?eventId=abc-123
-  Then   el sistema responde 200 OK
-  And    la respuesta es { "hasPending": false, "pendingCount": 0 }
-```
-
-**Regla validada:** ADR-03 — integración con Inventory para decisión de retención/liberación
-**Test correspondiente:** Prueba de integración del endpoint
+**Regla validada:** El sistema tolera la entrega duplicada de eventos (semántica at-least-once de Kafka)
+**Test correspondiente:** `Handle_SeatAlreadyAssigned_SkipsProcessing`
 
 ---
 
 ## Mapa de cobertura de reglas de negocio
 
 ```
-RN-01 ──► ESC-03 ✓
-RN-02 ──► ESC-02 ✓
-RN-03 ──► ESC-04 ✓ (orden FIFO verificado)
-RN-04 ──► ESC-04, ESC-05, ESC-06 ✓
-RN-05 ──► ESC-05 ✓ (el más crítico — asiento no liberado)
-RN-06 ──► ESC-06 ✓
+RN-01 (una entrada activa por usuario/evento)  ──► ESC-03 ✓
+RN-02 (no unirse si hay stock)                 ──► ESC-02 ✓
+RN-03 (cola FIFO)                              ──► ESC-04 ✓
+RN-04 (ventana de 30 minutos)                  ──► ESC-04, ESC-05, ESC-06 ✓
+RN-05 (asiento no se libera durante rotación)  ──► ESC-05, ESC-08 ✓
+RN-06 (liberar si la cola se agota)            ──► ESC-06 ✓
 ```
 
-Cada regla de negocio tiene al menos un escenario de aceptación. Cada escenario tiene un test automatizado. **Cobertura total de reglas: 6/6.**
+Cada regla de negocio tiene al menos un escenario de aceptación.
+Cada escenario tiene un test automatizado correspondiente.
+**Cobertura total de reglas: 6/6.**

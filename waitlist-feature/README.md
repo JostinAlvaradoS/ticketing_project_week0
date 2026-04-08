@@ -106,3 +106,4 @@ La tabla de trazabilidad conecta cada regla de negocio con su historia de usuari
 | [05 — Test Plan](./05-test-plan.md) | Pruebas | QA, Tech Lead |
 | [06 — TDD Evidence](./06-tdd-evidence.md) | Implementación | Dev, Tech Lead |
 | [07 — SDLC Narrative](./07-sdlc-narrative.md) | Ciclo completo | Evaluador, Tech Lead |
+| [08 — Diseño vs. Implementación](./08-design-vs-implementation.md) | Implementación | Evaluador, Sustentación |

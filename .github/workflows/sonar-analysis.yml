@@ -65,22 +65,26 @@ jobs:
 
           # Build comma-separated list of coverage files for sonar
           COVERAGE_FILES=$(find coverage-artifacts -name "coverage.cobertura.xml" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+
+          SCANNER_ARGS=(
+            /k:"${{ inputs.project_key }}"
+            /o:"${{ inputs.organization }}"
+            /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+            /d:sonar.host.url="https://sonarcloud.io"
+            /d:sonar.qualitygate.wait="$WAIT_FOR_GATE"
+            /d:sonar.qualitygate.timeout=300
+            /d:sonar.scanner.skipJreProvisioning=true
+            /d:sonar.scm.provider=git
+          )
+
           if [ -z "$COVERAGE_FILES" ]; then
             echo "[WARN] No coverage files found — sonar will report 0% coverage"
-            COVERAGE_PARAM=""
           else
             echo "[INFO] Coverage files: $COVERAGE_FILES"
-            COVERAGE_PARAM="/d:sonar.cs.cobertura.reportsPaths=\"$COVERAGE_FILES\""
+            SCANNER_ARGS+=("/d:sonar.cs.cobertura.reportsPaths=$COVERAGE_FILES")
           fi
 
-          dotnet-sonarscanner begin /k:"${{ inputs.project_key }}" /o:"${{ inputs.organization }}" \
-            /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
-            /d:sonar.host.url="https://sonarcloud.io" \
-            $COVERAGE_PARAM \
-            /d:sonar.qualitygate.wait="$WAIT_FOR_GATE" \
-            /d:sonar.qualitygate.timeout=300 \
-            /d:sonar.scanner.skipJreProvisioning=true \
-            /d:sonar.scm.provider=git
+          dotnet-sonarscanner begin "${SCANNER_ARGS[@]}"
 
           # Compilamos todos los servicios para que Sonar analice el código fuente completo
           dotnet build speckit-ticketing.sln -c Release /p:AnalyzeBySonar=true

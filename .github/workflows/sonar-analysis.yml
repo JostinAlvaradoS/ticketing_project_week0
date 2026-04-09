@@ -42,6 +42,15 @@ jobs:
         with:
           path: coverage-artifacts
           pattern: coverage-*
+          merge-multiple: true
+
+      - name: List coverage files (debug)
+        run: |
+          echo "=== Cobertura XML files found ==="
+          find coverage-artifacts -name "coverage.cobertura.xml" 2>/dev/null || echo "None found"
+          echo "=== Total count ==="
+          CCOUNT=$(find coverage-artifacts -name "coverage.cobertura.xml" 2>/dev/null | wc -l)
+          echo "coverage_count=$CCOUNT"
 
       - name: Install Sonar Scanner
         run: dotnet tool install --global dotnet-sonarscanner
@@ -54,10 +63,20 @@ jobs:
             WAIT_FOR_GATE="true"
           fi
 
+          # Build comma-separated list of coverage files for sonar
+          COVERAGE_FILES=$(find coverage-artifacts -name "coverage.cobertura.xml" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+          if [ -z "$COVERAGE_FILES" ]; then
+            echo "[WARN] No coverage files found — sonar will report 0% coverage"
+            COVERAGE_PARAM=""
+          else
+            echo "[INFO] Coverage files: $COVERAGE_FILES"
+            COVERAGE_PARAM="/d:sonar.cs.cobertura.reportsPaths=\"$COVERAGE_FILES\""
+          fi
+
           dotnet-sonarscanner begin /k:"${{ inputs.project_key }}" /o:"${{ inputs.organization }}" \
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
             /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.cs.cobertura.reportsPaths="coverage-artifacts/**/coverage.cobertura.xml" \
+            $COVERAGE_PARAM \
             /d:sonar.qualitygate.wait="$WAIT_FOR_GATE" \
             /d:sonar.qualitygate.timeout=300 \
             /d:sonar.scanner.skipJreProvisioning=true \

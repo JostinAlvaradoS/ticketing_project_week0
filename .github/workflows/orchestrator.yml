@@ -13,15 +13,15 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
-      catalog: ${{ steps.filter.outputs.catalog }}
-      fulfillment: ${{ steps.filter.outputs.fulfillment }}
-      identity: ${{ steps.filter.outputs.identity }}
-      inventory: ${{ steps.filter.outputs.inventory }}
-      notification: ${{ steps.filter.outputs.notification }}
-      ordering: ${{ steps.filter.outputs.ordering }}
-      payment: ${{ steps.filter.outputs.payment }}
-      waitlist: ${{ steps.filter.outputs.waitlist }}
-      frontend: ${{ steps.filter.outputs.frontend }}
+      catalog: ${{ steps.override.outputs.catalog }}
+      fulfillment: ${{ steps.override.outputs.fulfillment }}
+      identity: ${{ steps.override.outputs.identity }}
+      inventory: ${{ steps.override.outputs.inventory }}
+      notification: ${{ steps.override.outputs.notification }}
+      ordering: ${{ steps.override.outputs.ordering }}
+      payment: ${{ steps.override.outputs.payment }}
+      waitlist: ${{ steps.override.outputs.waitlist }}
+      frontend: ${{ steps.override.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -47,6 +47,31 @@ jobs:
             frontend:
               - 'frontend/**'
 
+      - name: Override filter on main branch (run everything)
+        id: override
+        run: |
+          if [[ "${{ github.base_ref }}" == "main" || "${{ github.base_ref }}" == "develop" || "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "catalog=true"       >> "$GITHUB_OUTPUT"
+            echo "fulfillment=true"   >> "$GITHUB_OUTPUT"
+            echo "identity=true"      >> "$GITHUB_OUTPUT"
+            echo "inventory=true"     >> "$GITHUB_OUTPUT"
+            echo "notification=true"  >> "$GITHUB_OUTPUT"
+            echo "ordering=true"      >> "$GITHUB_OUTPUT"
+            echo "payment=true"       >> "$GITHUB_OUTPUT"
+            echo "waitlist=true"      >> "$GITHUB_OUTPUT"
+            echo "frontend=true"      >> "$GITHUB_OUTPUT"
+          else
+            echo "catalog=${{ steps.filter.outputs.catalog }}"             >> "$GITHUB_OUTPUT"
+            echo "fulfillment=${{ steps.filter.outputs.fulfillment }}"     >> "$GITHUB_OUTPUT"
+            echo "identity=${{ steps.filter.outputs.identity }}"           >> "$GITHUB_OUTPUT"
+            echo "inventory=${{ steps.filter.outputs.inventory }}"         >> "$GITHUB_OUTPUT"
+            echo "notification=${{ steps.filter.outputs.notification }}"   >> "$GITHUB_OUTPUT"
+            echo "ordering=${{ steps.filter.outputs.ordering }}"           >> "$GITHUB_OUTPUT"
+            echo "payment=${{ steps.filter.outputs.payment }}"             >> "$GITHUB_OUTPUT"
+            echo "waitlist=${{ steps.filter.outputs.waitlist }}"           >> "$GITHUB_OUTPUT"
+            echo "frontend=${{ steps.filter.outputs.frontend }}"           >> "$GITHUB_OUTPUT"
+          fi
+
   # --- CATALOG SERVICE ---
   dotnet-build-catalog:
     needs: filter
@@ -58,7 +83,8 @@ jobs:
       service_path: "services/catalog/Catalog.sln"
 
   dotnet-test-unit-catalog:
-    needs: [filter]
+    needs: [filter, dotnet-build-catalog]
+    if: needs.filter.outputs.catalog == 'true'
     name: "Unit Test: Catalog"
     uses: ./.github/workflows/dotnet-test.yml
     with:
@@ -97,7 +123,8 @@ jobs:
       service_path: "services/identity/Identity.sln"
 
   dotnet-test-unit-identity:
-    needs: [filter]
+    needs: [filter, dotnet-build-identity]
+    if: needs.filter.outputs.identity == 'true'
     name: "Unit Test: Identity"
     uses: ./.github/workflows/dotnet-test.yml
     with:
@@ -136,7 +163,8 @@ jobs:
       service_path: "services/fulfillment/Fulfillment.sln"
 
   dotnet-test-unit-fulfillment:
-    needs: [filter]
+    needs: [filter, dotnet-build-fulfillment]
+    if: needs.filter.outputs.fulfillment == 'true'
     name: "Unit Test: Fulfillment"
     uses: ./.github/workflows/dotnet-test.yml
     with:
@@ -175,7 +203,8 @@ jobs:
       service_path: "services/inventory/Inventory.sln"
 
   dotnet-test-unit-inventory:
-    needs: [filter]
+    needs: [filter, dotnet-build-inventory]
+    if: needs.filter.outputs.inventory == 'true'
     name: "Unit Test: Inventory"
     uses: ./.github/workflows/dotnet-test.yml
     with:
@@ -214,7 +243,8 @@ jobs:
       service_path: "services/notification/Notification.sln"
 
   dotnet-test-unit-notification:
-    needs: [filter]
+    needs: [filter, dotnet-build-notification]
+    if: needs.filter.outputs.notification == 'true'
     name: "Unit Test: Notification"
     uses: ./.github/workflows/dotnet-test.yml
     with:
@@ -253,7 +283,8 @@ jobs:
       service_path: "services/ordering/Ordering.sln"
 
   dotnet-test-unit-ordering:
-    needs: [filter]
+    needs: [filter, dotnet-build-ordering]
+    if: needs.filter.outputs.ordering == 'true'
     name: "Unit Test: Ordering"
     uses: ./.github/workflows/dotnet-test.yml
     with:
@@ -292,7 +323,8 @@ jobs:
       service_path: "services/payment/Payment.sln"
 
   dotnet-test-unit-payment:
-    needs: [filter]
+    needs: [filter, dotnet-build-payment]
+    if: needs.filter.outputs.payment == 'true'
     name: "Unit Test: Payment"
     uses: ./.github/workflows/dotnet-test.yml
     with:
@@ -331,7 +363,8 @@ jobs:
       service_path: "services/waitlist/Waitlist.sln"
 
   dotnet-test-unit-waitlist:
-    needs: [filter]
+    needs: [filter, dotnet-build-waitlist]
+    if: needs.filter.outputs.waitlist == 'true'
     name: "Unit Test: Waitlist"
     uses: ./.github/workflows/dotnet-test.yml
     with:
@@ -360,7 +393,7 @@ jobs:
       test_type: "integration"
 
   trivy-scan-waitlist:
-    needs: [filter]
+    needs: [filter, dotnet-test-unit-waitlist, dotnet-test-arch-waitlist, dotnet-test-integration-waitlist]
     if: needs.filter.outputs.waitlist == 'true'
     name: "Security Scan: Waitlist"
     uses: ./.github/workflows/trivy-scan.yml
@@ -432,7 +465,7 @@ jobs:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   trivy-scan-catalog:
-    needs: [filter]
+    needs: [filter, dotnet-test-unit-catalog, dotnet-test-arch-catalog, dotnet-test-integration-catalog]
     if: needs.filter.outputs.catalog == 'true'
     name: "Security Scan: Catalog"
     uses: ./.github/workflows/trivy-scan.yml
@@ -441,7 +474,7 @@ jobs:
       dockerfile_path: "services/catalog/src/Catalog.Api/Dockerfile"
 
   trivy-scan-identity:
-    needs: [filter]
+    needs: [filter, dotnet-test-unit-identity, dotnet-test-arch-identity, dotnet-test-integration-identity]
     if: needs.filter.outputs.identity == 'true'
     name: "Security Scan: Identity"
     uses: ./.github/workflows/trivy-scan.yml
@@ -450,7 +483,7 @@ jobs:
       dockerfile_path: "services/identity/src/Identity.Api/Dockerfile"
 
   trivy-scan-fulfillment:
-    needs: [filter]
+    needs: [filter, dotnet-test-unit-fulfillment, dotnet-test-arch-fulfillment, dotnet-test-integration-fulfillment]
     if: needs.filter.outputs.fulfillment == 'true'
     name: "Security Scan: Fulfillment"
     uses: ./.github/workflows/trivy-scan.yml
@@ -459,7 +492,7 @@ jobs:
       dockerfile_path: "services/fulfillment/src/Fulfillment.Api/Dockerfile"
 
   trivy-scan-inventory:
-    needs: [filter]
+    needs: [filter, dotnet-test-unit-inventory, dotnet-test-arch-inventory, dotnet-test-integration-inventory]
     if: needs.filter.outputs.inventory == 'true'
     name: "Security Scan: Inventory"
     uses: ./.github/workflows/trivy-scan.yml
@@ -468,7 +501,7 @@ jobs:
       dockerfile_path: "services/inventory/src/Inventory.Api/Dockerfile"
 
   trivy-scan-notification:
-    needs: [filter]
+    needs: [filter, dotnet-test-unit-notification, dotnet-test-arch-notification, dotnet-test-integration-notification]
     if: needs.filter.outputs.notification == 'true'
     name: "Security Scan: Notification"
     uses: ./.github/workflows/trivy-scan.yml
@@ -477,7 +510,7 @@ jobs:
       dockerfile_path: "services/notification/src/Notification.Api/Dockerfile"
 
   trivy-scan-ordering:
-    needs: [filter]
+    needs: [filter, dotnet-test-unit-ordering, dotnet-test-arch-ordering, dotnet-test-integration-ordering]
     if: needs.filter.outputs.ordering == 'true'
     name: "Security Scan: Ordering"
     uses: ./.github/workflows/trivy-scan.yml
@@ -486,7 +519,7 @@ jobs:
       dockerfile_path: "services/ordering/src/Ordering.Api/Dockerfile"
 
   trivy-scan-payment:
-    needs: [filter]
+    needs: [filter, dotnet-test-unit-payment, dotnet-test-arch-payment, dotnet-test-integration-payment]
     if: needs.filter.outputs.payment == 'true'
     name: "Security Scan: Payment"
     uses: ./.github/workflows/trivy-scan.yml

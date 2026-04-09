@@ -55,10 +55,19 @@ jobs:
               echo "--------------------------------------------------------"
               echo "Running tests for: $PROJECT"
               echo "--------------------------------------------------------"
-              
+
               PROJECT_NAME=$(basename "$PROJECT" .csproj)
+
+              # Proyectos de dominio solo miden el assembly Domain para evitar
+              # falsos 0% en Application (que los domain tests no ejercitan)
+              if [[ "$PROJECT_NAME" == *Domain* ]]; then
+                SETTINGS="coverlet.domain.runsettings"
+              else
+                SETTINGS="coverlet.runsettings"
+              fi
+
               dotnet test "$PROJECT" --configuration Release \
-                --settings coverlet.runsettings \
+                --settings "$SETTINGS" \
                 --collect:"XPlat Code Coverage" \
                 --results-directory "./test-results-output/$PROJECT_NAME"
             done
@@ -78,20 +87,18 @@ jobs:
       - name: Enforce Coverage Threshold (85%)
         if: inputs.test_type == 'unit'
         run: |
-          COVERAGE_FILES=$(find test-results-output -name "coverage.cobertura.xml" 2>/dev/null)
-          if [ -z "$COVERAGE_FILES" ]; then
+          FILES=$(find test-results-output -name "coverage.cobertura.xml" 2>/dev/null)
+          if [ -z "$FILES" ]; then
             echo "No coverage files found — skipping threshold check."
             exit 0
           fi
-          # Suma line-rate de todos los archivos cobertura y calcula el promedio
-          TOTAL=$(echo "$COVERAGE_FILES" | xargs grep -h '<coverage' | \
-            grep -oP 'line-rate="\K[0-9.]+' | \
-            awk '{ sum += $1 * 100; count++ } END { if (count > 0) printf "%.2f", sum/count; else print "0" }')
-          echo "Average line coverage: ${TOTAL}%"
-          THRESHOLD=85
-          PASS=$(echo "$TOTAL $THRESHOLD" | awk '{ print ($1 >= $2) ? "yes" : "no" }')
+          TV=$(echo "$FILES" | xargs grep -h '<coverage ' | grep -oE 'lines-valid="[0-9]+"' | grep -oE '[0-9]+' | awk '{s+=$1} END{print s+0}')
+          TC=$(echo "$FILES" | xargs grep -h '<coverage ' | grep -oE 'lines-covered="[0-9]+"' | grep -oE '[0-9]+' | awk '{s+=$1} END{print s+0}')
+          TOTAL=$(awk "BEGIN{if($TV>0) printf \"%.2f\",$TC/$TV*100; else print \"0\"}")
+          echo "Combined line coverage: ${TOTAL}% (${TC} covered / ${TV} valid lines)"
+          PASS=$(awk "BEGIN{print ($TOTAL >= 85) ? \"yes\" : \"no\"}")
           if [ "$PASS" != "yes" ]; then
-            echo "::error::Coverage ${TOTAL}% is below the required ${THRESHOLD}% threshold."
+            echo "::error::Coverage ${TOTAL}% is below the required 85% threshold."
             exit 1
           fi
-          echo "Coverage check passed: ${TOTAL}% >= ${THRESHOLD}%"
+          echo "Coverage check passed: ${TOTAL}% >= 85%"

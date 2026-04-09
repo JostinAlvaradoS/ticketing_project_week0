@@ -145,4 +145,15 @@ public class CreateReservationCommandHandlerTests
 
         _redisLockMock.Verify(l => l.AcquireLockAsync(It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Handle_WithNullCustomerId_ShouldThrowArgumentException()
+    {
+        // cubre la rama null de string.IsNullOrEmpty — distinta de la rama ""
+        var command = new CreateReservationCommand(Guid.NewGuid(), null!);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _handler.Handle(command, CancellationToken.None));
+
+        _redisLockMock.Verify(l => l.AcquireLockAsync(It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Never);
+    }
 }

@@ -49,13 +49,15 @@ jobs:
           dotnet-sonarscanner begin /k:"${{ inputs.project_key }}" /o:"${{ inputs.organization }}" \
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
             /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.cs.opencover.reportsPaths="coverage-artifacts/**/coverage.opencover.xml" \
+            /d:sonar.cs.cobertura.reportsPaths="coverage-artifacts/**/coverage.cobertura.xml" \
+            /d:sonar.qualitygate.wait=true \
+            /d:sonar.qualitygate.timeout=300 \
             /d:sonar.scanner.skipJreProvisioning=true \
             /d:sonar.scm.provider=git
-          
-          # Solo compilamos el código fuente (no tests) para alimentar a Sonar
-          # sin reconstruir todo desde cero si no es necesario.
-          # Usamos la solución principal por defecto.
+
+          # Compilamos todos los servicios para que Sonar analice el código fuente completo
           dotnet build speckit-ticketing.sln -c Release /p:AnalyzeBySonar=true
-          
+          # Waitlist no está en speckit-ticketing.sln — se compila por separado
+          dotnet build services/waitlist/Waitlist.sln -c Release /p:AnalyzeBySonar=true
+
           dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"

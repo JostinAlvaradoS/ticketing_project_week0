@@ -18,6 +18,7 @@ jobs:
       notification: ${{ steps.filter.outputs.notification }}
       ordering: ${{ steps.filter.outputs.ordering }}
       payment: ${{ steps.filter.outputs.payment }}
+      waitlist: ${{ steps.filter.outputs.waitlist }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +40,8 @@ jobs:
               - 'services/ordering/**'
             payment:
               - 'services/payment/**'
+            waitlist:
+              - 'services/waitlist/**'
             frontend:
               - 'frontend/**'
 
@@ -322,10 +325,59 @@ jobs:
       service_path: "services/payment/Payment.sln"
       test_type: "integration"
 
+  # --- WAITLIST SERVICE ---
+  dotnet-build-waitlist:
+    needs: filter
+    if: needs.filter.outputs.waitlist == 'true'
+    name: "Build: Waitlist"
+    uses: ./.github/workflows/dotnet-build.yml
+    with:
+      service_name: "Waitlist"
+      service_path: "services/waitlist/Waitlist.sln"
+
+  dotnet-test-unit-waitlist:
+    needs: [filter, dotnet-build-waitlist]
+    if: needs.filter.outputs.waitlist == 'true'
+    name: "Unit Test: Waitlist"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Waitlist"
+      service_path: "services/waitlist/Waitlist.sln"
+      test_type: "unit"
+
+  dotnet-test-arch-waitlist:
+    needs: [filter, dotnet-build-waitlist]
+    if: needs.filter.outputs.waitlist == 'true'
+    name: "Arch Test: Waitlist"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Waitlist"
+      service_path: "services/waitlist/Waitlist.sln"
+      test_type: "architecture"
+
+  dotnet-test-integration-waitlist:
+    needs: [filter, dotnet-build-waitlist]
+    if: needs.filter.outputs.waitlist == 'true'
+    name: "Integration Test: Waitlist"
+    uses: ./.github/workflows/dotnet-test.yml
+    with:
+      service_name: "Waitlist"
+      service_path: "services/waitlist/Waitlist.sln"
+      test_type: "integration"
+
+  trivy-scan-waitlist:
+    needs: [filter, sonar-scan-unified]
+    if: needs.filter.outputs.waitlist == 'true'
+    name: "Security Scan: Waitlist"
+    uses: ./.github/workflows/trivy-scan.yml
+    with:
+      service_name: "waitlist"
+      dockerfile_path: "services/waitlist/src/Waitlist.Api/Dockerfile"
+
   # --- SHARED QUALITY & SECURITY ---
 
   generate-coverage-report:
-    needs: 
+    needs:
       - filter
       - dotnet-test-integration-catalog
       - dotnet-test-integration-identity
@@ -334,6 +386,7 @@ jobs:
       - dotnet-test-integration-notification
       - dotnet-test-integration-ordering
       - dotnet-test-integration-payment
+      - dotnet-test-integration-waitlist
     if: always() && !cancelled()
     name: "Final Quality Report"
     runs-on: ubuntu-latest
@@ -343,8 +396,21 @@ jobs:
         with:
           path: coverage-artifacts
           pattern: coverage-*
+          merge-multiple: false
+
+      - name: Check if coverage files exist
+        id: coverage_check
+        run: |
+          COUNT=$(find coverage-artifacts -name "*.xml" 2>/dev/null | wc -l)
+          echo "xml_count=$COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No coverage XML files found. Report generation will be skipped."
+          else
+            echo "Found $COUNT coverage XML file(s)."
+          fi
 
       - name: ReportGenerator
+        if: steps.coverage_check.outputs.xml_count != '0'
         uses: danielpalme/ReportGenerator-GitHub-Action@5.2.4
         with:
           reports: 'coverage-artifacts/**/*.xml'
@@ -352,6 +418,7 @@ jobs:
           reporttypes: 'HtmlSummary;MarkdownSummaryGitHub'
 
       - name: Upload Merged Report
+        if: steps.coverage_check.outputs.xml_count != '0'
         uses: actions/upload-artifact@v4
         with:
           name: merged-coverage-report
@@ -455,7 +522,8 @@ jobs:
   # --- SYSTEM AND E2E TESTING ---
   system-verification:
     name: "System: Quality & E2E Validation"
-    needs: [trivy-scan-catalog, trivy-scan-identity, trivy-scan-inventory, trivy-scan-notification, trivy-scan-ordering, trivy-scan-payment]
+    needs: [trivy-scan-catalog, trivy-scan-identity, trivy-scan-inventory, trivy-scan-notification, trivy-scan-ordering, trivy-scan-payment, trivy-scan-waitlist]
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

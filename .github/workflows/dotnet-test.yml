@@ -21,10 +21,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET SDK 8
+      - name: Setup .NET SDK 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Run Specific Tests with Coverage
         run: |
@@ -65,10 +65,31 @@ jobs:
           fi
 
       - name: Upload Coverage Artifacts
-        if: success() && inputs.test_type != 'architecture'
+        if: always() && inputs.test_type != 'architecture'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ inputs.service_name }}-${{ inputs.test_type }}
           path: test-results-output/**/*.xml
           if-no-files-found: warn
           retention-days: 1
+
+      - name: Enforce Coverage Threshold (85%)
+        if: inputs.test_type == 'unit'
+        run: |
+          COVERAGE_FILES=$(find test-results-output -name "coverage.cobertura.xml" 2>/dev/null)
+          if [ -z "$COVERAGE_FILES" ]; then
+            echo "No coverage files found — skipping threshold check."
+            exit 0
+          fi
+          # Suma line-rate de todos los archivos cobertura y calcula el promedio
+          TOTAL=$(echo "$COVERAGE_FILES" | xargs grep -h '<coverage' | \
+            grep -oP 'line-rate="\K[0-9.]+' | \
+            awk '{ sum += $1 * 100; count++ } END { if (count > 0) printf "%.2f", sum/count; else print "0" }')
+          echo "Average line coverage: ${TOTAL}%"
+          THRESHOLD=85
+          PASS=$(echo "$TOTAL $THRESHOLD" | awk '{ print ($1 >= $2) ? "yes" : "no" }')
+          if [ "$PASS" != "yes" ]; then
+            echo "::error::Coverage ${TOTAL}% is below the required ${THRESHOLD}% threshold."
+            exit 1
+          fi
+          echo "Coverage check passed: ${TOTAL}% >= ${THRESHOLD}%"

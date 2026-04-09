@@ -1,11 +1,8 @@
 name: System - E2E Verification
+# DISABLED: This workflow duplicates the system-verification job already inside orchestrator.yml.
+# Re-enable by restoring the `on:` triggers if a standalone E2E run is needed.
 
-on:
-  workflow_run:
-    workflows: ["CI - Monorepo Orchestrator"]
-    types:
-      - completed
-  workflow_dispatch:
+on: {}
 
 jobs:
   system-e2e:
@@ -19,7 +16,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Install EF Tool
         run: dotnet tool install --global dotnet-ef
@@ -79,7 +76,6 @@ jobs:
 
       - name: Apply Database Migrations (Strict Validation)
         run: |
-          cd /Users/jostinalvarados/Dev/Sofka/ticketing_project_week0
           chmod +x migrate-all-test.sh
           
           # Export explicit connection string for migrations
@@ -121,7 +117,6 @@ jobs:
 
       - name: Run E2E System Test
         run: |
-          cd /Users/jostinalvarados/Dev/Sofka/ticketing_project_week0
           chmod +x system-e2e-test.sh
           bash ./system-e2e-test.sh || {
             echo "[E2E FAILED] Test execution failed"

@@ -50,7 +50,7 @@ jobs:
       - name: Override filter on main branch (run everything)
         id: override
         run: |
-          if [[ "${{ github.base_ref }}" == "main" || "${{ github.ref }}" == "refs/heads/main" ]]; then
+          if [[ "${{ github.base_ref }}" == "main" || "${{ github.base_ref }}" == "develop" || "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == "refs/heads/develop" ]]; then
             echo "catalog=true"       >> "$GITHUB_OUTPUT"
             echo "fulfillment=true"   >> "$GITHUB_OUTPUT"
             echo "identity=true"      >> "$GITHUB_OUTPUT"

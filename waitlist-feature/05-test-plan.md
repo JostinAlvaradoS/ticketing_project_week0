@@ -130,14 +130,25 @@ Application/
 
 ### Nivel 2 — Pruebas de Componente (Integration Tests)
 
-**Framework:** `WebApplicationFactory` + InMemory EF Core
+**Framework:** `WebApplicationFactory<Program>` + EF Core InMemory (`InMemoryDatabaseRoot`)
+**Ubicación:** `services/waitlist/tests/integration/Waitlist.IntegrationTests/`
 **Propósito:** Probar el ensamblaje de controlador → handler → repositorio sin infraestructura real
-**Infraestructura:** Base de datos en memoria, servicios externos aún mockeados
+**Infraestructura:** Base de datos en memoria compartida vía `InMemoryDatabaseRoot`; servicios externos (`ICatalogClient`, `IOrderingClient`, `IInventoryClient`, `IEmailService`) mockeados con Moq; hosted services de Kafka eliminados del host de prueba
+
+**Cobertura implementada (TI-01 a TI-07):**
+
+| Test | Componente bajo prueba | Vía de entrada |
+|------|------------------------|----------------|
+| TI-01, TI-02, TI-03 | Controlador → `JoinWaitlistHandler` → `WaitlistRepository` | HTTP `POST /api/v1/waitlist/join` |
+| TI-04, TI-05 | `AssignNextHandler` → `WaitlistRepository` | `IMediator.Send(AssignNextCommand)` directo |
+| TI-06, TI-07 | `WaitlistExpiryWorker.ProcessExpiredEntriesAsync` → `WaitlistRepository` | Instancia directa con `IServiceScopeFactory` real |
 
 **Qué valida este nivel que el unitario no puede:**
 - Que el endpoint HTTP desambigua correctamente la excepción → código HTTP
 - Que el pipeline de MediatR ejecuta el handler correcto
 - Que la serialización/deserialización del request/response funciona
+- Que el repositorio real (InMemory) persiste y lee el estado correctamente entre scopes
+- Que el worker resuelve sus dependencias desde el contenedor IoC real y opera sobre la DB correcta
 
 ### Nivel 3 — Pruebas de Sistema (E2E)
 
@@ -180,6 +191,13 @@ Application/
 | TC-023 | `IsExpired` — estado Pending | Unit | Validación | Análisis de valores límite | Caso especial: Pending sin ExpiresAt | Frontera de null | entry sin `ExpiresAt` (estado pending) | `false` | Ninguno — lógica pura | Dominio |
 | TC-024 | Create con email vacío/espacios | Unit | Validación | Partición de equivalencia | Clase inválida: string vacío y whitespace `[Theory]` | Frontera de string vacío | `""`, `"   "` | `ArgumentException` | Ninguno — dominio puro | Guard |
 | TC-025 | Create con EventId vacío | Unit | Validación | Análisis de valores límite | Valor límite: `Guid.Empty` | Frontera del GUID | `Guid.Empty` | `ArgumentException` | Ninguno — dominio puro | Guard |
+| TI-01 | Registro exitoso — ensamblaje controlador → handler → repositorio | Integración | Validación | WebApplicationFactory + EF InMemory | Caja negra sobre el endpoint real con pipeline MediatR y DB in-memory | Camino feliz end-to-end del ensamblaje | `POST /api/v1/waitlist/join` — email válido, stock=0 | `201 Created`, `entryId` no vacío, `position=1`, entry persistida en DB con `Status=pending` | `ICatalogClient` → stock=0; `IOrderingClient`, `IInventoryClient`, `IEmailService` → sin actividad esperada | HU-01 |
+| TI-02 | Rechazo por stock disponible — mapeo excepción → 409 | Integración | Validación | WebApplicationFactory + EF InMemory | Caja negra: verifica que el controlador traduce `WaitlistConflictException` al código HTTP correcto | Error de negocio a través del pipeline real | `POST /api/v1/waitlist/join` — stock=5 | `409 Conflict`, campo `message` presente | `ICatalogClient` → stock=5 | RN-02 |
+| TI-03 | Duplicado — mapeo excepción → 409 con mensaje | Integración | Validación | WebApplicationFactory + EF InMemory | Caja negra: entry pre-sembrada en DB; verifica pipeline MediatR + repositorio real | Duplicado activo detectado por repositorio InMemory | `POST /api/v1/waitlist/join` — email ya en cola (pendiente en DB) | `409 Conflict`, `message` contiene "lista de espera" | `ICatalogClient` → stock=0; repositorio usa DB real InMemory | RN-01 |
+| TI-04 | `AssignNextCommand` con entry pendiente — asignación real | Integración | Validación + Verificación | WebApplicationFactory + EF InMemory | Oracle: comando enviado via `IMediator` real; repositorio InMemory persiste el cambio | Camino feliz del handler con DB real | `AssignNextCommand(seatId, eventId)` — 1 entry pending en DB | `entry.Status=assigned`, `SeatId` y `OrderId` correctos en DB; `CreateWaitlistOrderAsync` y `SendAsync` llamados 1 vez cada uno | `IOrderingClient` → retorna `orderId`; `IEmailService` → `true` | RN-03, RN-04 |
+| TI-05 | `AssignNextCommand` cola vacía — no-op real | Integración | Verificación | WebApplicationFactory + EF InMemory | Análisis de valores límite: comando sobre evento sin entries; repositorio real retorna null | Frontera de cola vacía con DB real | `AssignNextCommand(seatId, eventId)` — DB vacía para ese evento | `CreateWaitlistOrderAsync` nunca llamado; `ReleaseSeatAsync` nunca llamado | `IOrderingClient`, `IInventoryClient` → verificados con `Times.Never` | RN-03 |
+| TI-06 | `WaitlistExpiryWorker` con siguiente en cola — rotación sin inventario | Integración | Validación + Verificación | WebApplicationFactory + EF InMemory | Oracle de estado encadenado: worker instanciado directamente con `IServiceScopeFactory` real; 2 entries en DB | Camino feliz de rotación con DB real | `ProcessExpiredEntriesAsync()` — entry assigned+expirada + entry pending en DB | `expiring@test.com` → `Status=expired`; `next@test.com` → `Status=assigned`; `CancelOrderAsync` × 1, `CreateWaitlistOrderAsync` × 1; `ReleaseSeatAsync` NUNCA llamado | `IOrderingClient` → cancel + create; `IEmailService` → `true`; `IInventoryClient` → verificado con `Times.Never` | RN-05 |
+| TI-07 | `WaitlistExpiryWorker` cola vacía — liberación al inventario | Integración | Validación + Verificación | WebApplicationFactory + EF InMemory | Análisis de valores límite: worker con 1 sola entry expirada y sin siguiente en cola | Frontera de cola vacía en rotación con DB real | `ProcessExpiredEntriesAsync()` — solo 1 entry assigned+expirada, sin pending | `expiring@test.com` → `Status=expired`; `ReleaseSeatAsync` × 1; `CancelOrderAsync` × 1; `CreateWaitlistOrderAsync` NUNCA llamado | `IInventoryClient` → release; `IOrderingClient` → cancel; `IEmailService` → `true` | RN-06 |
 | TC-E01 | Endpoint /health arranca | E2E | Caja negra | Prueba de sistema completo | Smoke test: servicio arranca y responde | Disponibilidad básica | `GET /health` | `200 OK` | Ninguno — sistema real completo con Docker Compose | Infraestructura |
 | TC-E02 | Flujo /join end-to-end | E2E | Caja negra | Prueba de sistema completo | Flujo real con servicios reales | Contrato externo del endpoint | `POST /api/v1/waitlist/join` con evento real | `201 Created` o `409 Conflict` | Ninguno — sistema real completo | HU-01 |
 

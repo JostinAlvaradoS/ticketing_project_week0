@@ -396,8 +396,21 @@ jobs:
         with:
           path: coverage-artifacts
           pattern: coverage-*
+          merge-multiple: false
+
+      - name: Check if coverage files exist
+        id: coverage_check
+        run: |
+          COUNT=$(find coverage-artifacts -name "*.xml" 2>/dev/null | wc -l)
+          echo "xml_count=$COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No coverage XML files found. Report generation will be skipped."
+          else
+            echo "Found $COUNT coverage XML file(s)."
+          fi
 
       - name: ReportGenerator
+        if: steps.coverage_check.outputs.xml_count != '0'
         uses: danielpalme/ReportGenerator-GitHub-Action@5.2.4
         with:
           reports: 'coverage-artifacts/**/*.xml'
@@ -405,6 +418,7 @@ jobs:
           reporttypes: 'HtmlSummary;MarkdownSummaryGitHub'
 
       - name: Upload Merged Report
+        if: steps.coverage_check.outputs.xml_count != '0'
         uses: actions/upload-artifact@v4
         with:
           name: merged-coverage-report

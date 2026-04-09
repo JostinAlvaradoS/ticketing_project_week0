@@ -18,6 +18,8 @@ jobs:
   analyze:
     name: "Unified Monorepo analysis"
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,11 +48,17 @@ jobs:
 
       - name: Run Unified Analysis
         run: |
+          # sonar.qualitygate.wait solo en main/master — plan free solo procesa esa branch
+          WAIT_FOR_GATE="false"
+          if [[ "$GITHUB_REF" == "refs/heads/main" || "$GITHUB_REF" == "refs/heads/master" ]]; then
+            WAIT_FOR_GATE="true"
+          fi
+
           dotnet-sonarscanner begin /k:"${{ inputs.project_key }}" /o:"${{ inputs.organization }}" \
             /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.cs.cobertura.reportsPaths="coverage-artifacts/**/coverage.cobertura.xml" \
-            /d:sonar.qualitygate.wait=true \
+            /d:sonar.qualitygate.wait="$WAIT_FOR_GATE" \
             /d:sonar.qualitygate.timeout=300 \
             /d:sonar.scanner.skipJreProvisioning=true \
             /d:sonar.scm.provider=git

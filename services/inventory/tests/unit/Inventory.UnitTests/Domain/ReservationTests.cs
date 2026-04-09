@@ -22,7 +22,7 @@ public class ReservationTests
         reservation.CustomerId.Should().Be(customerId);
         reservation.Status.Should().Be(Reservation.StatusActive);
         reservation.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
-        reservation.ExpiresAt.Should().BeCloseTo(DateTime.UtcNow.AddMinutes(15), TimeSpan.FromSeconds(2));
+        reservation.ExpiresAt.Should().BeCloseTo(DateTime.UtcNow.AddMinutes(1), TimeSpan.FromSeconds(2)); // ttlMinutes default = 1 en demo
     }
 
     [Theory]

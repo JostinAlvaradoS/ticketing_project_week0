@@ -10,6 +10,8 @@ jobs:
   filter:
     name: Change Detection
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
       catalog: ${{ steps.filter.outputs.catalog }}
       fulfillment: ${{ steps.filter.outputs.fulfillment }}
@@ -390,6 +392,8 @@ jobs:
     if: always() && !cancelled()
     name: "Final Quality Report"
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Download all coverage artifacts
         uses: actions/download-artifact@v4
@@ -504,6 +508,8 @@ jobs:
     if: needs.filter.outputs.frontend == 'true'
     name: "npm build: Frontend"
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -525,6 +531,8 @@ jobs:
     needs: [trivy-scan-catalog, trivy-scan-identity, trivy-scan-inventory, trivy-scan-notification, trivy-scan-ordering, trivy-scan-payment, trivy-scan-waitlist]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
       

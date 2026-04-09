@@ -17,14 +17,16 @@ jobs:
   test:
     name: "dotnet test (${{ inputs.test_type }}): ${{ inputs.service_name }}"
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET SDK 8
+      - name: Setup .NET SDK 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Run Specific Tests with Coverage
         run: |
@@ -53,10 +55,19 @@ jobs:
               echo "--------------------------------------------------------"
               echo "Running tests for: $PROJECT"
               echo "--------------------------------------------------------"
-              
+
               PROJECT_NAME=$(basename "$PROJECT" .csproj)
+
+              # Proyectos de dominio solo miden el assembly Domain para evitar
+              # falsos 0% en Application (que los domain tests no ejercitan)
+              if [[ "$PROJECT_NAME" == *Domain* ]]; then
+                SETTINGS="coverlet.domain.runsettings"
+              else
+                SETTINGS="coverlet.runsettings"
+              fi
+
               dotnet test "$PROJECT" --configuration Release \
-                --settings coverlet.runsettings \
+                --settings "$SETTINGS" \
                 --collect:"XPlat Code Coverage" \
                 --results-directory "./test-results-output/$PROJECT_NAME"
             done
@@ -65,10 +76,29 @@ jobs:
           fi
 
       - name: Upload Coverage Artifacts
-        if: success() && inputs.test_type != 'architecture'
+        if: always() && inputs.test_type != 'architecture'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ inputs.service_name }}-${{ inputs.test_type }}
           path: test-results-output/**/*.xml
           if-no-files-found: warn
           retention-days: 1
+
+      - name: Enforce Coverage Threshold (85%)
+        if: inputs.test_type == 'unit'
+        run: |
+          FILES=$(find test-results-output -name "coverage.cobertura.xml" 2>/dev/null)
+          if [ -z "$FILES" ]; then
+            echo "No coverage files found — skipping threshold check."
+            exit 0
+          fi
+          TV=$(echo "$FILES" | xargs grep -h '<coverage ' | grep -oE 'lines-valid="[0-9]+"' | grep -oE '[0-9]+' | awk '{s+=$1} END{print s+0}')
+          TC=$(echo "$FILES" | xargs grep -h '<coverage ' | grep -oE 'lines-covered="[0-9]+"' | grep -oE '[0-9]+' | awk '{s+=$1} END{print s+0}')
+          TOTAL=$(awk "BEGIN{if($TV>0) printf \"%.2f\",$TC/$TV*100; else print \"0\"}")
+          echo "Combined line coverage: ${TOTAL}% (${TC} covered / ${TV} valid lines)"
+          PASS=$(awk "BEGIN{print ($TOTAL >= 85) ? \"yes\" : \"no\"}")
+          if [ "$PASS" != "yes" ]; then
+            echo "::error::Coverage ${TOTAL}% is below the required 85% threshold."
+            exit 1
+          fi
+          echo "Coverage check passed: ${TOTAL}% >= 85%"

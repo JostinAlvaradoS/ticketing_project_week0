@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Ordering.Application.DTOs;
 using Ordering.Application.Exceptions;
+using Ordering.Application.UseCases.CancelOrder;
 using Ordering.Application.UseCases.CheckoutOrder;
 using Ordering.Application.UseCases.CreateWaitlistOrder;
 using Ordering.Application.UseCases.GetOrder;
@@ -74,6 +75,18 @@ public class OrdersController : ControllerBase
         {
             return Conflict(new { error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Cancels an order. Called by Waitlist Service during seat rotation.
+    /// </summary>
+    [HttpPatch("{id}/cancel")]
+    public async Task<IActionResult> CancelOrder(Guid id, CancellationToken cancellationToken = default)
+    {
+        var success = await _mediator.Send(new CancelOrderCommand(id), cancellationToken);
+        if (!success)
+            return NotFound(new { error = $"Order {id} not found or cannot be cancelled." });
+        return NoContent();
     }
 
     /// <summary>

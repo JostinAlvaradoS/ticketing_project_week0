@@ -8,5 +8,6 @@ namespace Inventory.Application.UseCases.CreateReservation;
 /// </summary>
 public record CreateReservationCommand(
     Guid SeatId,
-    string CustomerId
+    string CustomerId,
+    Guid EventId = default
 ) : IRequest<CreateReservationResponse>;

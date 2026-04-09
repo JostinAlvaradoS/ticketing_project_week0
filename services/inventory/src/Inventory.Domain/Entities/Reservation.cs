@@ -23,7 +23,7 @@ public class Reservation
     /// <summary>
     /// Crea una reserva válida con TTL configurable.
     /// </summary>
-    public static Reservation Create(Guid seatId, string customerId, Guid eventId = default, int ttlMinutes = 15)
+    public static Reservation Create(Guid seatId, string customerId, Guid eventId = default, int ttlMinutes = 1)
     {
         if (seatId == Guid.Empty) throw new ArgumentException("SeatId cannot be empty.", nameof(seatId));
         if (string.IsNullOrWhiteSpace(customerId)) throw new ArgumentException("CustomerId cannot be empty.", nameof(customerId));

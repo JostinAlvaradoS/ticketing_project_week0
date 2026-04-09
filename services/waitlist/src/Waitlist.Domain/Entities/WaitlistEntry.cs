@@ -53,7 +53,7 @@ public class WaitlistEntry
         OrderId    = orderId;
         Status     = StatusAssigned;
         AssignedAt = DateTime.UtcNow;
-        ExpiresAt  = AssignedAt.Value.AddMinutes(30);
+        ExpiresAt  = AssignedAt.Value.AddMinutes(2);
     }
 
     // ── Ciclo 5a: Complete ─────────────────────────────────────────

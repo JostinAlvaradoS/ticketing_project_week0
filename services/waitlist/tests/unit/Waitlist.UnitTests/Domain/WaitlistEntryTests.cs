@@ -87,7 +87,7 @@ public class WaitlistEntryTests
         entry.AssignedAt!.Value.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
         entry.ExpiresAt.Should().NotBeNull();
         entry.ExpiresAt!.Value.Should().BeCloseTo(
-            entry.AssignedAt.Value.AddMinutes(30),
+            entry.AssignedAt.Value.AddMinutes(2),   // 2min en demo — ver 08-design-vs-implementation.md divergencia #1
             TimeSpan.FromSeconds(1));
     }
 

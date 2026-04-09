@@ -23,7 +23,7 @@ public class ReservationExpiryWorker : BackgroundService
     private readonly TimeSpan _pollInterval;
 
     public ReservationExpiryWorker(IServiceScopeFactory scopeFactory, IKafkaProducer producer, IWaitlistClient? waitlistClient = null)
-        : this(scopeFactory, producer, waitlistClient, TimeSpan.FromMinutes(1)) { }
+        : this(scopeFactory, producer, waitlistClient, TimeSpan.FromSeconds(10)) { }
 
     // Constructor with configurable poll interval (used by tests)
     public ReservationExpiryWorker(IServiceScopeFactory scopeFactory, IKafkaProducer producer, IWaitlistClient? waitlistClient, TimeSpan pollInterval)

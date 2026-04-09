@@ -1,68 +1,65 @@
 # 01 — Business Context
 
 > **Fase SDLC:** Planificación + Análisis de Requisitos
-> **Audiencia:** Negocio, Product Owner, Tech Lead
+> **Audiencia:** Negocio, Product Owner
 
 ---
 
 ## El problema
 
-### Situación actual (antes de la feature)
+### Situación actual
 
-Una plataforma de ticketing tiene un momento de alta fricción: la reserva expira. Un usuario reservó un asiento, tuvo 15 minutos para completar el pago y no lo hizo. El asiento queda libre.
+Una plataforma de venta de boletos tiene un momento de alta fricción: la reserva expira. Un usuario reservó un asiento, tuvo un tiempo limitado para completar el pago y no lo hizo. El asiento queda libre.
 
-Lo que ocurría: ese asiento volvía al inventario disponible sin criterio alguno. El primer usuario en recargar la página y hacer clic lo obtenía. Esto se conoce como **F5 warfare** — una carrera donde gana quien tiene mejor conexión o más reflejos, no quien llegó primero.
+Lo que ocurría: ese asiento volvía al mercado sin ningún criterio de equidad. El primer usuario en recargar la página y hacer clic lo obtenía — una carrera donde gana quien tiene mejor conexión o más reflejos, no quien llegó primero.
 
 ```
-Reserva expira
+Asiento liberado → todos los usuarios compiten al mismo tiempo
      │
-     ▼
-Asiento disponible → todos compiten simultáneamente
-     │
-     ├── Usuario A hace clic (gana)
+     ├── Usuario A hace clic primero (gana)
      ├── Usuario B hace clic (pierde)
      ├── Usuario C hace clic (pierde)
-     └── Usuario D... ya abandonó
+     └── Usuario D... ya abandonó la plataforma
 ```
 
-### Consecuencias de negocio
+### Consecuencias para el negocio
 
 | Problema | Impacto |
 |---------|---------|
-| Inequidad percibida | Usuarios frustrados abandonan la plataforma |
-| Demanda insatisfecha sin capturar | No existe registro de quién quería comprar |
-| "Stock fantasma" | Asientos que nadie termina de pagar se repiten en ciclos |
-| Pérdida de conversión | Usuarios que querían comprar nunca encuentran el momento |
+| Percepción de injusticia | Usuarios frustrados abandonan la plataforma |
+| Demanda insatisfecha sin registrar | No existe forma de saber cuántos usuarios querían comprar |
+| Asientos que nunca se venden | El ciclo de reservas que expiran se repite indefinidamente |
+| Pérdida de ventas | Usuarios dispuestos a comprar nunca encuentran el momento |
 
 ---
 
 ## La solución
 
-La **Lista de Espera Inteligente** captura la demanda insatisfecha y la administra con equidad. Cuando un evento se agota, los usuarios pueden registrarse con su correo. El sistema mantiene un orden estricto de llegada (FIFO) y, cada vez que un asiento queda disponible, se lo ofrece automáticamente al primero en la cola — con un tiempo razonable para completar el pago.
+La **Lista de Espera Inteligente** captura la demanda insatisfecha y la administra con equidad. Cuando un evento se agota, los usuarios pueden registrarse con su correo. El sistema mantiene un orden estricto de llegada — el primero en registrarse es el primero en ser atendido — y cada vez que un asiento queda disponible, se lo ofrece automáticamente al primero en la cola, con tiempo suficiente para completar el pago.
 
 ```
-Reserva expira
+Asiento liberado
      │
      ▼
-¿Hay alguien en cola?
+¿Hay alguien esperando?
      │
-     ├── Sí → Primer usuario en cola recibe asignación automática
+     ├── Sí → El primero en la cola recibe el asiento automáticamente
      │          + 30 minutos para pagar
-     │          + notificación inmediata
+     │          + notificación inmediata por correo
      │
-     └── No → Asiento vuelve al inventario disponible
+     └── No → El asiento vuelve al mercado general
 ```
 
 ### Impacto esperado
 
 | Antes | Después |
 |-------|---------|
-| Asiento libre → carrera de clics | Asiento libre → oferta directa al primero en cola |
-| Demanda insatisfecha sin registrar | Cada usuario interesado queda capturado |
+| Asiento libre → carrera de clics | Asiento libre → ofrecido al primero que esperó |
+| Demanda insatisfecha sin registrar | Cada usuario interesado queda en la fila |
 | Usuario frustrado abandona | Usuario en cola recibe notificación y actúa |
-| "Stock fantasma" recurrente | Rotación automática hasta agotar la cola |
+| Asientos que nadie termina de pagar | Rotación automática hasta agotar la fila |
 
-### Motivación en una frase
+### En una frase
 
 > Un asiento que expira no es un asiento perdido — es una oportunidad que le pertenece a quien esperó más tiempo.
 
@@ -72,142 +69,77 @@ Reserva expira
 
 | Término | Definición |
 |---------|-----------|
-| **Lista de Espera** | Cola de usuarios interesados en un evento agotado |
-| **Entrada en Lista de Espera** | Registro individual de un usuario en la cola de un evento |
-| **Cola FIFO** | First In, First Out — el primero en registrarse es el primero en recibir asignación |
-| **Asignación Automática** | El sistema selecciona al primero de la cola y le reserva el asiento sin intervención humana |
-| **Ventana de Pago** | 30 minutos que tiene el usuario asignado para completar el pago |
-| **Rotación de Asignación** | Cuando el usuario asignado no paga en 30 min, el asiento pasa al siguiente en cola |
-| **Asiento Bloqueado** | Asiento retenido para la lista de espera durante la rotación — no vuelve al inventario disponible |
-| **Inventario Disponible** | Asientos en estado `Available` accesibles para cualquier usuario |
-
----
-
-## Entidades del dominio
-
-### WaitlistEntry (Agregado Raíz)
-
-Es la entidad central. Representa a un usuario en la cola de un evento específico y tiene su propio ciclo de vida.
-
-```
-Atributos:
-├── Id: Guid              → identificador único
-├── Email: string         → identifica al usuario (sin cuenta requerida)
-├── EventId: Guid         → evento en el que espera
-├── SeatId: Guid?         → asiento asignado (null si aún es pending)
-├── OrderId: Guid?        → orden de compra generada (null si aún es pending)
-├── Status: string        → estado actual en la máquina de estados
-├── RegisteredAt          → timestamp de registro → define el orden FIFO
-├── AssignedAt?           → timestamp de asignación
-└── ExpiresAt?            → timestamp de expiración de la ventana de pago
-```
-
-### Máquina de estados
-
-```mermaid
-stateDiagram-v2
-    [*] --> pending : Create(email, eventId)
-    pending --> assigned : Assign(seatId, orderId)\nExpiresAt = now + 30min
-    assigned --> completed : Complete()\npayment-succeeded
-    assigned --> expired : Expire()\nExpiresAt < now
-    expired --> [*]
-    completed --> [*]
-```
-
-### Relaciones con otros bounded contexts
-
-```
-WaitlistEntry ──(EventId)──► Event        [bc_catalog]
-WaitlistEntry ──(SeatId)───► Seat         [bc_inventory]
-WaitlistEntry ──(OrderId)──► Order        [bc_ordering]
-```
-
-La entidad no importa esos objetos directamente — los referencia por ID. Cada servicio es autónomo.
+| **Lista de Espera** | Fila de usuarios interesados en un evento que ya no tiene boletos disponibles |
+| **Entrada en Lista de Espera** | El registro de un usuario en la fila de un evento específico |
+| **Orden de llegada** | El primero en registrarse en la lista es el primero en recibir un asiento |
+| **Asignación Automática** | El sistema le reserva el asiento al primero de la fila sin que el usuario tenga que hacer nada |
+| **Ventana de Pago** | Los 30 minutos que tiene el usuario para completar el pago una vez que el asiento le fue asignado |
+| **Rotación** | Cuando el usuario asignado no paga a tiempo, el asiento pasa automáticamente al siguiente en la fila |
+| **Asiento Retenido** | Mientras hay usuarios en la fila, el asiento no vuelve al mercado general — se transfiere directamente al siguiente |
 
 ---
 
 ## Reglas de negocio
 
-| ID | Regla | Consecuencia si se viola |
-|----|-------|--------------------------|
-| **RN-01** | Un usuario solo puede tener una entrada activa (`pending` o `assigned`) por evento | `409 Conflict` — "Ya estás en la lista de espera" |
-| **RN-02** | No se puede unir a la lista de espera si el evento tiene asientos disponibles | `409 Conflict` — "Hay tickets disponibles, realiza la compra directamente" |
-| **RN-03** | La cola es FIFO estricto — ordenada por `RegisteredAt ASC` | El primero en registrarse siempre es el primero en recibir asignación |
-| **RN-04** | El usuario asignado tiene exactamente 30 minutos para completar el pago | `ExpiresAt = AssignedAt + 30 min` — calculado en la entidad |
-| **RN-05** | Si el tiempo expira y hay siguiente en cola, el asiento NO vuelve al inventario disponible | El asiento se rota directamente — sin pasar por `Available` |
-| **RN-06** | Si el tiempo expira y la cola está vacía, el asiento se libera al inventario disponible | `IInventoryClient.ReleaseSeatAsync(seatId)` |
+| ID | Regla | Qué pasa si se viola |
+|----|-------|----------------------|
+| **RN-01** | Un usuario solo puede estar una vez en la lista de espera de un evento | El sistema rechaza el registro con un mensaje informativo |
+| **RN-02** | No se puede entrar a la lista de espera si aún hay boletos disponibles | El sistema indica que hay boletos disponibles para compra directa |
+| **RN-03** | La fila respeta el orden de llegada estricto | El primero en registrarse siempre es el primero en recibir un asiento |
+| **RN-04** | El usuario asignado tiene exactamente 30 minutos para completar el pago | Si no paga en ese tiempo, pierde su turno y el asiento pasa al siguiente |
+| **RN-05** | Si hay alguien más en la fila, el asiento se transfiere directamente sin volver al mercado general | Garantiza que ningún usuario externo pueda "colarse" durante el traspaso |
+| **RN-06** | Si la fila está vacía cuando un asiento expira, el asiento vuelve al mercado general | El asiento queda disponible para cualquier usuario |
 
 ---
 
 ## Historias de Usuario
 
-Las historias siguen el criterio **INVEST**: Independientes, Negociables, Valiosas, Estimables, Small, Testeables.
-
----
-
 ### HU-01 — Registro en Lista de Espera
 
 ```
-Como  usuario que visualiza un evento agotado
-Quiero  ingresar mi correo para unirme a la lista de espera
+Como  usuario que ve un evento agotado
+Quiero  dejar mi correo para unirme a la lista de espera
 Para  ser considerado automáticamente si un asiento se libera
 ```
 
-**Valor de negocio:** Captura demanda insatisfecha. Sin esta HU, los usuarios que no pudieron comprar simplemente se van — y la plataforma no sabe que existieron.
-
-**Criterios INVEST:**
-- *Independiente:* No depende de HU-02 para ser útil por sí sola
-- *Valiosa:* Directamente reduce el abandono de usuarios
-- *Testeable:* Puedo verificar que el registro ocurre y que el duplicado es rechazado
+**Valor de negocio:** Captura demanda insatisfecha. Sin esta historia, los usuarios que no pudieron comprar simplemente se van — y la plataforma no sabe que existieron.
 
 ---
 
 ### HU-02 — Asignación Automática
 
 ```
-Como  usuario en la cola de espera
+Como  usuario en la lista de espera
 Quiero  que el sistema me asigne un asiento automáticamente cuando uno se libere
-Para  asegurar mi lugar sin competir nuevamente por el inventario
+Para  asegurar mi lugar sin tener que competir nuevamente
 ```
 
-**Valor de negocio:** Elimina la "carrera de clics". El usuario que esperó recibe el asiento sin competencia.
+**Valor de negocio:** Elimina la carrera de clics. El usuario que esperó recibe el asiento sin competencia.
 
 ---
 
 ### HU-03 — Rotación por Inacción
 
 ```
-Como  sistema de gestión de la lista de espera
-Quiero  detectar cuando un usuario asignado no completa el pago en 30 minutos
-        y reasignar el asiento al siguiente en la cola sin liberarlo al inventario
-Para  garantizar que ningún asiento quede sin convertirse en venta
-      y que la equidad FIFO se mantenga durante todo el ciclo del asiento
+Como  plataforma de venta de boletos
+Quiero  detectar cuando un usuario asignado no completa el pago a tiempo
+        y ofrecer el asiento al siguiente en la fila sin perderlo en el proceso
+Para  garantizar que ningún asiento quede sin venderse
+      y que la equidad de la fila se mantenga durante todo el proceso
 ```
 
-**Valor de negocio:** Elimina el "stock fantasma" — asientos que nadie termina de pagar pero tampoco están disponibles para otros.
+**Valor de negocio:** Elimina el problema de asientos que nadie termina de pagar pero tampoco están disponibles para otros.
 
 ---
 
-## Análisis de impacto sobre el sistema existente
+## Servicios afectados
 
-La feature introduce un nuevo servicio (`Waitlist`) que se integra con tres servicios existentes. El contrato de comunicación es mínimo y no modifica la lógica de los servicios existentes.
+La nueva funcionalidad se añade como un componente independiente que se integra con el sistema existente sin modificar su comportamiento actual.
 
-```
-Servicios que se modifican:
-└── Inventory.ReservationExpiryWorker
-    └── AGREGA: GET /api/v1/waitlist/has-pending?eventId={}
-        Antes de liberar el asiento, pregunta si hay alguien esperando.
-        Si Waitlist no responde en 200ms → libera el asiento igual.
-        (Diseñado para no degradar Inventory si Waitlist falla)
-
-Servicios que se consumen (sin modificarlos):
-├── Catalog → GET /events/{id}/seatmap (verificar stock = 0)
-├── Ordering → POST /orders/waitlist (crear orden automática)
-└── Inventory → PUT /api/v1/seats/{id}/release (liberar si cola vacía)
-
-Nuevo topic Kafka consumido (sin modificar productores):
-├── reservation-expired (producido por Inventory, ya existía)
-└── payment-succeeded (producido por Payment, ya existía)
-```
-
-**Principio aplicado:** Open/Closed — los servicios existentes están abiertos para extensión (Inventory ahora llama a Waitlist) pero cerrados para modificación (la lógica de Inventory no cambió, solo se agregó una llamada opcional con timeout).
+| Servicio | Rol |
+|---------|-----|
+| **Lista de Espera** (nuevo) | Gestiona la fila, detecta expirados y coordina asignaciones |
+| **Catálogo** | Consultado para verificar si el evento tiene boletos disponibles antes de permitir el registro |
+| **Inventario** | Notifica cuando una reserva expira; retiene el asiento mientras haya usuarios en la fila |
+| **Órdenes** | Recibe la instrucción de crear una orden automática para el usuario asignado |
+| **Notificaciones** | Envía el correo de confirmación y el enlace de pago al usuario asignado |

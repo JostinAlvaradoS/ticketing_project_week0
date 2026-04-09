@@ -215,13 +215,16 @@ flowchart TD
 
 La IA fue una herramienta en cada fase del ciclo, no un sustituto del criterio de ingeniería.
 
-| Fase | Contribución de la IA | Corrección humana |
-|------|----------------------|-----------------|
-| Análisis | Generó borradores de HUs y Gherkin | Refiné los criterios para que reflejen RN-05 con precisión |
-| Diseño | Propuso `order-payment-timeout` desde Ordering | Cambié a `WaitlistExpiryWorker` interno por bounded context |
-| Diseño | Propuso campo `Priority: int` | Eliminé — `RegisteredAt ASC` es la fuente de verdad |
-| Implementación | Generó estructura de handlers y tests | Agregué `Verify(Times.Never)` en Ciclo 17 — el assertion crítico |
-| CI/CD | Generó el YAML base del pipeline | Ajusté jobs para que sean separados (componente vs. integración) |
+| Fase | Contribución de la IA | Corrección humana | Razón de la corrección |
+|------|----------------------|-----------------|------------------------|
+| Análisis | Generó borradores de HUs y Gherkin | Refiné los criterios para que reflejen RN-05 con precisión | El escenario original no especificaba que el asiento no volvía al pool — la regla más crítica del dominio |
+| Diseño | Propuso `order-payment-timeout` desde Ordering | Cambié a `WaitlistExpiryWorker` interno | Ordering no debe conocer el concepto de lista de espera — viola el bounded context |
+| Diseño | Propuso campo `Priority: int` en la entidad | Eliminé — `RegisteredAt ASC` es suficiente | `Priority` es dato derivado de `RegisteredAt`, redundante y fuente de bugs de consistencia |
+| Diseño | Propuso `eventId` en el payload Kafka | Renombré a `concertEventId` | Colisión semántica con el `EventId` del dominio de Waitlist — ambigüedad en el consumer |
+| Implementación | Generó estructura de handlers y tests | Agregué `Verify(Times.Never)` en Ciclo 17 | Sin ese assertion el test pasa aunque el asiento se libere — el negativo es tan crítico como el positivo |
+| Implementación | Propuso `ReasignarAsiento` atómico en Inventory | Reemplacé por dos pasos: cancel + recreate | El costo de implementar la operación atómica superaba el riesgo real de la ventana de race condition (Redis lock como fallback) |
+
+> Los 6 cambios están documentados en detalle en [08 — Diseño vs. Implementación](./08-design-vs-implementation.md), incluyendo qué dice el diseño original, qué hace el código real y la justificación técnica de cada decisión.
 
 **El criterio de corrección:** No "la IA se equivocó" — sino "esta decisión tiene consecuencias en el bounded context / en los tests / en la mantenibilidad que la IA no consideró por no tener el contexto completo del sistema".
 

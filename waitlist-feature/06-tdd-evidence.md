@@ -406,27 +406,49 @@ public async Task Handle_SeatAlreadyAssigned_ReturnsWithoutAction()
 
 ```csharp
 [Fact]
-public async Task Consumer_ValidV3Payload_DispatchesAssignNextCommand()
+public async Task ProcessMessage_ValidV3Payload_DispatchesAssignNextCommand()
 {
-    var payload = JsonSerializer.Serialize(new {
-        seatId = Guid.NewGuid(),
-        concertEventId = Guid.NewGuid(),
-        reservationId = Guid.NewGuid()
+    var expectedSeatId  = Guid.NewGuid();
+    var expectedEventId = Guid.NewGuid();
+    AssignNextCommand? captured = null;
+
+    _mediatorMock
+        .Setup(m => m.Send(It.IsAny<AssignNextCommand>(), It.IsAny<CancellationToken>()))
+        .Callback<AssignNextCommand, CancellationToken>((cmd, _) => captured = cmd)
+        .ReturnsAsync(Unit.Value);
+
+    var json = JsonSerializer.Serialize(new {
+        messageId      = Guid.NewGuid(),
+        reservationId  = Guid.NewGuid(),
+        seatId         = expectedSeatId,
+        concertEventId = expectedEventId
     });
-    // Verificar que IMediator.Send fue llamado con AssignNextCommand
+
+    await _consumer.ProcessMessageAsync(json, _mediatorMock.Object, CancellationToken.None);
+
+    _mediatorMock.Verify(m => m.Send(It.IsAny<AssignNextCommand>(), default), Times.Once);
+    captured!.SeatId.Should().Be(expectedSeatId);
+    captured!.ConcertEventId.Should().Be(expectedEventId);
 }
 
 [Fact]
-public async Task Consumer_V2PayloadWithoutConcertEventId_SkipsSilently()
+public async Task ProcessMessage_MissingConcertEventId_DoesNotDispatch()
 {
-    var payload = JsonSerializer.Serialize(new {
-        seatId = Guid.NewGuid(),
-        reservationId = Guid.NewGuid()
-        // Sin concertEventId
+    // Payload v2 — sin concertEventId: deserializa como Guid.Empty → guard descarta
+    var json = JsonSerializer.Serialize(new {
+        messageId     = Guid.NewGuid(),
+        reservationId = Guid.NewGuid(),
+        seatId        = Guid.NewGuid()
+        // concertEventId ausente → Guid.Empty al deserializar
     });
-    // Verificar que IMediator.Send NO fue llamado
+
+    await _consumer.ProcessMessageAsync(json, _mediatorMock.Object, CancellationToken.None);
+
+    _mediatorMock.Verify(m => m.Send(It.IsAny<AssignNextCommand>(), default), Times.Never);
 }
 ```
+
+**Decisión técnica del guard:** Al deserializar un JSON que no tiene `concertEventId`, C# asigna `Guid.Empty`. El consumer verifica `if (payload.ConcertEventId == Guid.Empty) return` — descarta silenciosamente mensajes v2 sin ninguna lógica de versioning explícita.
 
 ---
 

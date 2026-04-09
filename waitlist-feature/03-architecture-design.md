@@ -271,3 +271,57 @@ Cada índice tiene un `WHERE` clause donde corresponde — índices parciales qu
 | **L** — Liskov Substitution | `SmtpEmailService` y el mock en tests implementan `IEmailService`. Son intercambiables sin romper el comportamiento del handler. |
 | **I** — Interface Segregation | 5 interfaces específicas. `CompleteAssignmentHandler` solo depende de `IWaitlistRepository` — no sabe de `ICatalogClient` ni `IOrderingClient`. |
 | **D** — Dependency Inversion | Los handlers reciben interfaces por constructor injection. Nunca instancian `WaitlistRepository` ni `CatalogHttpClient` directamente. |
+
+---
+
+## Patrones tácticos — qué problema concreto resuelve cada uno
+
+> *Esta sección responde directamente a la pregunta del evaluador: "¿Qué problema de la feature resuelve ese patrón?"*
+
+### State Machine (Máquina de estados) en `WaitlistEntry`
+
+**Problema que resuelve:** Sin una máquina de estados, cualquier parte del código podría cambiar el status de una entrada a cualquier valor en cualquier momento. Un bug podría marcar como `completed` una entrada que nunca fue `assigned`, o asignar dos veces la misma entrada generando dos órdenes para el mismo asiento.
+
+**Cómo lo resuelve:** La entidad encapsula las transiciones. `Assign()` solo funciona desde `pending`. `Complete()` solo desde `assigned`. Cualquier intento de transición inválida lanza `InvalidOperationException` — es imposible llegar a un estado corrupto desde el código.
+
+**Cómo facilita cambios futuros:** Si se agrega un estado `cancelled`, se agrega un método `Cancel()` con su guard y sus transiciones permitidas. Los handlers existentes no cambian — no saben qué estados existen, solo llaman métodos con nombres semánticos.
+
+---
+
+### Factory Method (`WaitlistEntry.Create()`)
+
+**Problema que resuelve:** Si `WaitlistEntry` tuviera un constructor público, cualquier código podría crear una entrada con email vacío, EventId nulo o status inválido. Los invariantes de la entidad dependerían de que el caller sea disciplinado.
+
+**Cómo lo resuelve:** El constructor es privado. `Create()` valida email y eventId antes de construir el objeto. Una entidad `WaitlistEntry` que existe en memoria **siempre** tiene email válido y eventId no vacío — por construcción.
+
+**Cómo facilita cambios futuros:** Si se agrega una nueva validación de creación (por ejemplo, verificar que el email no tenga dominios bloqueados), se agrega en `Create()` y aplica a todo el sistema automáticamente.
+
+---
+
+### Repository Pattern (`IWaitlistRepository`)
+
+**Problema que resuelve:** Sin repositorio, los handlers contendrían queries SQL o llamadas a `DbContext` directamente. Los unit tests necesitarían una base de datos real, haciéndolos lentos y frágiles.
+
+**Cómo lo resuelve:** Los handlers hablan con `IWaitlistRepository` — una interfaz con métodos semánticos (`GetNextPendingAsync`, `HasActiveEntryAsync`). En producción, `WaitlistRepository` implementa esa interfaz con EF Core. En tests, `Mock<IWaitlistRepository>` la implementa con respuestas programadas.
+
+**Cómo facilita cambios futuros:** Si PostgreSQL se reemplaza por otro motor, solo cambia `WaitlistRepository`. Los handlers, tests y la lógica de negocio no tocan.
+
+---
+
+### Command Handler / Mediator (`IRequestHandler<T>` via MediatR)
+
+**Problema que resuelve:** Sin mediator, los consumers de Kafka llamarían directamente a los handlers. Los controllers llamarían directamente a los handlers. Cualquier cambio en un handler requeriría rastrear todos sus callers.
+
+**Cómo lo resuelve:** El consumer crea un `AssignNextCommand` y lo envía a través de `IMediator`. El mediator lo enruta al `AssignNextHandler`. El consumer no conoce al handler — solo conoce el contrato del comando.
+
+**Cómo facilita cambios futuros:** Si `AssignNextHandler` se divide en dos handlers para escenarios distintos, el consumer no cambia. Si se agrega logging o validación como behavior de MediatR, aplica a todos los handlers sin modificar ninguno.
+
+---
+
+### Background Worker (`IHostedService`)
+
+**Problema que resuelve:** La detección de asignaciones expiradas necesita ejecutarse continuamente, independiente de que lleguen requests HTTP o mensajes Kafka. No hay un evento externo que dispare la rotación — Waitlist es dueño de sus propios timers.
+
+**Cómo lo resuelve:** `WaitlistExpiryWorker` extiende `BackgroundService` y corre cada 10 segundos mientras el proceso está activo. Es completamente independiente del flujo de requests. El ASP.NET runtime lo gestiona como hosted service.
+
+**Cómo facilita cambios futuros:** Si el intervalo de polling necesita ajustarse, se modifica un parámetro de configuración. Si se quiere cambiar a un sistema basado en cron o en cola de mensajes, se reemplaza el worker sin tocar la lógica de rotación que vive en los handlers.

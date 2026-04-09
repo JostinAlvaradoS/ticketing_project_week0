@@ -21,10 +21,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET SDK 8
+      - name: Setup .NET SDK 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Run Specific Tests with Coverage
         run: |
@@ -63,6 +63,27 @@ jobs:
           else
             echo "Skipping: No ${{ inputs.test_type }} tests directory found at $TEST_DIR"
           fi
+
+      - name: Enforce Coverage Threshold (85%)
+        if: inputs.test_type != 'architecture'
+        run: |
+          COVERAGE_FILES=$(find test-results-output -name "coverage.opencover.xml" 2>/dev/null)
+          if [ -z "$COVERAGE_FILES" ]; then
+            echo "No coverage files found — skipping threshold check."
+            exit 0
+          fi
+          # Extract line coverage percentage from opencover xml (sequenceCoverage attribute on Module)
+          TOTAL=$(echo "$COVERAGE_FILES" | xargs grep -h 'sequenceCoverage' | \
+            grep -oP 'sequenceCoverage="\K[0-9.]+' | \
+            awk '{ sum += $1; count++ } END { if (count > 0) printf "%.2f", sum/count; else print "0" }')
+          echo "Average line coverage: ${TOTAL}%"
+          THRESHOLD=85
+          PASS=$(echo "$TOTAL $THRESHOLD" | awk '{ print ($1 >= $2) ? "yes" : "no" }')
+          if [ "$PASS" != "yes" ]; then
+            echo "Coverage ${TOTAL}% is below the required ${THRESHOLD}% threshold."
+            exit 1
+          fi
+          echo "Coverage check passed: ${TOTAL}% >= ${THRESHOLD}%"
 
       - name: Upload Coverage Artifacts
         if: success() && inputs.test_type != 'architecture'
